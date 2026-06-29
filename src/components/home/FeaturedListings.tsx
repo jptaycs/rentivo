@@ -1,0 +1,25 @@
+import { ListingCard } from '@/components/shared/ListingCard'
+import { MOCK_LISTINGS } from '@/lib/mock-data'
+import Link from 'next/link'
+import { ArrowRight } from 'lucide-react'
+
+export function FeaturedListings() {
+  return (
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-[#111827]">Featured Equipment</h2>
+        <Link
+          href="/search"
+          className="flex items-center gap-1 text-sm font-semibold text-[#2563EB] hover:text-blue-700 transition-colors"
+        >
+          View all <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {MOCK_LISTINGS.map((listing) => (
+          <ListingCard key={listing.id} listing={listing} />
+        ))}
+      </div>
+    </section>
+  )
+}

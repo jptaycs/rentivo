@@ -1,0 +1,181 @@
+import Link from 'next/link'
+import Image from 'next/image'
+import { notFound } from 'next/navigation'
+import { BadgeCheck, Star, Clock, Calendar, MapPin, MessageCircle, ChevronRight } from 'lucide-react'
+import { MOCK_LISTINGS } from '@/lib/mock-data'
+import { ListingCard } from '@/components/shared/ListingCard'
+import type { Metadata } from 'next'
+
+const MOCK_HOSTS: Record<string, {
+  id: string; name: string; initial: string; since: string; city: string;
+  rating: number; reviews: number; responseTime: string; responseRate: string;
+  bio: string; verified: boolean; totalListings: number;
+}> = {
+  '1': {
+    id: '1', name: 'Carlo Santos', initial: 'C', since: '2023', city: 'Makati, Metro Manila',
+    rating: 4.97, reviews: 84, responseTime: '< 1 hour', responseRate: '98%',
+    bio: 'Professional photographer and videographer based in Makati. I rent out my personal gear — all well-maintained and always packed with everything you need. Quick responses, smooth handoffs.',
+    verified: true, totalListings: 4,
+  },
+  '2': {
+    id: '2', name: 'Maria Reyes', initial: 'M', since: '2024', city: 'BGC, Taguig',
+    rating: 4.89, reviews: 41, responseTime: '< 2 hours', responseRate: '95%',
+    bio: 'Content creator and lens collector. I share my collection so fellow creators can access pro glass without the price tag. All lenses are tested and cleaned before every rental.',
+    verified: true, totalListings: 3,
+  },
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params
+  const host = MOCK_HOSTS[id]
+  if (!host) return { title: 'Host Not Found — Rentivo' }
+  return { title: `${host.name} — Rentivo Host` }
+}
+
+const MOCK_REVIEWS = [
+  { id: 'rv1', reviewer: 'Trish M.', rating: 5, date: 'June 2026', text: 'Super smooth transaction. Gear was in perfect condition and Carlo even threw in extra batteries. Will rent again!' },
+  { id: 'rv2', reviewer: 'John C.', rating: 5, date: 'May 2026', text: 'Very responsive host. Clear pickup instructions. The A7 IV is a beast — so happy I could afford to rent it.' },
+  { id: 'rv3', reviewer: 'Ana G.', rating: 5, date: 'April 2026', text: 'Professional, punctual, and the gear came in a hard case with everything included. 10/10 experience.' },
+]
+
+export default async function HostProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const host = MOCK_HOSTS[id] ?? MOCK_HOSTS['1']
+  const filtered = MOCK_LISTINGS.filter(l => l.host?.id === id)
+  const listings = filtered.length > 0 ? filtered : MOCK_LISTINGS.slice(0, 3)
+
+  return (
+    <div className="min-h-screen bg-[#F8FAFC]">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-xs text-gray-400">
+          <Link href="/" className="hover:text-[#2563EB] transition-colors">Home</Link>
+          <ChevronRight className="w-3 h-3" />
+          <span className="text-gray-600">{host.name}</span>
+        </nav>
+
+        {/* Host card */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+            {/* Avatar */}
+            <div className="relative shrink-0">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#2563EB] to-blue-400 flex items-center justify-center text-4xl font-black text-white">
+                {host.initial}
+              </div>
+              {host.verified && (
+                <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-[#2563EB] rounded-full flex items-center justify-center border-2 border-white">
+                  <BadgeCheck className="w-4 h-4 text-white" />
+                </div>
+              )}
+            </div>
+
+            {/* Info */}
+            <div className="flex-1">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl font-bold text-[#111827]">{host.name}</h1>
+                {host.verified && (
+                  <span className="flex items-center gap-1 text-xs font-bold bg-blue-50 text-[#2563EB] px-3 py-1 rounded-full">
+                    <BadgeCheck className="w-3.5 h-3.5" /> Verified Host
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 mt-1 text-gray-500 text-sm">
+                <MapPin className="w-3.5 h-3.5" /> {host.city}
+              </div>
+              <div className="flex flex-wrap gap-5 mt-4 text-sm">
+                <div>
+                  <p className="font-bold text-[#111827]">{host.rating} ⭐</p>
+                  <p className="text-xs text-gray-400">{host.reviews} reviews</p>
+                </div>
+                <div>
+                  <p className="font-bold text-[#111827]">{host.responseTime}</p>
+                  <p className="text-xs text-gray-400">Avg. response</p>
+                </div>
+                <div>
+                  <p className="font-bold text-[#111827]">{host.responseRate}</p>
+                  <p className="text-xs text-gray-400">Response rate</p>
+                </div>
+                <div>
+                  <p className="font-bold text-[#111827]">Since {host.since}</p>
+                  <p className="text-xs text-gray-400">Hosting</p>
+                </div>
+              </div>
+            </div>
+
+            {/* CTA */}
+            <Link
+              href="/dashboard/messages"
+              className="flex items-center gap-2 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-sm px-6 py-3 rounded-xl transition-colors shrink-0"
+            >
+              <MessageCircle className="w-4 h-4" /> Message
+            </Link>
+          </div>
+
+          {/* Bio */}
+          <p className="text-gray-600 text-sm leading-relaxed mt-6 pt-6 border-t border-gray-100">
+            {host.bio}
+          </p>
+
+          {/* Trust badges */}
+          <div className="flex flex-wrap gap-3 mt-5">
+            {[
+              { icon: BadgeCheck, label: 'Government ID Verified' },
+              { icon: BadgeCheck, label: 'Selfie Verified' },
+              { icon: Star, label: 'Top Rated Host' },
+              { icon: Clock, label: 'Fast Responder' },
+            ].map(({ icon: Icon, label }) => (
+              <div key={label} className="flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
+                <Icon className="w-3.5 h-3.5 text-[#22C55E]" /> {label}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Listings */}
+        <div>
+          <h2 className="text-lg font-bold text-[#111827] mb-4">{host.name}&apos;s Listings</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {listings.map(l => <ListingCard key={l.id} listing={l} />)}
+          </div>
+        </div>
+
+        {/* Reviews */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-[#111827]">Reviews ({host.reviews})</h2>
+            <div className="flex items-center gap-1">
+              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+              <span className="font-bold text-[#111827]">{host.rating}</span>
+            </div>
+          </div>
+
+          <div className="space-y-5">
+            {MOCK_REVIEWS.map(r => (
+              <div key={r.id} className="pb-5 border-b border-gray-50 last:border-0 last:pb-0">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
+                      {r.reviewer[0]}
+                    </div>
+                    <span className="text-sm font-semibold text-[#111827]">{r.reviewer}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex">
+                      {Array.from({ length: r.rating }).map((_, i) => (
+                        <Star key={i} className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
+                      ))}
+                    </div>
+                    <span className="text-xs text-gray-400">{r.date}</span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed">{r.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  )
+}
