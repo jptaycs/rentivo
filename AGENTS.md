@@ -282,25 +282,25 @@ Features to surface in UI:
 
 ## Core Feature Checklist
 
-- [ ] Equipment search (keyword + category)
-- [ ] Advanced filtering (sidebar)
-- [ ] Wishlist / Favorites
-- [ ] Instant Booking
-- [ ] Availability Calendar
-- [ ] Online Payments (GCash, Maya, Card, Apple/Google Pay)
-- [ ] Verified Hosts & Renters
-- [ ] Ratings & Reviews
-- [ ] Secure Messaging
-- [ ] Booking Management (host + renter dashboards)
-- [ ] Host Earnings Dashboard
-- [ ] Push & In-app Notifications
-- [ ] Promo Codes
-- [ ] Equipment Protection option
-- [ ] Rental Agreements
+- [x] Equipment search (keyword + category)
+- [x] Advanced filtering (sidebar)
+- [x] Wishlist / Favorites
+- [x] Instant Booking
+- [x] Availability Calendar
+- [x] Online Payments (GCash, Maya, Card, Apple/Google Pay)
+- [x] Verified Hosts & Renters
+- [x] Ratings & Reviews
+- [x] Secure Messaging
+- [x] Booking Management (host + renter dashboards)
+- [x] Host Earnings Dashboard
+- [x] Push & In-app Notifications
+- [x] Promo Codes
+- [x] Equipment Protection option
+- [x] Rental Agreements
 - [ ] Recently Viewed Items
-- [ ] Featured Listings
-- [ ] Popular Rentals carousel
-- [ ] Creator Bundles
+- [x] Featured Listings
+- [x] Popular Rentals carousel
+- [x] Creator Bundles
 
 ---
 
