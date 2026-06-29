@@ -58,7 +58,7 @@ export function DashboardSidebar({ isHost = true, onClose }: DashboardSidebarPro
             href="/dashboard/overview"
             onClick={onClose}
             className={`flex-1 text-center py-1.5 rounded-lg transition-all ${
-              isHost ? 'bg-white text-[#2563EB] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              isHost ? 'bg-white text-[#003049] shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             Host
@@ -67,7 +67,7 @@ export function DashboardSidebar({ isHost = true, onClose }: DashboardSidebarPro
             href="/dashboard/rentals"
             onClick={onClose}
             className={`flex-1 text-center py-1.5 rounded-lg transition-all ${
-              !isHost ? 'bg-white text-[#2563EB] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              !isHost ? 'bg-white text-[#003049] shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             Renter
@@ -86,11 +86,11 @@ export function DashboardSidebar({ isHost = true, onClose }: DashboardSidebarPro
               onClick={onClose}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 active
-                  ? 'bg-blue-50 text-[#2563EB]'
+                  ? 'bg-blue-50 text-[#003049]'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-[#111827]'
               }`}
             >
-              <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[#2563EB]' : 'text-gray-400'}`} />
+              <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[#003049]' : 'text-gray-400'}`} />
               <span className="flex-1">{label}</span>
               {badge ? (
                 <span className="min-w-[18px] h-[18px] bg-[#F97316] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
@@ -107,7 +107,7 @@ export function DashboardSidebar({ isHost = true, onClose }: DashboardSidebarPro
         <div className="flex items-center gap-3">
           <Avatar className="w-8 h-8 shrink-0">
             <AvatarImage src="" />
-            <AvatarFallback className="bg-[#2563EB] text-white text-xs font-bold">JP</AvatarFallback>
+            <AvatarFallback className="bg-[#003049] text-white text-xs font-bold">JP</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-[#111827] truncate">Juan P. Taylor</p>

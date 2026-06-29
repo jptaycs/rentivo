@@ -27,7 +27,7 @@ export default function SettingsPage() {
         <div className="flex items-center gap-4">
           <div className="relative">
             <Avatar className="w-16 h-16">
-              <AvatarFallback className="bg-[#2563EB] text-white font-bold text-xl">JP</AvatarFallback>
+              <AvatarFallback className="bg-[#003049] text-white font-bold text-xl">JP</AvatarFallback>
             </Avatar>
             <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-white border-2 border-white rounded-full shadow-md flex items-center justify-center hover:bg-gray-50">
               <Camera className="w-3.5 h-3.5 text-gray-600" />
@@ -36,7 +36,7 @@ export default function SettingsPage() {
           <div>
             <p className="text-sm font-semibold text-[#111827]">{fullName}</p>
             <p className="text-xs text-gray-400">{email}</p>
-            <button className="text-xs text-[#2563EB] hover:underline mt-0.5 font-medium">Change photo</button>
+            <button className="text-xs text-[#003049] hover:underline mt-0.5 font-medium">Change photo</button>
           </div>
         </div>
 
@@ -46,7 +46,7 @@ export default function SettingsPage() {
             <input
               value={fullName}
               onChange={e => setFullName(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100"
             />
           </div>
           <div>
@@ -54,7 +54,7 @@ export default function SettingsPage() {
             <input
               value={phone}
               onChange={e => setPhone(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100"
             />
           </div>
         </div>
@@ -65,12 +65,12 @@ export default function SettingsPage() {
             value={bio}
             onChange={e => setBio(e.target.value)}
             rows={3}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 resize-none"
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100 resize-none"
           />
           <p className="text-xs text-gray-400 mt-1">{bio.length}/200</p>
         </div>
 
-        <button className="flex items-center gap-2 bg-[#2563EB] text-white font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-blue-700 transition-colors">
+        <button className="flex items-center gap-2 bg-[#003049] text-white font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-[#002438] transition-colors">
           <Save className="w-4 h-4" /> Save Changes
         </button>
       </section>
@@ -78,13 +78,13 @@ export default function SettingsPage() {
       {/* Security */}
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
         <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-[#2563EB]" />
+          <Shield className="w-5 h-5 text-[#003049]" />
           <h2 className="font-bold text-[#111827]">Security</h2>
         </div>
 
         <div>
           <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Current Password</label>
-          <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-2.5 focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100">
+          <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-2.5 focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100">
             <input
               type={showCurrentPw ? 'text' : 'password'}
               placeholder="••••••••"
@@ -103,7 +103,7 @@ export default function SettingsPage() {
               <input
                 type="password"
                 placeholder="••••••••"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100"
               />
             </div>
           ))}
@@ -117,7 +117,7 @@ export default function SettingsPage() {
       {/* Notifications */}
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
         <div className="flex items-center gap-2">
-          <Bell className="w-5 h-5 text-[#2563EB]" />
+          <Bell className="w-5 h-5 text-[#003049]" />
           <h2 className="font-bold text-[#111827]">Notifications</h2>
         </div>
 
@@ -135,7 +135,7 @@ export default function SettingsPage() {
               </div>
               <div
                 onClick={() => setNotifications(n => ({ ...n, [key]: !n[key as keyof typeof n] }))}
-                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${notifications[key as keyof typeof notifications] ? 'bg-[#2563EB]' : 'bg-gray-200'}`}
+                className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${notifications[key as keyof typeof notifications] ? 'bg-[#003049]' : 'bg-gray-200'}`}
               >
                 <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${notifications[key as keyof typeof notifications] ? 'translate-x-5' : ''}`} />
               </div>

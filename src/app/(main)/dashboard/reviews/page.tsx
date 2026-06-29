@@ -51,7 +51,7 @@ export default function ReviewsPage() {
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="flex items-center gap-3">
                 <Avatar className="w-9 h-9">
-                  <AvatarFallback className="bg-[#2563EB]/10 text-[#2563EB] text-xs font-bold">{r.initial}</AvatarFallback>
+                  <AvatarFallback className="bg-[#003049]/10 text-[#003049] text-xs font-bold">{r.initial}</AvatarFallback>
                 </Avatar>
                 <div>
                   <p className="font-semibold text-[#111827] text-sm">{r.reviewer}</p>

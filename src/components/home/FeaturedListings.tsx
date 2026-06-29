@@ -10,7 +10,7 @@ export function FeaturedListings() {
         <h2 className="text-2xl font-bold text-[#111827]">Featured Equipment</h2>
         <Link
           href="/search"
-          className="flex items-center gap-1 text-sm font-semibold text-[#2563EB] hover:text-blue-700 transition-colors"
+          className="flex items-center gap-1 text-sm font-semibold text-[#003049] hover:text-blue-700 transition-colors"
         >
           View all <ArrowRight className="w-4 h-4" />
         </Link>

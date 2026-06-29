@@ -58,14 +58,14 @@ export function Step4Confirmation({
         </p>
         <div className="mt-4 inline-flex items-center gap-2 bg-[#F8FAFC] border border-gray-200 rounded-full px-5 py-2">
           <span className="text-xs text-gray-500 font-medium">Booking Reference</span>
-          <span className="text-sm font-bold text-[#2563EB] tracking-wider">{bookingRef}</span>
+          <span className="text-sm font-bold text-[#003049] tracking-wider">{bookingRef}</span>
         </div>
       </div>
 
       {/* Digital receipt */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         {/* Receipt header */}
-        <div className="bg-[#2563EB] px-6 py-4 flex items-center justify-between">
+        <div className="bg-[#003049] px-6 py-4 flex items-center justify-between">
           <div>
             <p className="text-blue-200 text-xs font-medium">Digital Receipt</p>
             <p className="text-white font-bold">{bookingRef}</p>
@@ -115,7 +115,7 @@ export function Step4Confirmation({
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex items-center justify-between px-5 py-3.5">
               <div className="flex items-center gap-2 text-gray-500 text-sm">
-                <Icon className="w-4 h-4 text-[#2563EB]" />
+                <Icon className="w-4 h-4 text-[#003049]" />
                 {label}
               </div>
               <span className="text-sm font-medium text-[#111827] text-right max-w-[60%]">{value}</span>
@@ -143,7 +143,7 @@ export function Step4Confirmation({
           </div>
           <div className="flex justify-between font-bold text-[#111827] text-base border-t border-gray-200 pt-2 mt-1">
             <span>Total Paid</span>
-            <span className="text-[#2563EB]">₱{total.toLocaleString()}</span>
+            <span className="text-[#003049]">₱{total.toLocaleString()}</span>
           </div>
         </div>
 
@@ -173,7 +173,7 @@ export function Step4Confirmation({
             'Return the equipment in the same condition by the return date.',
           ].map((step, i) => (
             <li key={i} className="flex gap-3 text-sm text-gray-600">
-              <span className="w-5 h-5 rounded-full bg-[#2563EB] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+              <span className="w-5 h-5 rounded-full bg-[#003049] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
                 {i + 1}
               </span>
               {step}
@@ -184,20 +184,20 @@ export function Step4Confirmation({
 
       {/* CTA buttons */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <button className="flex-1 flex items-center justify-center gap-2 border border-[#2563EB] text-[#2563EB] font-bold py-3.5 rounded-xl text-sm hover:bg-blue-50 transition-colors">
+        <button className="flex-1 flex items-center justify-center gap-2 border border-[#003049] text-[#003049] font-bold py-3.5 rounded-xl text-sm hover:bg-blue-50 transition-colors">
           <MessageCircle className="w-4 h-4" />
           Message Host
         </button>
         <Link
           href="/dashboard"
-          className="flex-1 flex items-center justify-center bg-[#2563EB] hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl text-sm transition-colors"
+          className="flex-1 flex items-center justify-center bg-[#003049] hover:bg-[#002438] text-white font-bold py-3.5 rounded-xl text-sm transition-colors"
         >
           View My Bookings
         </Link>
       </div>
 
       <div className="text-center">
-        <Link href="/" className="text-sm text-gray-400 hover:text-[#2563EB] transition-colors">
+        <Link href="/" className="text-sm text-gray-400 hover:text-[#003049] transition-colors">
           ← Back to Home
         </Link>
       </div>

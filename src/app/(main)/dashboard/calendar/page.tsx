@@ -112,7 +112,7 @@ export default function CalendarPage() {
           ))}
         </div>
         {activeListing && (
-          <p className="text-xs text-[#2563EB] flex items-center gap-1.5">
+          <p className="text-xs text-[#003049] flex items-center gap-1.5">
             <Info className="w-3 h-3" />
             Click any future date to block or unblock it for this listing.
           </p>
@@ -158,7 +158,7 @@ export default function CalendarPage() {
                   className={`
                     aspect-square rounded-xl flex items-center justify-center text-sm font-medium transition-all
                     ${isPast ? 'opacity-30 cursor-default' : canClick ? 'hover:bg-gray-100 cursor-pointer' : 'cursor-default'}
-                    ${isT ? 'ring-2 ring-[#2563EB]' : ''}
+                    ${isT ? 'ring-2 ring-[#003049]' : ''}
                     ${blocked ? `${color} text-white` : 'text-[#111827]'}
                   `}
                 >
@@ -178,7 +178,7 @@ export default function CalendarPage() {
             </div>
           ))}
           <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span className="w-3 h-3 rounded ring-2 ring-[#2563EB]" />
+            <span className="w-3 h-3 rounded ring-2 ring-[#003049]" />
             Today
           </div>
         </div>

@@ -31,7 +31,7 @@ export function ListingCard({ listing }: ListingCardProps) {
 
         {/* Verified badge */}
         {listing.host?.is_verified && (
-          <div className="absolute top-3 left-3 flex items-center gap-1 bg-white/90 backdrop-blur-sm text-[#2563EB] text-xs font-semibold px-2 py-1 rounded-full">
+          <div className="absolute top-3 left-3 flex items-center gap-1 bg-white/90 backdrop-blur-sm text-[#003049] text-xs font-semibold px-2 py-1 rounded-full">
             <BadgeCheck className="w-3 h-3" />
             Verified
           </div>
@@ -67,7 +67,7 @@ export function ListingCard({ listing }: ListingCardProps) {
 
         <div className="flex items-center justify-between">
           <p className="font-bold text-[#111827]">
-            <span className="text-[#2563EB]">₱{listing.daily_price.toLocaleString()}</span>
+            <span className="text-[#003049]">₱{listing.daily_price.toLocaleString()}</span>
             <span className="text-xs font-normal text-gray-500">/day</span>
           </p>
 

@@ -50,7 +50,7 @@
 
 :root {
   /* Rentivo brand tokens */
-  --rentivo-blue: #2563EB;
+  --rentivo-blue: #003049;
   --rentivo-orange: #F97316;
   --rentivo-green: #22C55E;
 
@@ -60,7 +60,7 @@
   --card-foreground: oklch(0.13 0.028 261.692);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.13 0.028 261.692);
-  --primary: oklch(0.5 0.2 264);             /* #2563EB blue-600 */
+  --primary: oklch(0.5 0.2 264);             /* #003049 blue-600 */
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);

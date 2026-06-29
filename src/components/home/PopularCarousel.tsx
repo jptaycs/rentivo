@@ -61,7 +61,7 @@ export function PopularCarousel() {
                   {listing.model}
                 </p>
                 <div className="flex items-center justify-between mt-2">
-                  <p className="text-sm font-bold text-[#2563EB]">
+                  <p className="text-sm font-bold text-[#003049]">
                     ₱{listing.daily_price.toLocaleString()}<span className="text-[10px] font-normal text-gray-400">/day</span>
                   </p>
                   {listing.rating && (

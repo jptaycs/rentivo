@@ -4,11 +4,11 @@ import { useState } from 'react'
 import { CheckCircle2, Star, CalendarDays, MessageSquare, DollarSign, AlertCircle, BadgeCheck } from 'lucide-react'
 
 const MOCK_NOTIFICATIONS = [
-  { id: 'n1', type: 'booking', icon: CalendarDays, color: 'text-[#2563EB] bg-blue-50', title: 'New booking request', body: 'Maria Santos wants to rent your Sony A7 IV from July 2–5.', at: '2 min ago', unread: true, action: 'View Booking' },
+  { id: 'n1', type: 'booking', icon: CalendarDays, color: 'text-[#003049] bg-blue-50', title: 'New booking request', body: 'Maria Santos wants to rent your Sony A7 IV from July 2–5.', at: '2 min ago', unread: true, action: 'View Booking' },
   { id: 'n2', type: 'message', icon: MessageSquare, color: 'text-purple-600 bg-purple-50', title: 'New message', body: 'John dela Cruz: "Is the lens available for July 6–7?"', at: '1 hr ago', unread: true, action: 'Reply' },
   { id: 'n3', type: 'review', icon: Star, color: 'text-yellow-500 bg-yellow-50', title: 'New review received', body: 'Trish Mendoza left you a 5-star review: "Great gear, super smooth transaction!"', at: '3 hrs ago', unread: true, action: 'View Review' },
   { id: 'n4', type: 'payout', icon: DollarSign, color: 'text-green-600 bg-green-50', title: 'Payout sent', body: '₱12,500 has been sent to your GCash account •••• 1234.', at: 'Yesterday', unread: false, action: null },
-  { id: 'n5', type: 'verify', icon: BadgeCheck, color: 'text-[#2563EB] bg-blue-50', title: 'Listing approved', body: 'Your Sony A7 IV listing has been approved and is now live.', at: '2 days ago', unread: false, action: 'View Listing' },
+  { id: 'n5', type: 'verify', icon: BadgeCheck, color: 'text-[#003049] bg-blue-50', title: 'Listing approved', body: 'Your Sony A7 IV listing has been approved and is now live.', at: '2 days ago', unread: false, action: 'View Listing' },
   { id: 'n6', type: 'booking', icon: CheckCircle2, color: 'text-green-600 bg-green-50', title: 'Booking confirmed', body: 'Your booking for Canon RF 70-200mm (July 6–7) has been confirmed by the host.', at: '3 days ago', unread: false, action: null },
   { id: 'n7', type: 'alert', icon: AlertCircle, color: 'text-orange-500 bg-orange-50', title: 'Reminder: return due tomorrow', body: 'Your rental of iPhone 16 Pro Max is due for return tomorrow by 5:00 PM.', at: '3 days ago', unread: false, action: 'View Booking' },
 ]
@@ -32,7 +32,7 @@ export default function NotificationsPage() {
           )}
         </div>
         {unreadCount > 0 && (
-          <button onClick={markAllRead} className="text-sm font-semibold text-[#2563EB] hover:text-blue-700 transition-colors">
+          <button onClick={markAllRead} className="text-sm font-semibold text-[#003049] hover:text-blue-700 transition-colors">
             Mark all as read
           </button>
         )}
@@ -60,13 +60,13 @@ export default function NotificationsPage() {
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{n.body}</p>
                 {n.action && (
-                  <button className="text-xs font-semibold text-[#2563EB] mt-2 hover:underline">{n.action} →</button>
+                  <button className="text-xs font-semibold text-[#003049] mt-2 hover:underline">{n.action} →</button>
                 )}
               </div>
 
               {/* Unread dot */}
               {n.unread && (
-                <div className="w-2 h-2 rounded-full bg-[#2563EB] shrink-0 mt-1.5" />
+                <div className="w-2 h-2 rounded-full bg-[#003049] shrink-0 mt-1.5" />
               )}
             </div>
           )

@@ -54,7 +54,7 @@ const MOCK_BOOKINGS = [
 const TABS = ['All', 'Pending', 'Confirmed', 'Completed']
 
 const STATUS_STYLES: Record<string, string> = {
-  confirmed: 'bg-blue-50 text-[#2563EB]',
+  confirmed: 'bg-blue-50 text-[#003049]',
   pending: 'bg-amber-50 text-amber-700',
   completed: 'bg-green-50 text-[#22C55E]',
   cancelled: 'bg-red-50 text-red-500',
@@ -81,7 +81,7 @@ export default function BookingsPage() {
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-              tab === t ? 'bg-white text-[#2563EB] shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              tab === t ? 'bg-white text-[#003049] shadow-sm' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             {t}
@@ -106,8 +106,8 @@ export default function BookingsPage() {
             <div className="p-5">
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#2563EB]/10 flex items-center justify-center shrink-0">
-                    <span className="text-[#2563EB] font-bold text-sm">{b.renterInitial}</span>
+                  <div className="w-10 h-10 rounded-full bg-[#003049]/10 flex items-center justify-center shrink-0">
+                    <span className="text-[#003049] font-bold text-sm">{b.renterInitial}</span>
                   </div>
                   <div>
                     <p className="font-bold text-[#111827] text-sm">{b.renter}</p>
@@ -137,19 +137,19 @@ export default function BookingsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 font-medium mb-0.5">Payout</p>
-                  <p className="font-bold text-[#2563EB]">₱{b.total.toLocaleString()}</p>
+                  <p className="font-bold text-[#003049]">₱{b.total.toLocaleString()}</p>
                 </div>
               </div>
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-2 px-5 py-3 border-t border-gray-100 bg-gray-50/50">
-              <button className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#2563EB] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+              <button className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#003049] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                 <MessageCircle className="w-3.5 h-3.5" /> Message
               </button>
               {b.status === 'pending' && (
                 <>
-                  <button className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#2563EB] hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors ml-auto">
+                  <button className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#003049] hover:bg-[#002438] px-3 py-1.5 rounded-lg transition-colors ml-auto">
                     <Check className="w-3.5 h-3.5" /> Accept
                   </button>
                   <button className="flex items-center gap-1.5 text-xs font-semibold text-red-500 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors">

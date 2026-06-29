@@ -37,7 +37,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
     setTimeout(() => setSaved(false), 3000)
   }
 
-  const field = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 transition-all bg-white'
+  const field = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100 transition-all bg-white'
   const label = 'block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5'
 
   return (
@@ -57,7 +57,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
           <button
             onClick={handleSave}
             disabled={saving || saved}
-            className="flex items-center gap-2 bg-[#2563EB] hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors"
+            className="flex items-center gap-2 bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors"
           >
             {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
               : saved ? <><CheckCircle2 className="w-4 h-4" /> Saved!</>
@@ -91,9 +91,9 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
                 <button
                   key={c.id}
                   onClick={() => setCondition(c.id)}
-                  className={`text-left p-3 rounded-xl border-2 transition-all ${condition === c.id ? 'border-[#2563EB] bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                  className={`text-left p-3 rounded-xl border-2 transition-all ${condition === c.id ? 'border-[#003049] bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
                 >
-                  <p className={`text-sm font-bold ${condition === c.id ? 'text-[#2563EB]' : 'text-[#111827]'}`}>{c.label}</p>
+                  <p className={`text-sm font-bold ${condition === c.id ? 'text-[#003049]' : 'text-[#111827]'}`}>{c.label}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{c.desc}</p>
                 </button>
               ))}

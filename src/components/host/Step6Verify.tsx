@@ -33,7 +33,7 @@ export function Step6Verify({ onSubmit, onBack, loading }: Step6VerifyProps) {
           { icon: CheckCircle2, title: 'More trust', desc: 'Renters book verified hosts first' },
         ].map(({ icon: Icon, title, desc }) => (
           <div key={title} className="bg-blue-50 rounded-xl p-4 text-center">
-            <Icon className="w-6 h-6 text-[#2563EB] mx-auto mb-2" />
+            <Icon className="w-6 h-6 text-[#003049] mx-auto mb-2" />
             <p className="text-sm font-bold text-[#111827]">{title}</p>
             <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
           </div>
@@ -48,7 +48,7 @@ export function Step6Verify({ onSubmit, onBack, loading }: Step6VerifyProps) {
         <button
           onClick={() => idRef.current?.click()}
           className={`w-full flex items-center gap-4 p-4 border-2 rounded-xl transition-all ${
-            idUploaded ? 'border-[#22C55E] bg-green-50' : 'border-dashed border-gray-200 hover:border-[#2563EB] hover:bg-gray-50'
+            idUploaded ? 'border-[#22C55E] bg-green-50' : 'border-dashed border-gray-200 hover:border-[#003049] hover:bg-gray-50'
           }`}
         >
           {idUploaded
@@ -71,7 +71,7 @@ export function Step6Verify({ onSubmit, onBack, loading }: Step6VerifyProps) {
         <button
           onClick={() => selfieRef.current?.click()}
           className={`w-full flex items-center gap-4 p-4 border-2 rounded-xl transition-all ${
-            selfieUploaded ? 'border-[#22C55E] bg-green-50' : 'border-dashed border-gray-200 hover:border-[#2563EB] hover:bg-gray-50'
+            selfieUploaded ? 'border-[#22C55E] bg-green-50' : 'border-dashed border-gray-200 hover:border-[#003049] hover:bg-gray-50'
           }`}
         >
           {selfieUploaded
@@ -90,14 +90,14 @@ export function Step6Verify({ onSubmit, onBack, loading }: Step6VerifyProps) {
       <label className="flex items-start gap-3 cursor-pointer">
         <div
           onClick={() => setAgreed(v => !v)}
-          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${agreed ? 'bg-[#2563EB] border-[#2563EB]' : 'border-gray-300'}`}
+          className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${agreed ? 'bg-[#003049] border-[#003049]' : 'border-gray-300'}`}
         >
           {agreed && <CheckCircle2 className="w-3 h-3 text-white" />}
         </div>
         <p className="text-sm text-gray-600 leading-relaxed">
           I confirm that this equipment belongs to me, the information provided is accurate, and I agree to Rentivo's{' '}
-          <a href="#" className="text-[#2563EB] hover:underline">Host Terms of Service</a> and{' '}
-          <a href="#" className="text-[#2563EB] hover:underline">Equipment Listing Policy</a>.
+          <a href="#" className="text-[#003049] hover:underline">Host Terms of Service</a> and{' '}
+          <a href="#" className="text-[#003049] hover:underline">Equipment Listing Policy</a>.
         </p>
       </label>
 
@@ -109,7 +109,7 @@ export function Step6Verify({ onSubmit, onBack, loading }: Step6VerifyProps) {
         <button
           onClick={onSubmit}
           disabled={!canSubmit || loading}
-          className="flex-1 bg-[#2563EB] hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
+          className="flex-1 bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
         >
           {loading
             ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</>

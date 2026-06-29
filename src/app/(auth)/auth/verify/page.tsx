@@ -17,7 +17,7 @@ export default async function VerifyPage({ searchParams }: VerifyPageProps) {
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center px-4">
       {/* Logo */}
       <Link href="/" className="flex items-center gap-2 mb-10">
-        <div className="w-9 h-9 bg-[#2563EB] rounded-xl flex items-center justify-center">
+        <div className="w-9 h-9 bg-[#003049] rounded-xl flex items-center justify-center">
           <Camera className="w-5 h-5 text-white" />
         </div>
         <span className="text-xl font-bold text-[#111827]">Rentivo</span>
@@ -26,7 +26,7 @@ export default async function VerifyPage({ searchParams }: VerifyPageProps) {
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10 text-center max-w-md w-full">
         {/* Icon */}
         <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
-          <Mail className="w-9 h-9 text-[#2563EB]" />
+          <Mail className="w-9 h-9 text-[#003049]" />
         </div>
 
         <h1 className="text-2xl font-bold text-[#111827] mb-2">Verify your email</h1>
@@ -48,7 +48,7 @@ export default async function VerifyPage({ searchParams }: VerifyPageProps) {
             'You\'ll be redirected back to Rentivo',
           ].map((step, i) => (
             <div key={i} className="flex items-start gap-3">
-              <div className="w-5 h-5 rounded-full bg-[#2563EB] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-5 h-5 rounded-full bg-[#003049] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
                 {i + 1}
               </div>
               <p className="text-sm text-gray-600">{step}</p>
@@ -67,7 +67,7 @@ export default async function VerifyPage({ searchParams }: VerifyPageProps) {
         <div className="flex flex-col gap-2">
           <Link
             href="/login"
-            className="text-sm text-[#2563EB] hover:underline font-medium"
+            className="text-sm text-[#003049] hover:underline font-medium"
           >
             Already verified? Sign in →
           </Link>

@@ -42,7 +42,7 @@ export function OrderSummary({ listing, pickupDate, returnDate, days, isDelivery
           </p>
           <div className="flex items-center gap-2 mt-1.5">
             {listing.host?.is_verified && (
-              <span className="flex items-center gap-0.5 text-[#2563EB] text-xs font-medium">
+              <span className="flex items-center gap-0.5 text-[#003049] text-xs font-medium">
                 <BadgeCheck className="w-3.5 h-3.5" /> Verified
               </span>
             )}

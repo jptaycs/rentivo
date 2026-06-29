@@ -14,7 +14,7 @@ export default function NotFound() {
       <div className="relative mb-6">
         <p className="text-[120px] font-black text-gray-100 leading-none select-none">404</p>
         <div className="absolute inset-0 flex items-center justify-center">
-          <Camera className="w-12 h-12 text-[#2563EB]" />
+          <Camera className="w-12 h-12 text-[#003049]" />
         </div>
       </div>
 
@@ -24,7 +24,7 @@ export default function NotFound() {
       </p>
 
       <div className="flex flex-col sm:flex-row gap-3">
-        <Link href="/" className="flex items-center justify-center gap-2 bg-[#2563EB] text-white font-bold py-3 px-6 rounded-xl text-sm hover:bg-blue-700 transition-colors">
+        <Link href="/" className="flex items-center justify-center gap-2 bg-[#003049] text-white font-bold py-3 px-6 rounded-xl text-sm hover:bg-[#002438] transition-colors">
           <Home className="w-4 h-4" /> Back to Home
         </Link>
         <Link href="/search" className="flex items-center justify-center gap-2 border border-gray-200 text-gray-700 font-bold py-3 px-6 rounded-xl text-sm hover:bg-gray-50 transition-colors">
@@ -34,7 +34,7 @@ export default function NotFound() {
 
       <p className="text-xs text-gray-400 mt-10">
         Need help?{' '}
-        <a href="mailto:support@rentivo.ph" className="text-[#2563EB] hover:underline">Contact support</a>
+        <a href="mailto:support@rentivo.ph" className="text-[#003049] hover:underline">Contact support</a>
       </p>
     </div>
   )

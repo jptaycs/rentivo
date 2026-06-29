@@ -35,7 +35,7 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
 
   const canContinue = daily >= 100 && Number(data.securityDeposit) >= 0
 
-  const field = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 transition-all bg-white'
+  const field = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100 transition-all bg-white'
   const label = 'block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5'
 
   return (
@@ -48,7 +48,7 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
       {/* Daily price */}
       <div>
         <label className={label}>Daily Rate <span className="text-red-400">*</span></label>
-        <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100 bg-white">
+        <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 bg-white">
           <span className="px-4 text-gray-400 font-semibold text-sm border-r border-gray-200 py-3">₱</span>
           <input
             value={data.dailyPrice}
@@ -92,7 +92,7 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={label}>Weekly Rate <span className="font-normal text-gray-400 normal-case">(optional)</span></label>
-          <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100 bg-white">
+          <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 bg-white">
             <span className="px-4 text-gray-400 font-semibold text-sm border-r border-gray-200 py-3">₱</span>
             <input
               value={data.weeklyPrice}
@@ -108,7 +108,7 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
         </div>
         <div>
           <label className={label}>Monthly Rate <span className="font-normal text-gray-400 normal-case">(optional)</span></label>
-          <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100 bg-white">
+          <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 bg-white">
             <span className="px-4 text-gray-400 font-semibold text-sm border-r border-gray-200 py-3">₱</span>
             <input
               value={data.monthlyPrice}
@@ -127,7 +127,7 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
       {/* Security deposit */}
       <div>
         <label className={label}>Security Deposit</label>
-        <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100 bg-white">
+        <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 bg-white">
           <span className="px-4 text-gray-400 font-semibold text-sm border-r border-gray-200 py-3">₱</span>
           <input
             value={data.securityDeposit}
@@ -150,7 +150,7 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
         <button
           onClick={onNext}
           disabled={!canContinue}
-          className="flex-1 bg-[#2563EB] hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
+          className="flex-1 bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
         >
           Continue <ChevronRight className="w-4 h-4" />
         </button>

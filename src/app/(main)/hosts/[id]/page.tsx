@@ -50,7 +50,7 @@ export default async function HostProfilePage({ params }: { params: Promise<{ id
 
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-xs text-gray-400">
-          <Link href="/" className="hover:text-[#2563EB] transition-colors">Home</Link>
+          <Link href="/" className="hover:text-[#003049] transition-colors">Home</Link>
           <ChevronRight className="w-3 h-3" />
           <span className="text-gray-600">{host.name}</span>
         </nav>
@@ -60,11 +60,11 @@ export default async function HostProfilePage({ params }: { params: Promise<{ id
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
             {/* Avatar */}
             <div className="relative shrink-0">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#2563EB] to-blue-400 flex items-center justify-center text-4xl font-black text-white">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#003049] to-blue-400 flex items-center justify-center text-4xl font-black text-white">
                 {host.initial}
               </div>
               {host.verified && (
-                <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-[#2563EB] rounded-full flex items-center justify-center border-2 border-white">
+                <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-[#003049] rounded-full flex items-center justify-center border-2 border-white">
                   <BadgeCheck className="w-4 h-4 text-white" />
                 </div>
               )}
@@ -75,7 +75,7 @@ export default async function HostProfilePage({ params }: { params: Promise<{ id
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-2xl font-bold text-[#111827]">{host.name}</h1>
                 {host.verified && (
-                  <span className="flex items-center gap-1 text-xs font-bold bg-blue-50 text-[#2563EB] px-3 py-1 rounded-full">
+                  <span className="flex items-center gap-1 text-xs font-bold bg-blue-50 text-[#003049] px-3 py-1 rounded-full">
                     <BadgeCheck className="w-3.5 h-3.5" /> Verified Host
                   </span>
                 )}
@@ -106,7 +106,7 @@ export default async function HostProfilePage({ params }: { params: Promise<{ id
             {/* CTA */}
             <Link
               href="/dashboard/messages"
-              className="flex items-center gap-2 bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-sm px-6 py-3 rounded-xl transition-colors shrink-0"
+              className="flex items-center gap-2 bg-[#003049] hover:bg-[#002438] text-white font-bold text-sm px-6 py-3 rounded-xl transition-colors shrink-0"
             >
               <MessageCircle className="w-4 h-4" /> Message
             </Link>

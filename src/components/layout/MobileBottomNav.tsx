@@ -28,7 +28,7 @@ export function MobileBottomNav() {
               key={href}
               href={href}
               className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors relative ${
-                isActive ? 'text-[#2563EB]' : 'text-gray-400'
+                isActive ? 'text-[#003049]' : 'text-gray-400'
               }`}
             >
               <div className="relative">
@@ -41,7 +41,7 @@ export function MobileBottomNav() {
               </div>
               {label}
               {isActive && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-[#2563EB] rounded-full" />
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-[#003049] rounded-full" />
               )}
             </Link>
           )

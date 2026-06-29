@@ -72,7 +72,7 @@ export function ResetPasswordForm() {
         </div>
         <h2 className="text-xl font-bold text-[#111827]">Password updated!</h2>
         <p className="text-gray-500 text-sm">Your password has been reset successfully. Redirecting you home…</p>
-        <Link href="/" className="inline-block bg-[#2563EB] text-white font-bold py-3 px-8 rounded-xl text-sm hover:bg-blue-700 transition-colors">
+        <Link href="/" className="inline-block bg-[#003049] text-white font-bold py-3 px-8 rounded-xl text-sm hover:bg-[#002438] transition-colors">
           Go to Home
         </Link>
       </div>
@@ -90,7 +90,7 @@ export function ResetPasswordForm() {
 
       <div>
         <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">New Password</label>
-        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
+        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
           <Lock className="w-4 h-4 text-gray-400 shrink-0" />
           <input
             type={showPassword ? 'text' : 'password'}
@@ -113,7 +113,7 @@ export function ResetPasswordForm() {
         <div className={`flex items-center gap-3 border rounded-xl px-4 py-3 focus-within:ring-2 transition-all bg-white ${
           confirmPassword && !passwordsMatch
             ? 'border-red-300 focus-within:ring-red-100'
-            : 'border-gray-200 focus-within:border-[#2563EB] focus-within:ring-blue-100'
+            : 'border-gray-200 focus-within:border-[#003049] focus-within:ring-blue-100'
         }`}>
           <Lock className="w-4 h-4 text-gray-400 shrink-0" />
           <input
@@ -135,7 +135,7 @@ export function ResetPasswordForm() {
       <button
         type="submit"
         disabled={!canSubmit}
-        className="w-full bg-[#2563EB] hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+        className="w-full bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
       >
         {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Updating…</> : 'Update Password'}
       </button>

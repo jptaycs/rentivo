@@ -32,7 +32,7 @@ export function HeroSearch() {
   }
 
   return (
-    <section className="relative bg-[#2563EB] overflow-hidden">
+    <section className="relative bg-[#003049] overflow-hidden">
       {/* Background pattern */}
       <div className="absolute inset-0 opacity-10"
         style={{
@@ -60,7 +60,7 @@ export function HeroSearch() {
         >
           {/* What */}
           <div className="flex items-center gap-3 px-5 py-4 flex-1">
-            <Search className="w-5 h-5 text-[#2563EB] shrink-0" />
+            <Search className="w-5 h-5 text-[#003049] shrink-0" />
             <div className="flex-1 min-w-0">
               <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">
                 What
@@ -77,7 +77,7 @@ export function HeroSearch() {
 
           {/* Where */}
           <div className="flex items-center gap-3 px-5 py-4 flex-1">
-            <MapPin className="w-5 h-5 text-[#2563EB] shrink-0" />
+            <MapPin className="w-5 h-5 text-[#003049] shrink-0" />
             <div className="flex-1 min-w-0">
               <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">
                 Where
@@ -94,7 +94,7 @@ export function HeroSearch() {
 
           {/* When */}
           <div className="flex items-center gap-3 px-5 py-4 flex-1">
-            <Calendar className="w-5 h-5 text-[#2563EB] shrink-0" />
+            <Calendar className="w-5 h-5 text-[#003049] shrink-0" />
             <div className="flex-1 min-w-0">
               <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">
                 When
@@ -121,7 +121,7 @@ export function HeroSearch() {
           <div className="px-3 py-3">
             <button
               type="submit"
-              className="bg-[#2563EB] hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors flex items-center gap-2 w-full md:w-auto"
+              className="bg-[#003049] hover:bg-[#002438] active:bg-blue-800 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors flex items-center gap-2 w-full md:w-auto"
             >
               <Search className="w-4 h-4" />
               Search

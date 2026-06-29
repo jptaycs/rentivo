@@ -19,7 +19,7 @@ export function AuthShell({ children, heading, subheading }: AuthShellProps) {
   return (
     <div className="min-h-screen flex">
       {/* Left brand panel */}
-      <div className="hidden lg:flex lg:w-[480px] shrink-0 flex-col justify-between bg-[#2563EB] p-10 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-[480px] shrink-0 flex-col justify-between bg-[#003049] p-10 relative overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 opacity-10"
           style={{

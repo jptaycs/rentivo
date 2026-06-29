@@ -26,7 +26,7 @@ export default function WishlistPage() {
           </div>
           <h3 className="font-bold text-[#111827] mb-2">No saved listings yet</h3>
           <p className="text-sm text-gray-400 mb-5">Tap the heart on any listing to save it here.</p>
-          <Link href="/search" className="bg-[#2563EB] text-white font-semibold px-6 py-2.5 rounded-xl text-sm hover:bg-blue-700 transition-colors">
+          <Link href="/search" className="bg-[#003049] text-white font-semibold px-6 py-2.5 rounded-xl text-sm hover:bg-[#002438] transition-colors">
             Browse Equipment
           </Link>
         </div>

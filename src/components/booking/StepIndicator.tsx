@@ -22,7 +22,7 @@ export function StepIndicator({ current }: StepIndicatorProps) {
                   done
                     ? 'bg-[#22C55E] text-white'
                     : active
-                    ? 'bg-[#2563EB] text-white ring-4 ring-blue-100'
+                    ? 'bg-[#003049] text-white ring-4 ring-blue-100'
                     : 'bg-gray-100 text-gray-400'
                 }`}
               >
@@ -30,7 +30,7 @@ export function StepIndicator({ current }: StepIndicatorProps) {
               </div>
               <span
                 className={`text-xs font-medium whitespace-nowrap ${
-                  active ? 'text-[#2563EB]' : done ? 'text-[#22C55E]' : 'text-gray-400'
+                  active ? 'text-[#003049]' : done ? 'text-[#22C55E]' : 'text-gray-400'
                 }`}
               >
                 {label}

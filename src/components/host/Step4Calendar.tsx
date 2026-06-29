@@ -87,7 +87,7 @@ export function Step4Calendar({ blockedDates, onChange, onNext, onBack }: Step4C
                 className={`mx-auto w-9 h-9 rounded-full text-sm font-medium transition-all flex items-center justify-center ${
                   isPast   ? 'text-gray-200 cursor-not-allowed' :
                   blocked  ? 'bg-red-100 text-red-600 hover:bg-red-200' :
-                  isToday  ? 'ring-2 ring-[#2563EB] text-[#2563EB] font-bold hover:bg-blue-50' :
+                  isToday  ? 'ring-2 ring-[#003049] text-[#003049] font-bold hover:bg-blue-50' :
                              'text-gray-700 hover:bg-gray-100'
                 }`}
               >
@@ -104,7 +104,7 @@ export function Step4Calendar({ blockedDates, onChange, onNext, onBack }: Step4C
           <span className="w-5 h-5 rounded-full bg-red-100 border border-red-200" /> Blocked
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-5 h-5 rounded-full ring-2 ring-[#2563EB]" /> Today
+          <span className="w-5 h-5 rounded-full ring-2 ring-[#003049]" /> Today
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-5 h-5 rounded-full bg-white border border-gray-200" /> Available
@@ -112,7 +112,7 @@ export function Step4Calendar({ blockedDates, onChange, onNext, onBack }: Step4C
       </div>
 
       {blockedDates.length > 0 && (
-        <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-[#2563EB]">
+        <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-[#003049]">
           <Info className="w-4 h-4 mt-0.5 shrink-0" />
           <p>{blockedDates.length} date{blockedDates.length > 1 ? 's' : ''} marked as unavailable.</p>
         </div>
@@ -124,7 +124,7 @@ export function Step4Calendar({ blockedDates, onChange, onNext, onBack }: Step4C
         </button>
         <button
           onClick={onNext}
-          className="flex-1 bg-[#2563EB] hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
+          className="flex-1 bg-[#003049] hover:bg-[#002438] text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
         >
           Continue <ChevronRightIcon className="w-4 h-4" />
         </button>

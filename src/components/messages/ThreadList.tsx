@@ -34,7 +34,7 @@ export function ThreadList({ threads, activeId, onSelect }: ThreadListProps) {
           >
             {/* Avatar */}
             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
-              activeId === t.id ? 'bg-[#2563EB] text-white' : 'bg-gray-100 text-gray-600'
+              activeId === t.id ? 'bg-[#003049] text-white' : 'bg-gray-100 text-gray-600'
             }`}>
               {t.otherUser.initial}
             </div>
@@ -55,7 +55,7 @@ export function ThreadList({ threads, activeId, onSelect }: ThreadListProps) {
 
             {/* Unread badge */}
             {t.unread > 0 && (
-              <span className="w-5 h-5 bg-[#2563EB] text-white text-[10px] font-bold rounded-full flex items-center justify-center shrink-0 mt-0.5">
+              <span className="w-5 h-5 bg-[#003049] text-white text-[10px] font-bold rounded-full flex items-center justify-center shrink-0 mt-0.5">
                 {t.unread}
               </span>
             )}

@@ -11,7 +11,7 @@ const FEATURES = [
     icon: Aperture,
     title: 'Affordable Access',
     description: 'Rent premium cameras, lenses, and phones for a fraction of the purchase price. Shoot professional without buying professional.',
-    color: 'bg-blue-50 text-[#2563EB]',
+    color: 'bg-blue-50 text-[#003049]',
   },
   {
     icon: ShieldCheck,

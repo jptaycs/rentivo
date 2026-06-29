@@ -29,7 +29,7 @@ export function Step1Review({ listing, pickupDate, returnDate, days, onNext }: S
       <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
         <div className="flex items-center gap-4 p-5">
           <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
-            <Calendar className="w-5 h-5 text-[#2563EB]" />
+            <Calendar className="w-5 h-5 text-[#003049]" />
           </div>
           <div className="flex-1">
             <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Pickup Date</p>
@@ -38,7 +38,7 @@ export function Step1Review({ listing, pickupDate, returnDate, days, onNext }: S
         </div>
         <div className="flex items-center gap-4 p-5">
           <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
-            <Calendar className="w-5 h-5 text-[#2563EB]" />
+            <Calendar className="w-5 h-5 text-[#003049]" />
           </div>
           <div className="flex-1">
             <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-0.5">Return Date</p>
@@ -46,7 +46,7 @@ export function Step1Review({ listing, pickupDate, returnDate, days, onNext }: S
           </div>
         </div>
         <div className="flex items-center gap-4 p-5 bg-blue-50/50">
-          <div className="w-10 h-10 bg-[#2563EB] rounded-xl flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 bg-[#003049] rounded-xl flex items-center justify-center shrink-0">
             <span className="text-white font-bold text-sm">{days}</span>
           </div>
           <div>
@@ -74,7 +74,7 @@ export function Step1Review({ listing, pickupDate, returnDate, days, onNext }: S
 
       <button
         onClick={onNext}
-        className="w-full bg-[#2563EB] hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+        className="w-full bg-[#003049] hover:bg-[#002438] text-white font-bold py-4 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
       >
         Continue to Pickup Options
         <ChevronRight className="w-4 h-4" />

@@ -57,7 +57,7 @@ export default function AnalyticsPage() {
             <p className="text-xs text-gray-400 mt-0.5">Last 6 months</p>
           </div>
           <div className="flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#2563EB]/20 border border-[#2563EB]" />Views</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#003049]/20 border border-[#003049]" />Views</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#F97316]/20 border border-[#F97316]" />Bookings</span>
           </div>
         </div>
@@ -67,7 +67,7 @@ export default function AnalyticsPage() {
             <div key={d.month} className="flex-1 flex flex-col items-center gap-1">
               <div className="w-full flex gap-1 items-end" style={{ height: '120px' }}>
                 <div
-                  className="flex-1 bg-[#2563EB]/20 border border-[#2563EB]/40 rounded-t-sm"
+                  className="flex-1 bg-[#003049]/20 border border-[#003049]/40 rounded-t-sm"
                   style={{ height: `${(d.views / maxViews) * 100}%` }}
                 />
                 <div
@@ -93,7 +93,7 @@ export default function AnalyticsPage() {
                 <p className="text-xs text-gray-400">{l.views} views · {l.bookings} bookings</p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-sm font-bold text-[#2563EB]">{l.convRate}%</p>
+                <p className="text-sm font-bold text-[#003049]">{l.convRate}%</p>
                 <p className="text-[10px] text-gray-400">conversion</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
@@ -118,7 +118,7 @@ export default function AnalyticsPage() {
             <div key={keyword} className="flex items-center gap-3">
               <span className="text-xs text-gray-500 w-44 truncate">{keyword}</span>
               <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div className="h-full bg-[#2563EB] rounded-full" style={{ width: `${pct}%` }} />
+                <div className="h-full bg-[#003049] rounded-full" style={{ width: `${pct}%` }} />
               </div>
               <span className="text-xs font-semibold text-gray-600 w-8 text-right">{pct}%</span>
             </div>

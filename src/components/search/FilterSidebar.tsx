@@ -71,7 +71,7 @@ export function FilterSidebar({ onClose }: FilterSidebarProps) {
           {hasFilters && (
             <button
               onClick={resetAll}
-              className="text-xs text-[#2563EB] hover:underline font-medium"
+              className="text-xs text-[#003049] hover:underline font-medium"
             >
               Reset all
             </button>
@@ -95,9 +95,9 @@ export function FilterSidebar({ onClose }: FilterSidebarProps) {
                 name="category"
                 checked={get('category') === cat.value}
                 onChange={() => toggle('category', cat.value)}
-                className="accent-[#2563EB] w-3.5 h-3.5"
+                className="accent-[#003049] w-3.5 h-3.5"
               />
-              <span className="text-sm text-gray-700 group-hover:text-[#2563EB] transition-colors">
+              <span className="text-sm text-gray-700 group-hover:text-[#003049] transition-colors">
                 {cat.label}
               </span>
             </label>
@@ -115,8 +115,8 @@ export function FilterSidebar({ onClose }: FilterSidebarProps) {
               onClick={() => toggle('brand', b)}
               className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
                 get('brand') === b
-                  ? 'bg-[#2563EB] border-[#2563EB] text-white font-semibold'
-                  : 'border-gray-200 text-gray-600 hover:border-[#2563EB] hover:text-[#2563EB]'
+                  ? 'bg-[#003049] border-[#003049] text-white font-semibold'
+                  : 'border-gray-200 text-gray-600 hover:border-[#003049] hover:text-[#003049]'
               }`}
             >
               {b}
@@ -143,9 +143,9 @@ export function FilterSidebar({ onClose }: FilterSidebarProps) {
                     else { p.set('min_price', String(r.min)); p.set('max_price', String(r.max)) }
                     router.push(`/search?${p.toString()}`)
                   }}
-                  className="accent-[#2563EB] w-3.5 h-3.5"
+                  className="accent-[#003049] w-3.5 h-3.5"
                 />
-                <span className="text-sm text-gray-700 group-hover:text-[#2563EB] transition-colors">
+                <span className="text-sm text-gray-700 group-hover:text-[#003049] transition-colors">
                   {r.label}
                 </span>
               </label>
@@ -167,7 +167,7 @@ export function FilterSidebar({ onClose }: FilterSidebarProps) {
             <div
               onClick={() => toggle(key, '1')}
               className={`relative w-10 h-5 rounded-full transition-colors ${
-                get(key) === '1' ? 'bg-[#2563EB]' : 'bg-gray-200'
+                get(key) === '1' ? 'bg-[#003049]' : 'bg-gray-200'
               }`}
             >
               <span
@@ -191,9 +191,9 @@ export function FilterSidebar({ onClose }: FilterSidebarProps) {
                 name="rating"
                 checked={get('min_rating') === String(r)}
                 onChange={() => toggle('min_rating', String(r))}
-                className="accent-[#2563EB] w-3.5 h-3.5"
+                className="accent-[#003049] w-3.5 h-3.5"
               />
-              <span className="flex items-center gap-1 text-sm text-gray-700 group-hover:text-[#2563EB] transition-colors">
+              <span className="flex items-center gap-1 text-sm text-gray-700 group-hover:text-[#003049] transition-colors">
                 <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                 {r}+
               </span>

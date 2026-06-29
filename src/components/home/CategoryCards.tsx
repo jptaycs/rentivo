@@ -3,7 +3,7 @@ import Link from 'next/link'
 const CATEGORIES = [
   { emoji: '📷', label: 'Cameras', sub: 'Mirrorless & DSLR', href: '/search?category=mirrorless' },
   { emoji: '📱', label: 'Phones', sub: 'iOS & Android', href: '/search?category=smartphone' },
-  { emoji: '🔭', label: 'Lenses', sub: 'Prime & Zoom', href: '/search?category=lens' },
+  { emoji: '🎯', label: 'Lenses', sub: 'Prime & Zoom', href: '/search?category=lens' },
   { emoji: '🎥', label: 'Creator Kits', sub: 'Complete bundles', href: '/search?category=bundle' },
 ]
 

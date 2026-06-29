@@ -15,7 +15,7 @@ export default function ListingsPage() {
         </div>
         <Link
           href="/host/new"
-          className="bg-[#2563EB] text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2"
+          className="bg-[#003049] text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-[#002438] transition-colors flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
           Add Listing
@@ -52,7 +52,7 @@ export default function ListingsPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 mt-3">
-                  <span className="text-sm font-bold text-[#2563EB]">₱{listing.daily_price.toLocaleString()}/day</span>
+                  <span className="text-sm font-bold text-[#003049]">₱{listing.daily_price.toLocaleString()}/day</span>
                   {listing.rating && (
                     <span className="flex items-center gap-1 text-xs text-gray-500">
                       <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
@@ -65,7 +65,7 @@ export default function ListingsPage() {
                     </span>
                   )}
                   {listing.host?.is_verified && (
-                    <span className="flex items-center gap-1 text-xs text-[#2563EB] font-medium">
+                    <span className="flex items-center gap-1 text-xs text-[#003049] font-medium">
                       <BadgeCheck className="w-3 h-3" /> Verified
                     </span>
                   )}
@@ -77,13 +77,13 @@ export default function ListingsPage() {
             <div className="flex items-center gap-1 px-4 py-3 border-t border-gray-100 bg-gray-50/50">
               <Link
                 href={`/listings/${listing.id}`}
-                className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#2563EB] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#003049] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
               >
                 <Eye className="w-3.5 h-3.5" /> Preview
               </Link>
               <Link
                 href={`/dashboard/listings/${listing.id}/edit`}
-                className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#2563EB] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#003049] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
               >
                 <Pencil className="w-3.5 h-3.5" /> Edit
               </Link>

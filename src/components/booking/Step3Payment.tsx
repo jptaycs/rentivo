@@ -121,10 +121,10 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
               />
               {/* Custom radio */}
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                method === m.id ? 'border-[#2563EB]' : 'border-gray-300'
+                method === m.id ? 'border-[#003049]' : 'border-gray-300'
               }`}>
                 {method === m.id && (
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#2563EB]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#003049]" />
                 )}
               </div>
               {/* Logo placeholder */}
@@ -143,7 +143,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
           <label className="block text-sm font-bold text-[#111827]">
             {method === 'gcash' ? 'GCash' : 'Maya'} Mobile Number
           </label>
-          <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100">
+          <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100">
             <span className="text-sm text-gray-500 font-medium">+63</span>
             <div className="w-px h-4 bg-gray-200" />
             <input
@@ -173,7 +173,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
               value={cardNumber}
               onChange={(e) => setCardNumber(formatCard(e.target.value))}
               placeholder="1234 5678 9012 3456"
-              className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+              className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -188,7 +188,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
                 onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
                 placeholder="MM/YY"
                 maxLength={5}
-                className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100"
               />
             </div>
             <div>
@@ -201,7 +201,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
                 value={cardCvv}
                 onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 placeholder="•••"
-                className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100"
               />
             </div>
           </div>
@@ -214,7 +214,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
               value={cardName}
               onChange={(e) => setCardName(e.target.value)}
               placeholder="Juan dela Cruz"
-              className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+              className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100"
             />
           </div>
         </div>
@@ -251,7 +251,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
                 value={promoInput}
                 onChange={e => { setPromoInput(e.target.value.toUpperCase()); setPromoError('') }}
                 placeholder="Enter promo code"
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100"
+                className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100"
               />
               <button
                 onClick={applyPromo}
@@ -272,16 +272,16 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
         <div
           onClick={() => setAgreed((v) => !v)}
           className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-            agreed ? 'bg-[#2563EB] border-[#2563EB]' : 'border-gray-300'
+            agreed ? 'bg-[#003049] border-[#003049]' : 'border-gray-300'
           }`}
         >
           {agreed && <Check className="w-3 h-3 text-white" />}
         </div>
         <p className="text-sm text-gray-600 leading-relaxed">
           I agree to the{' '}
-          <a href="#" className="text-[#2563EB] underline">Rental Agreement</a>,{' '}
-          <a href="#" className="text-[#2563EB] underline">Terms of Service</a>, and{' '}
-          <a href="#" className="text-[#2563EB] underline">Cancellation Policy</a>. I understand the security deposit of{' '}
+          <a href="#" className="text-[#003049] underline">Rental Agreement</a>,{' '}
+          <a href="#" className="text-[#003049] underline">Terms of Service</a>, and{' '}
+          <a href="#" className="text-[#003049] underline">Cancellation Policy</a>. I understand the security deposit of{' '}
           <strong>₱{listing.security_deposit.toLocaleString()}</strong> is refundable upon return.
         </p>
       </label>
@@ -298,7 +298,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
         <button
           onClick={handlePay}
           disabled={!canPay || loading}
-          className="flex-1 bg-[#2563EB] hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+          className="flex-1 bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
         >
           {loading ? (
             <>

@@ -70,7 +70,7 @@ export function BookingPanel({ listing }: BookingPanelProps) {
       {/* Date picker */}
       <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-200">
         <div className="flex items-center gap-3 px-4 py-3">
-          <Calendar className="w-4 h-4 text-[#2563EB] shrink-0" />
+          <Calendar className="w-4 h-4 text-[#003049] shrink-0" />
           <div className="flex-1">
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Pickup</p>
             <input
@@ -83,7 +83,7 @@ export function BookingPanel({ listing }: BookingPanelProps) {
           </div>
         </div>
         <div className="flex items-center gap-3 px-4 py-3">
-          <Calendar className="w-4 h-4 text-[#2563EB] shrink-0" />
+          <Calendar className="w-4 h-4 text-[#003049] shrink-0" />
           <div className="flex-1">
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Return</p>
             <input
@@ -127,7 +127,7 @@ export function BookingPanel({ listing }: BookingPanelProps) {
       <button
         onClick={handleBook}
         disabled={!pickupDate || !returnDate}
-        className="w-full bg-[#2563EB] hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-colors text-sm"
+        className="w-full bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-colors text-sm"
       >
         {pickupDate && returnDate ? `Book Now — ₱${total.toLocaleString()}` : 'Select dates to book'}
       </button>

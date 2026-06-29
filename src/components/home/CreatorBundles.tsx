@@ -41,17 +41,17 @@ export function CreatorBundles() {
               <ul className="space-y-1 mb-4">
                 {bundle.items.map((item) => (
                   <li key={item} className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="w-1 h-1 rounded-full bg-[#2563EB] shrink-0" />
+                    <span className="w-1 h-1 rounded-full bg-[#003049] shrink-0" />
                     {item}
                   </li>
                 ))}
               </ul>
               <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                 <p className="font-bold text-[#111827]">
-                  <span className="text-[#2563EB]">₱{bundle.daily_price.toLocaleString()}</span>
+                  <span className="text-[#003049]">₱{bundle.daily_price.toLocaleString()}</span>
                   <span className="text-xs font-normal text-gray-500">/day</span>
                 </p>
-                <span className="text-xs font-semibold text-[#2563EB] hover:text-blue-700">
+                <span className="text-xs font-semibold text-[#003049] hover:text-blue-700">
                   Book now →
                 </span>
               </div>

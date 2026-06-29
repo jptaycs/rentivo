@@ -53,7 +53,7 @@ export function Step2Details({ data, onChange, onNext, onBack }: Step2DetailsPro
 
   const canContinue = data.category && data.brand && data.model && data.condition && data.description.length >= 30
 
-  const field = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 transition-all bg-white'
+  const field = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100 transition-all bg-white'
   const label = 'block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5'
 
   return (
@@ -73,7 +73,7 @@ export function Step2Details({ data, onChange, onNext, onBack }: Step2DetailsPro
               onClick={() => set('category', c.value)}
               className={`py-2.5 px-3 rounded-xl border-2 text-sm font-medium transition-all text-left ${
                 data.category === c.value
-                  ? 'border-[#2563EB] bg-blue-50 text-[#2563EB]'
+                  ? 'border-[#003049] bg-blue-50 text-[#003049]'
                   : 'border-gray-200 text-gray-700 hover:border-blue-200'
               }`}
             >
@@ -124,11 +124,11 @@ export function Step2Details({ data, onChange, onNext, onBack }: Step2DetailsPro
               onClick={() => set('condition', c.value)}
               className={`py-3 px-3 rounded-xl border-2 text-sm transition-all text-left ${
                 data.condition === c.value
-                  ? 'border-[#2563EB] bg-blue-50'
+                  ? 'border-[#003049] bg-blue-50'
                   : 'border-gray-200 hover:border-blue-200'
               }`}
             >
-              <p className={`font-semibold ${data.condition === c.value ? 'text-[#2563EB]' : 'text-[#111827]'}`}>{c.label}</p>
+              <p className={`font-semibold ${data.condition === c.value ? 'text-[#003049]' : 'text-[#111827]'}`}>{c.label}</p>
               <p className="text-xs text-gray-400 mt-0.5">{c.desc}</p>
             </button>
           ))}
@@ -171,14 +171,14 @@ export function Step2Details({ data, onChange, onNext, onBack }: Step2DetailsPro
               const el = document.getElementById('acc-input') as HTMLInputElement
               addAccessory(el.value); el.value = ''
             }}
-            className="w-10 h-10 bg-[#2563EB] text-white rounded-xl flex items-center justify-center hover:bg-blue-700 transition-colors shrink-0"
+            className="w-10 h-10 bg-[#003049] text-white rounded-xl flex items-center justify-center hover:bg-[#002438] transition-colors shrink-0"
           >
             <Plus className="w-4 h-4" />
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
           {data.accessories.map((a, i) => (
-            <span key={i} className="flex items-center gap-1.5 bg-blue-50 text-[#2563EB] text-xs font-semibold px-3 py-1.5 rounded-full">
+            <span key={i} className="flex items-center gap-1.5 bg-blue-50 text-[#003049] text-xs font-semibold px-3 py-1.5 rounded-full">
               {a}
               <button onClick={() => removeAccessory(i)} className="hover:text-red-500 transition-colors">
                 <X className="w-3 h-3" />
@@ -195,7 +195,7 @@ export function Step2Details({ data, onChange, onNext, onBack }: Step2DetailsPro
         <button
           onClick={onNext}
           disabled={!canContinue}
-          className="flex-1 bg-[#2563EB] hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
+          className="flex-1 bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
         >
           Continue <ChevronRight className="w-4 h-4" />
         </button>

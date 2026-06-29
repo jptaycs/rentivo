@@ -51,12 +51,12 @@ export function ForgotPasswordForm() {
         </div>
         <button
           onClick={() => { setSent(false); setEmail('') }}
-          className="text-sm text-[#2563EB] hover:underline font-medium"
+          className="text-sm text-[#003049] hover:underline font-medium"
         >
           Try a different email
         </button>
         <div>
-          <Link href="/login" className="flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-[#2563EB] transition-colors">
+          <Link href="/login" className="flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-[#003049] transition-colors">
             <ChevronLeft className="w-4 h-4" /> Back to Sign In
           </Link>
         </div>
@@ -79,7 +79,7 @@ export function ForgotPasswordForm() {
 
       <div>
         <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Email</label>
-        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
+        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
           <Mail className="w-4 h-4 text-gray-400 shrink-0" />
           <input
             type="email"
@@ -96,14 +96,14 @@ export function ForgotPasswordForm() {
       <button
         type="submit"
         disabled={loading || !email}
-        className="w-full bg-[#2563EB] hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+        className="w-full bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
       >
         {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</> : 'Send Reset Link'}
       </button>
 
       <Link
         href="/login"
-        className="flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-[#2563EB] transition-colors"
+        className="flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-[#003049] transition-colors"
       >
         <ChevronLeft className="w-4 h-4" /> Back to Sign In
       </Link>

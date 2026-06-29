@@ -47,7 +47,7 @@ export function Step1Photos({ images, onChange, onNext }: Step1PhotosProps) {
         onDrop={e => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files) }}
         onClick={() => inputRef.current?.click()}
         className={`relative flex flex-col items-center justify-center gap-4 p-12 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${
-          dragging ? 'border-[#2563EB] bg-blue-50' : 'border-gray-200 hover:border-[#2563EB] hover:bg-gray-50'
+          dragging ? 'border-[#003049] bg-blue-50' : 'border-gray-200 hover:border-[#003049] hover:bg-gray-50'
         }`}
       >
         <input
@@ -59,7 +59,7 @@ export function Step1Photos({ images, onChange, onNext }: Step1PhotosProps) {
           onChange={e => handleFiles(e.target.files)}
         />
         <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center">
-          <ImagePlus className="w-7 h-7 text-[#2563EB]" />
+          <ImagePlus className="w-7 h-7 text-[#003049]" />
         </div>
         <div className="text-center">
           <p className="font-semibold text-[#111827]">Drop photos here or click to browse</p>
@@ -71,12 +71,12 @@ export function Step1Photos({ images, onChange, onNext }: Step1PhotosProps) {
       {images.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {images.map((src, i) => (
-            <div key={src} className={`relative group rounded-xl overflow-hidden ${i === 0 ? 'ring-2 ring-[#2563EB]' : ''}`}>
+            <div key={src} className={`relative group rounded-xl overflow-hidden ${i === 0 ? 'ring-2 ring-[#003049]' : ''}`}>
               <div className="relative aspect-[4/3]">
                 <Image src={src} alt={`Photo ${i + 1}`} fill className="object-cover" sizes="200px" />
               </div>
               {i === 0 && (
-                <div className="absolute top-2 left-2 bg-[#2563EB] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                <div className="absolute top-2 left-2 bg-[#003049] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                   Cover
                 </div>
               )}
@@ -100,7 +100,7 @@ export function Step1Photos({ images, onChange, onNext }: Step1PhotosProps) {
           {images.length < 10 && (
             <button
               onClick={() => inputRef.current?.click()}
-              className="aspect-[4/3] border-2 border-dashed border-gray-200 hover:border-[#2563EB] rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-[#2563EB] transition-colors"
+              className="aspect-[4/3] border-2 border-dashed border-gray-200 hover:border-[#003049] rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-[#003049] transition-colors"
             >
               <Upload className="w-5 h-5" />
               <span className="text-xs font-medium">Add more</span>
@@ -116,7 +116,7 @@ export function Step1Photos({ images, onChange, onNext }: Step1PhotosProps) {
       <button
         onClick={onNext}
         disabled={images.length === 0}
-        className="w-full bg-[#2563EB] hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+        className="w-full bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
       >
         Continue <ChevronRight className="w-4 h-4" />
       </button>

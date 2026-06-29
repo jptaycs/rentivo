@@ -126,7 +126,7 @@ export function SignupForm() {
       {/* Full name */}
       <div>
         <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Full Name</label>
-        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
+        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
           <User className="w-4 h-4 text-gray-400 shrink-0" />
           <input
             type="text"
@@ -143,7 +143,7 @@ export function SignupForm() {
       {/* Email */}
       <div>
         <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Email</label>
-        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
+        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
           <Mail className="w-4 h-4 text-gray-400 shrink-0" />
           <input
             type="email"
@@ -160,7 +160,7 @@ export function SignupForm() {
       {/* Password */}
       <div>
         <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">Password</label>
-        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
+        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
           <Lock className="w-4 h-4 text-gray-400 shrink-0" />
           <input
             type={showPassword ? 'text' : 'password'}
@@ -184,7 +184,7 @@ export function SignupForm() {
         <div className={`flex items-center gap-3 border rounded-xl px-4 py-3 focus-within:ring-2 transition-all bg-white ${
           confirmPassword && !passwordsMatch
             ? 'border-red-300 focus-within:border-red-400 focus-within:ring-red-100'
-            : 'border-gray-200 focus-within:border-[#2563EB] focus-within:ring-blue-100'
+            : 'border-gray-200 focus-within:border-[#003049] focus-within:ring-blue-100'
         }`}>
           <Lock className="w-4 h-4 text-gray-400 shrink-0" />
           <input
@@ -208,30 +208,30 @@ export function SignupForm() {
         <div
           onClick={() => setAgreed((v) => !v)}
           className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-            agreed ? 'bg-[#2563EB] border-[#2563EB]' : 'border-gray-300'
+            agreed ? 'bg-[#003049] border-[#003049]' : 'border-gray-300'
           }`}
         >
           {agreed && <CheckCircle2 className="w-3 h-3 text-white" />}
         </div>
         <p className="text-sm text-gray-600 leading-relaxed">
           I agree to Rentivo&apos;s{' '}
-          <Link href="#" className="text-[#2563EB] hover:underline">Terms of Service</Link>
+          <Link href="#" className="text-[#003049] hover:underline">Terms of Service</Link>
           {' '}and{' '}
-          <Link href="#" className="text-[#2563EB] hover:underline">Privacy Policy</Link>
+          <Link href="#" className="text-[#003049] hover:underline">Privacy Policy</Link>
         </p>
       </label>
 
       <button
         type="submit"
         disabled={!canSubmit}
-        className="w-full bg-[#2563EB] hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+        className="w-full bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
       >
         {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating account…</> : 'Create Account'}
       </button>
 
       <p className="text-center text-sm text-gray-500">
         Already have an account?{' '}
-        <Link href="/login" className="text-[#2563EB] font-semibold hover:underline">Sign in</Link>
+        <Link href="/login" className="text-[#003049] font-semibold hover:underline">Sign in</Link>
       </p>
     </form>
   )

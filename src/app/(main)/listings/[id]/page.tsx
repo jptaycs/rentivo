@@ -34,9 +34,9 @@ export default async function ListingPage({ params }: ListingPageProps) {
 
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-          <Link href="/" className="hover:text-[#2563EB]">Home</Link>
+          <Link href="/" className="hover:text-[#003049]">Home</Link>
           <span>/</span>
-          <Link href="/search" className="hover:text-[#2563EB]">Search</Link>
+          <Link href="/search" className="hover:text-[#003049]">Search</Link>
           <span>/</span>
           <span className="text-[#111827] font-medium truncate">{listing.title}</span>
         </nav>
@@ -49,7 +49,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
             </h1>
             <div className="flex flex-wrap items-center gap-3 mt-2">
               {listing.host?.is_verified && (
-                <span className="flex items-center gap-1 text-[#2563EB] text-sm font-medium">
+                <span className="flex items-center gap-1 text-[#003049] text-sm font-medium">
                   <BadgeCheck className="w-4 h-4" /> Verified Host
                 </span>
               )}
@@ -112,7 +112,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
             <section>
               <h2 className="text-xl font-bold text-[#111827] mb-4">Rental Pricing</h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-[#2563EB] text-white rounded-2xl p-5">
+                <div className="bg-[#003049] text-white rounded-2xl p-5">
                   <p className="text-blue-200 text-xs font-bold uppercase tracking-wider mb-1">Daily</p>
                   <p className="text-3xl font-bold">₱{listing.daily_price.toLocaleString()}</p>
                 </div>
@@ -163,7 +163,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
                   { icon: CheckCircle2, color: 'text-[#22C55E]', text: 'Equipment must be returned in the same condition' },
                   { icon: CheckCircle2, color: 'text-[#22C55E]', text: 'Renter is responsible for loss or damage' },
                   { icon: XCircle, color: 'text-red-400', text: 'No sub-renting or transferring to third parties' },
-                  { icon: Info, color: 'text-[#2563EB]', text: 'Late returns charged at 1.5x the daily rate per day' },
+                  { icon: Info, color: 'text-[#003049]', text: 'Late returns charged at 1.5x the daily rate per day' },
                 ].map((rule, i) => {
                   const Icon = rule.icon
                   return (
@@ -189,7 +189,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
                   const Icon = item.icon
                   return (
                     <div key={item.title} className="flex gap-3 p-4 bg-white rounded-xl border border-gray-100">
-                      <Icon className="w-5 h-5 text-[#2563EB] shrink-0 mt-0.5" />
+                      <Icon className="w-5 h-5 text-[#003049] shrink-0 mt-0.5" />
                       <div>
                         <p className="text-sm font-semibold text-[#111827]">{item.title}</p>
                         <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>

@@ -19,7 +19,7 @@ const HISTORY = [
 const TABS = ['Upcoming', 'History']
 
 const STATUS_STYLES: Record<string, string> = {
-  confirmed: 'bg-blue-50 text-[#2563EB]',
+  confirmed: 'bg-blue-50 text-[#003049]',
   pending: 'bg-amber-50 text-amber-700',
   completed: 'bg-green-50 text-[#22C55E]',
 }
@@ -40,7 +40,7 @@ export default function RentalsPage() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-5 py-1.5 rounded-lg text-sm font-semibold transition-all ${tab === t ? 'bg-white text-[#2563EB] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-5 py-1.5 rounded-lg text-sm font-semibold transition-all ${tab === t ? 'bg-white text-[#003049] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
             {t}
           </button>
@@ -52,7 +52,7 @@ export default function RentalsPage() {
           <div className="text-center py-20 text-gray-400 bg-white rounded-2xl border border-gray-100">
             <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="font-medium">No {tab.toLowerCase()} rentals</p>
-            <Link href="/search" className="text-sm text-[#2563EB] hover:underline mt-2 inline-block">Browse equipment →</Link>
+            <Link href="/search" className="text-sm text-[#003049] hover:underline mt-2 inline-block">Browse equipment →</Link>
           </div>
         ) : items.map((item) => (
           <div key={item.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -80,10 +80,10 @@ export default function RentalsPage() {
 
             <div className="flex gap-2 px-5 py-3 border-t border-gray-100 bg-gray-50/50">
               <Link href={`/listings/${item.listing.id}`}
-                className="text-xs font-medium text-gray-600 hover:text-[#2563EB] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+                className="text-xs font-medium text-gray-600 hover:text-[#003049] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                 View listing
               </Link>
-              <button className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#2563EB] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+              <button className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#003049] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                 <MessageCircle className="w-3.5 h-3.5" /> Message Host
               </button>
               {'reviewed' in item && !item.reviewed && item.status === 'completed' && (

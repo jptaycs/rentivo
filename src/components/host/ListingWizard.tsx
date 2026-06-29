@@ -67,7 +67,7 @@ export function ListingWizard() {
             'You get paid within 2 days of return',
           ].map((s, i) => (
             <div key={i} className="flex gap-3 text-sm text-gray-600">
-              <span className="w-5 h-5 rounded-full bg-[#2563EB] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+              <span className="w-5 h-5 rounded-full bg-[#003049] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
               {s}
             </div>
           ))}
@@ -75,15 +75,15 @@ export function ListingWizard() {
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link href={`/listings/${listingId}`}
-            className="flex items-center justify-center gap-2 border border-[#2563EB] text-[#2563EB] font-bold py-3 px-6 rounded-xl text-sm hover:bg-blue-50 transition-colors">
+            className="flex items-center justify-center gap-2 border border-[#003049] text-[#003049] font-bold py-3 px-6 rounded-xl text-sm hover:bg-blue-50 transition-colors">
             <Eye className="w-4 h-4" /> Preview Listing
           </Link>
           <Link href="/dashboard/listings"
-            className="flex items-center justify-center bg-[#2563EB] text-white font-bold py-3 px-6 rounded-xl text-sm hover:bg-blue-700 transition-colors">
+            className="flex items-center justify-center bg-[#003049] text-white font-bold py-3 px-6 rounded-xl text-sm hover:bg-[#002438] transition-colors">
             Go to My Listings
           </Link>
         </div>
-        <Link href="/" className="text-sm text-gray-400 hover:text-[#2563EB] transition-colors block">← Back to Home</Link>
+        <Link href="/" className="text-sm text-gray-400 hover:text-[#003049] transition-colors block">← Back to Home</Link>
       </div>
     )
   }

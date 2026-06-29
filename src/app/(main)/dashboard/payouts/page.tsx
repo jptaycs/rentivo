@@ -41,11 +41,11 @@ export default function PayoutsPage() {
       </div>
 
       {/* Payout balance */}
-      <div className="bg-gradient-to-br from-[#2563EB] to-blue-700 rounded-2xl p-6 text-white">
+      <div className="bg-gradient-to-br from-[#003049] to-blue-700 rounded-2xl p-6 text-white">
         <p className="text-sm font-medium opacity-80">Available for payout</p>
         <p className="text-4xl font-bold mt-1">₱32,250</p>
         <p className="text-sm opacity-70 mt-1">Processes within 1–2 business days</p>
-        <button className="mt-4 bg-white text-[#2563EB] font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-blue-50 transition-colors">
+        <button className="mt-4 bg-white text-[#003049] font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-blue-50 transition-colors">
           Request Payout
         </button>
       </div>
@@ -56,7 +56,7 @@ export default function PayoutsPage() {
           <p className="font-bold text-[#111827]">Payout Accounts</p>
           {status === 'idle' && (
             <button onClick={() => setStatus('form')}
-              className="flex items-center gap-1.5 text-sm font-semibold text-[#2563EB] hover:text-blue-700 transition-colors">
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#003049] hover:text-blue-700 transition-colors">
               <Plus className="w-4 h-4" /> Add account
             </button>
           )}
@@ -65,7 +65,7 @@ export default function PayoutsPage() {
         {PAYOUT_ACCOUNTS.map(acc => (
           <div key={acc.id} className="flex items-center gap-4 p-4 bg-[#F8FAFC] rounded-xl border border-gray-100">
             <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
-              <Landmark className="w-5 h-5 text-[#2563EB]" />
+              <Landmark className="w-5 h-5 text-[#003049]" />
             </div>
             <div className="flex-1">
               <p className="font-semibold text-sm text-[#111827]">{acc.type} {acc.number}</p>
@@ -94,13 +94,13 @@ export default function PayoutsPage() {
 
         {/* Add account form */}
         {status === 'form' && (
-          <div className="border border-[#2563EB]/30 rounded-xl p-5 space-y-4 bg-blue-50/30">
+          <div className="border border-[#003049]/30 rounded-xl p-5 space-y-4 bg-blue-50/30">
             <p className="font-bold text-sm text-[#111827]">Add Payout Account</p>
 
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Payment Method</label>
               <select value={method} onChange={e => setMethod(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2563EB] bg-white">
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#003049] bg-white">
                 <option value="">Select method</option>
                 {PAYOUT_METHODS.map(m => <option key={m}>{m}</option>)}
               </select>
@@ -110,14 +110,14 @@ export default function PayoutsPage() {
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Mobile Number / Account Number</label>
               <input value={number} onChange={e => setNumber(e.target.value)}
                 placeholder="e.g. 09171234567"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2563EB] bg-white" />
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#003049] bg-white" />
             </div>
 
             <div>
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Account Name</label>
               <input value={name} onChange={e => setName(e.target.value)}
                 placeholder="Name as registered"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2563EB] bg-white" />
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#003049] bg-white" />
             </div>
 
             <div className="flex gap-2">
@@ -126,7 +126,7 @@ export default function PayoutsPage() {
                 Cancel
               </button>
               <button onClick={handleAdd} disabled={!method || !number || !name}
-                className="flex-1 bg-[#2563EB] text-white rounded-xl py-3 text-sm font-bold hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors">
+                className="flex-1 bg-[#003049] text-white rounded-xl py-3 text-sm font-bold hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors">
                 Add Account
               </button>
             </div>

@@ -51,7 +51,7 @@ export function ConversationView({ thread, onBack }: ConversationViewProps) {
             <ArrowLeft className="w-4 h-4 text-gray-600" />
           </button>
         )}
-        <div className="w-9 h-9 rounded-full bg-[#2563EB]/10 flex items-center justify-center font-bold text-[#2563EB] text-sm shrink-0">
+        <div className="w-9 h-9 rounded-full bg-[#003049]/10 flex items-center justify-center font-bold text-[#003049] text-sm shrink-0">
           {thread.otherUser.initial}
         </div>
         <div className="flex-1 min-w-0">
@@ -60,7 +60,7 @@ export function ConversationView({ thread, onBack }: ConversationViewProps) {
         </div>
         <Link
           href="/dashboard/bookings"
-          className="flex items-center gap-1.5 text-xs font-medium text-[#2563EB] border border-blue-200 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 text-xs font-medium text-[#003049] border border-blue-200 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
         >
           <CalendarDays className="w-3.5 h-3.5" />
           Booking
@@ -70,7 +70,7 @@ export function ConversationView({ thread, onBack }: ConversationViewProps) {
       {/* Booking context pill */}
       <div className="px-4 py-2.5 bg-blue-50/60 border-b border-blue-100/60 shrink-0">
         <div className="flex items-center justify-between">
-          <p className="text-xs text-[#2563EB] font-semibold">{thread.equipment}</p>
+          <p className="text-xs text-[#003049] font-semibold">{thread.equipment}</p>
           <span className="text-xs text-gray-400">{thread.bookingRef}</span>
         </div>
       </div>
@@ -88,7 +88,7 @@ export function ConversationView({ thread, onBack }: ConversationViewProps) {
               <div className={`max-w-[75%] group`}>
                 <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                   isMe
-                    ? 'bg-[#2563EB] text-white rounded-br-sm'
+                    ? 'bg-[#003049] text-white rounded-br-sm'
                     : 'bg-white border border-gray-200 text-[#111827] rounded-bl-sm shadow-sm'
                 }`}>
                   {msg.text}
@@ -105,8 +105,8 @@ export function ConversationView({ thread, onBack }: ConversationViewProps) {
 
       {/* Input */}
       <div className="px-4 py-3 border-t border-gray-100 bg-white shrink-0">
-        <div className="flex items-center gap-2 bg-[#F8FAFC] border border-gray-200 rounded-2xl px-4 py-2.5 focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100 transition-all">
-          <button className="text-gray-400 hover:text-[#2563EB] transition-colors shrink-0">
+        <div className="flex items-center gap-2 bg-[#F8FAFC] border border-gray-200 rounded-2xl px-4 py-2.5 focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+          <button className="text-gray-400 hover:text-[#003049] transition-colors shrink-0">
             <ImageIcon className="w-4 h-4" />
           </button>
           <input
@@ -119,7 +119,7 @@ export function ConversationView({ thread, onBack }: ConversationViewProps) {
           <button
             onClick={send}
             disabled={!input.trim()}
-            className="w-8 h-8 bg-[#2563EB] hover:bg-blue-700 disabled:bg-gray-200 text-white rounded-xl flex items-center justify-center transition-colors shrink-0"
+            className="w-8 h-8 bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 text-white rounded-xl flex items-center justify-center transition-colors shrink-0"
           >
             <Send className="w-3.5 h-3.5" />
           </button>

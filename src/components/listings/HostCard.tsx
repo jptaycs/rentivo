@@ -21,9 +21,9 @@ export function HostCard({ host }: HostCardProps) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
       <div className="flex items-start gap-4 mb-5">
-        <Avatar className="w-16 h-16 ring-2 ring-[#2563EB]/20">
+        <Avatar className="w-16 h-16 ring-2 ring-[#003049]/20">
           <AvatarImage src={host.avatar_url ?? ''} />
-          <AvatarFallback className="bg-[#2563EB] text-white font-bold text-lg">
+          <AvatarFallback className="bg-[#003049] text-white font-bold text-lg">
             {initials}
           </AvatarFallback>
         </Avatar>
@@ -31,7 +31,7 @@ export function HostCard({ host }: HostCardProps) {
           <div className="flex items-center gap-2">
             <h3 className="font-bold text-[#111827]">{host.full_name}</h3>
             {host.is_verified && (
-              <BadgeCheck className="w-5 h-5 text-[#2563EB]" />
+              <BadgeCheck className="w-5 h-5 text-[#003049]" />
             )}
           </div>
           <p className="text-sm text-gray-500 mt-0.5">Host since {joinYear}</p>
@@ -47,7 +47,7 @@ export function HostCard({ host }: HostCardProps) {
 
       <div className="grid grid-cols-2 gap-3 mb-5">
         <div className="bg-[#F8FAFC] rounded-xl p-3 text-center">
-          <Clock className="w-4 h-4 text-[#2563EB] mx-auto mb-1" />
+          <Clock className="w-4 h-4 text-[#003049] mx-auto mb-1" />
           <p className="text-xs text-gray-500">Response time</p>
           <p className="text-sm font-semibold text-[#111827]">
             {host.response_time_hours
@@ -58,7 +58,7 @@ export function HostCard({ host }: HostCardProps) {
           </p>
         </div>
         <div className="bg-[#F8FAFC] rounded-xl p-3 text-center">
-          <Calendar className="w-4 h-4 text-[#2563EB] mx-auto mb-1" />
+          <Calendar className="w-4 h-4 text-[#003049] mx-auto mb-1" />
           <p className="text-xs text-gray-500">Years hosting</p>
           <p className="text-sm font-semibold text-[#111827]">{yearsHosting} yr{yearsHosting > 1 ? 's' : ''}</p>
         </div>
@@ -66,13 +66,13 @@ export function HostCard({ host }: HostCardProps) {
 
       <Link
         href="/dashboard/messages"
-        className="w-full border border-[#2563EB] text-[#2563EB] font-semibold py-2.5 rounded-xl text-sm hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
+        className="w-full border border-[#003049] text-[#003049] font-semibold py-2.5 rounded-xl text-sm hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
       >
         Message Host
       </Link>
       <Link
         href={`/hosts/${host.id}`}
-        className="w-full mt-2 text-center text-xs font-semibold text-gray-400 hover:text-[#2563EB] transition-colors flex items-center justify-center gap-1 py-1"
+        className="w-full mt-2 text-center text-xs font-semibold text-gray-400 hover:text-[#003049] transition-colors flex items-center justify-center gap-1 py-1"
       >
         <ExternalLink className="w-3 h-3" /> View full profile
       </Link>

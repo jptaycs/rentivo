@@ -30,7 +30,7 @@ export function CompactSearchBar() {
     >
       {/* What */}
       <div className="flex items-center gap-2 px-4 py-3 flex-1 min-w-0">
-        <Search className="w-4 h-4 text-[#2563EB] shrink-0" />
+        <Search className="w-4 h-4 text-[#003049] shrink-0" />
         <input
           type="text"
           value={query}
@@ -47,7 +47,7 @@ export function CompactSearchBar() {
 
       {/* Where */}
       <div className="flex items-center gap-2 px-4 py-3 w-44 min-w-0">
-        <MapPin className="w-4 h-4 text-[#2563EB] shrink-0" />
+        <MapPin className="w-4 h-4 text-[#003049] shrink-0" />
         <input
           type="text"
           value={city}
@@ -59,7 +59,7 @@ export function CompactSearchBar() {
 
       {/* When */}
       <div className="flex items-center gap-2 px-4 py-3">
-        <Calendar className="w-4 h-4 text-[#2563EB] shrink-0" />
+        <Calendar className="w-4 h-4 text-[#003049] shrink-0" />
         <input
           type="date"
           value={from}
@@ -78,7 +78,7 @@ export function CompactSearchBar() {
       <div className="px-3 py-2">
         <button
           type="submit"
-          className="bg-[#2563EB] hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors w-full sm:w-auto"
+          className="bg-[#003049] hover:bg-[#002438] text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors w-full sm:w-auto"
         >
           Search
         </button>

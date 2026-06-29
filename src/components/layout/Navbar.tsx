@@ -59,7 +59,7 @@ export function Navbar() {
                   key={link.label}
                   href={link.href}
                   className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${
-                    active ? 'text-[#2563EB] bg-blue-50' : 'text-gray-600 hover:text-[#2563EB] hover:bg-blue-50'
+                    active ? 'text-[#003049] bg-blue-50' : 'text-gray-600 hover:text-[#003049] hover:bg-blue-50'
                   }`}
                 >
                   {link.label}
@@ -83,7 +83,7 @@ export function Navbar() {
               title="Messages"
             >
               <MessageCircle className="w-5 h-5 text-gray-600" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#2563EB] rounded-full" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#003049] rounded-full" />
             </Link>
 
             <Link
@@ -101,9 +101,9 @@ export function Navbar() {
                 onClick={() => setDropdownOpen(v => !v)}
                 className="flex items-center gap-1.5 ml-1"
               >
-                <Avatar className="w-9 h-9 ring-2 ring-transparent hover:ring-[#2563EB] transition-all">
+                <Avatar className="w-9 h-9 ring-2 ring-transparent hover:ring-[#003049] transition-all">
                   <AvatarImage src="" />
-                  <AvatarFallback className="bg-[#2563EB] text-white text-xs font-semibold">JP</AvatarFallback>
+                  <AvatarFallback className="bg-[#003049] text-white text-xs font-semibold">JP</AvatarFallback>
                 </Avatar>
                 <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -160,7 +160,7 @@ export function Navbar() {
               <Link
                 key={link.label}
                 href={link.href}
-                className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-[#2563EB] hover:bg-blue-50 rounded-lg transition-colors"
+                className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-[#003049] hover:bg-blue-50 rounded-lg transition-colors"
               >
                 {link.label}
               </Link>

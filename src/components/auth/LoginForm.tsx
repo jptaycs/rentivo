@@ -76,7 +76,7 @@ export function LoginForm() {
         <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1.5">
           Email
         </label>
-        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
+        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
           <Mail className="w-4 h-4 text-gray-400 shrink-0" />
           <input
             type="email"
@@ -96,11 +96,11 @@ export function LoginForm() {
           <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider">
             Password
           </label>
-          <Link href="/forgot-password" className="text-xs text-[#2563EB] hover:underline font-medium">
+          <Link href="/forgot-password" className="text-xs text-[#003049] hover:underline font-medium">
             Forgot password?
           </Link>
         </div>
-        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
+        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 transition-all bg-white">
           <Lock className="w-4 h-4 text-gray-400 shrink-0" />
           <input
             type={showPassword ? 'text' : 'password'}
@@ -125,14 +125,14 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={loading || !email || !password}
-        className="w-full bg-[#2563EB] hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+        className="w-full bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
       >
         {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</> : 'Sign In'}
       </button>
 
       <p className="text-center text-sm text-gray-500">
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="text-[#2563EB] font-semibold hover:underline">
+        <Link href="/signup" className="text-[#003049] font-semibold hover:underline">
           Sign up free
         </Link>
       </p>

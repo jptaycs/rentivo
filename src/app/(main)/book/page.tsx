@@ -39,7 +39,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <Link
             href={`/listings/${listingId}`}
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#2563EB] transition-colors font-medium"
+            className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#003049] transition-colors font-medium"
           >
             <ChevronLeft className="w-4 h-4" />
             Back to listing

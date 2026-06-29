@@ -70,10 +70,10 @@ export function SearchResults(props: SearchResultsProps) {
         <div className="flex items-center justify-between mb-5">
           <p className="text-sm text-gray-500">
             <span className="font-semibold text-[#111827]">{results.length}</span> listings found
-            {props.query && <span> for "<span className="text-[#2563EB]">{props.query}</span>"</span>}
+            {props.query && <span> for "<span className="text-[#003049]">{props.query}</span>"</span>}
           </p>
           <div className="flex items-center gap-3">
-            <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 outline-none focus:border-[#2563EB]">
+            <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 outline-none focus:border-[#003049]">
               <option>Sort: Recommended</option>
               <option>Price: Low to High</option>
               <option>Price: High to Low</option>

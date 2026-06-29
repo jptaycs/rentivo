@@ -35,7 +35,7 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
   const cities = PH_CITIES[data.province] ?? []
   const canContinue = data.city && data.province
 
-  const field = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 transition-all bg-white'
+  const field = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100 transition-all bg-white'
   const label = 'block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5'
 
   return (
@@ -89,7 +89,7 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
 
       {/* Privacy notice */}
       <div className="flex items-start gap-2 text-xs text-gray-400 bg-[#F8FAFC] rounded-xl p-4">
-        <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0 text-[#2563EB]" />
+        <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0 text-[#003049]" />
         Renters see <strong className="text-gray-500">city and province</strong> on the listing. Your full street address is only shown after a booking is confirmed.
       </div>
 
@@ -123,7 +123,7 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
         <button
           onClick={onNext}
           disabled={!canContinue}
-          className="flex-1 bg-[#2563EB] hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
+          className="flex-1 bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2"
         >
           Continue <ChevronRight className="w-4 h-4" />
         </button>

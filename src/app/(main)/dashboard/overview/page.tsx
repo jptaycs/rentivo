@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 
 const STATS = [
   { label: 'Total Earnings', value: '₱128,400', change: '+12%', icon: DollarSign, color: 'bg-green-50 text-green-600' },
-  { label: 'Active Listings', value: '4', change: '+1', icon: Package, color: 'bg-blue-50 text-[#2563EB]' },
+  { label: 'Active Listings', value: '4', change: '+1', icon: Package, color: 'bg-blue-50 text-[#003049]' },
   { label: 'Bookings This Month', value: '18', change: '+5', icon: CalendarDays, color: 'bg-orange-50 text-[#F97316]' },
   { label: 'Average Rating', value: '4.97', change: '+0.02', icon: Star, color: 'bg-amber-50 text-amber-500' },
 ]
@@ -18,7 +18,7 @@ const RECENT_BOOKINGS = [
 ]
 
 const STATUS_STYLES: Record<string, string> = {
-  confirmed: 'bg-blue-50 text-[#2563EB]',
+  confirmed: 'bg-blue-50 text-[#003049]',
   pending: 'bg-amber-50 text-amber-700',
   completed: 'bg-green-50 text-[#22C55E]',
   cancelled: 'bg-red-50 text-red-600',
@@ -35,7 +35,7 @@ export default function OverviewPage() {
         </div>
         <Link
           href="/host/new"
-          className="bg-[#2563EB] text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2"
+          className="bg-[#003049] text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-[#002438] transition-colors flex items-center gap-2"
         >
           <Package className="w-4 h-4" />
           New Listing
@@ -71,7 +71,7 @@ export default function OverviewPage() {
             <h2 className="font-bold text-[#111827]">Earnings — Last 7 Days</h2>
             <p className="text-xs text-gray-400 mt-0.5">Daily rental income</p>
           </div>
-          <span className="text-2xl font-bold text-[#2563EB]">₱28,400</span>
+          <span className="text-2xl font-bold text-[#003049]">₱28,400</span>
         </div>
         {/* Simple bar chart */}
         {(() => {
@@ -84,7 +84,7 @@ export default function OverviewPage() {
                 <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
                   <div className="w-full relative flex items-end" style={{ height: '100px' }}>
                     <div
-                      className={`w-full rounded-t-lg transition-all ${v > 0 ? 'bg-[#2563EB]' : 'bg-gray-100'}`}
+                      className={`w-full rounded-t-lg transition-all ${v > 0 ? 'bg-[#003049]' : 'bg-gray-100'}`}
                       style={{ height: v > 0 ? `${(v / max) * 100}%` : '8px' }}
                     />
                   </div>
@@ -100,15 +100,15 @@ export default function OverviewPage() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-bold text-[#111827]">Recent Bookings</h2>
-          <Link href="/dashboard/bookings" className="text-xs text-[#2563EB] font-semibold hover:underline flex items-center gap-1">
+          <Link href="/dashboard/bookings" className="text-xs text-[#003049] font-semibold hover:underline flex items-center gap-1">
             View all <ArrowUpRight className="w-3 h-3" />
           </Link>
         </div>
         <div className="divide-y divide-gray-100">
           {RECENT_BOOKINGS.map((b) => (
             <div key={b.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
-              <div className="w-8 h-8 rounded-full bg-[#2563EB]/10 flex items-center justify-center shrink-0">
-                <span className="text-[#2563EB] text-xs font-bold">{b.renter[0]}</span>
+              <div className="w-8 h-8 rounded-full bg-[#003049]/10 flex items-center justify-center shrink-0">
+                <span className="text-[#003049] text-xs font-bold">{b.renter[0]}</span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-[#111827] truncate">{b.renter}</p>
@@ -133,9 +133,9 @@ export default function OverviewPage() {
           { label: 'Payout settings', href: '/dashboard/payouts', icon: DollarSign },
         ].map(({ label, href, icon: Icon }) => (
           <Link key={label} href={href}
-            className="flex items-center gap-3 bg-white border border-gray-100 rounded-xl p-4 text-sm font-medium text-gray-700 hover:border-[#2563EB] hover:text-[#2563EB] transition-all group"
+            className="flex items-center gap-3 bg-white border border-gray-100 rounded-xl p-4 text-sm font-medium text-gray-700 hover:border-[#003049] hover:text-[#003049] transition-all group"
           >
-            <Icon className="w-4 h-4 text-gray-400 group-hover:text-[#2563EB] transition-colors" />
+            <Icon className="w-4 h-4 text-gray-400 group-hover:text-[#003049] transition-colors" />
             {label}
           </Link>
         ))}

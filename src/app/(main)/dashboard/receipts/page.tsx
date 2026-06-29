@@ -34,7 +34,7 @@ export default function ReceiptsPage() {
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="Search by booking ref or equipment…"
-          className="w-full border border-gray-200 rounded-xl pl-11 pr-4 py-3 text-sm outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 bg-white"
+          className="w-full border border-gray-200 rounded-xl pl-11 pr-4 py-3 text-sm outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100 bg-white"
         />
       </div>
 
@@ -64,7 +64,7 @@ export default function ReceiptsPage() {
 
               <button
                 onClick={() => alert(`Downloading receipt for ${r.ref}…`)}
-                className="w-9 h-9 border border-gray-200 rounded-xl flex items-center justify-center hover:border-[#2563EB] hover:text-[#2563EB] text-gray-400 transition-colors shrink-0"
+                className="w-9 h-9 border border-gray-200 rounded-xl flex items-center justify-center hover:border-[#003049] hover:text-[#003049] text-gray-400 transition-colors shrink-0"
               >
                 <Download className="w-4 h-4" />
               </button>

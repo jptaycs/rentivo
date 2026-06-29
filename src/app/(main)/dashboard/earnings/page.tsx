@@ -37,7 +37,7 @@ export default function EarningsPage() {
         {[
           { label: 'Total Earned', value: `₱${totalEarned.toLocaleString()}`, icon: DollarSign, color: 'text-[#22C55E] bg-green-50' },
           { label: 'Pending Payout', value: `₱${pending.toLocaleString()}`, icon: Clock, color: 'text-amber-500 bg-amber-50' },
-          { label: 'This Month', value: '₱35,400', icon: TrendingUp, color: 'text-[#2563EB] bg-blue-50' },
+          { label: 'This Month', value: '₱35,400', icon: TrendingUp, color: 'text-[#003049] bg-blue-50' },
         ].map((s) => {
           const Icon = s.icon
           return (
@@ -58,12 +58,12 @@ export default function EarningsPage() {
         <div className="flex items-end gap-3 h-40">
           {MONTHLY.map((m) => (
             <div key={m.month} className="flex-1 flex flex-col items-center gap-2">
-              <span className="text-xs font-bold text-[#2563EB]">
+              <span className="text-xs font-bold text-[#003049]">
                 {m.amount > 0 ? `₱${(m.amount / 1000).toFixed(0)}k` : ''}
               </span>
               <div className="w-full relative flex items-end" style={{ height: '96px' }}>
                 <div
-                  className="w-full bg-[#2563EB] rounded-t-lg hover:bg-blue-700 transition-colors cursor-default"
+                  className="w-full bg-[#003049] rounded-t-lg hover:bg-[#002438] transition-colors cursor-default"
                   style={{ height: `${(m.amount / max) * 100}%`, minHeight: '4px' }}
                 />
               </div>
@@ -77,10 +77,10 @@ export default function EarningsPage() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-bold text-[#111827]">Payout Account</h2>
-          <button className="text-xs font-semibold text-[#2563EB] hover:underline">Edit</button>
+          <button className="text-xs font-semibold text-[#003049] hover:underline">Edit</button>
         </div>
         <div className="flex items-center gap-4 p-4 bg-[#F8FAFC] rounded-xl border border-gray-100">
-          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-[#2563EB] font-bold text-sm">
+          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-[#003049] font-bold text-sm">
             G
           </div>
           <div>

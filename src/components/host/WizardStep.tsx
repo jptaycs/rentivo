@@ -20,12 +20,12 @@ export function WizardStep({ current }: { current: number }) {
             <div className="flex flex-col items-center gap-1">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all
                 ${done   ? 'bg-[#22C55E] text-white'
-                : active ? 'bg-[#2563EB] text-white ring-4 ring-blue-100'
+                : active ? 'bg-[#003049] text-white ring-4 ring-blue-100'
                 :          'bg-gray-100 text-gray-400'}`}>
                 {done ? <Check className="w-3.5 h-3.5" /> : s.n}
               </div>
               <span className={`text-[10px] font-semibold whitespace-nowrap ${
-                active ? 'text-[#2563EB]' : done ? 'text-[#22C55E]' : 'text-gray-400'
+                active ? 'text-[#003049]' : done ? 'text-[#22C55E]' : 'text-gray-400'
               }`}>{s.label}</span>
             </div>
             {i < STEPS.length - 1 && (

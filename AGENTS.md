@@ -22,7 +22,7 @@ The prototype design lives in `Rentivo.html` — a bundled React app from Claude
 
 | Role        | Token            | Hex       |
 |-------------|------------------|-----------|
-| Primary     | `blue-600`       | `#2563EB` |
+| Primary     | `blue-600`       | `#003049` |
 | Secondary   | `white`          | `#FFFFFF` |
 | Accent      | `orange-500`     | `#F97316` |
 | Success     | `green-500`      | `#22C55E` |
@@ -311,6 +311,6 @@ Features to surface in UI:
 - **Location context:** Philippines — cities like Manila, Cebu, Davao as default location examples.
 - **Ratings:** Use ₱ for currency and ⭐ star ratings (e.g., 4.97, 4.98, 5.0).
 - **Do not scope-creep:** No drones, laptops, gaming consoles, vehicles, or other rental categories. Camera gear and smartphones only.
-- **Stack assumptions:** React + Tailwind CSS (mirrors prototype). Use `#2563EB` as the primary Tailwind class (`blue-600`).
+- **Stack assumptions:** React + Tailwind CSS (mirrors prototype). Use `#003049` as the primary Tailwind class (`blue-600`).
 - **Images:** Use placeholder equipment images (unsplash/pexels Sony/Canon gear) during development; swap for real assets in production.
 - **Fonts:** Inter from Google Fonts or system-ui stack.
