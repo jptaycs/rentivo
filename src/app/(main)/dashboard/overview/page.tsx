@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 const STATS = [
   { label: 'Total Earnings', value: '₱128,400', change: '+12%', icon: DollarSign, color: 'bg-green-50 text-green-600' },
   { label: 'Active Listings', value: '4', change: '+1', icon: Package, color: 'bg-blue-50 text-[#003049]' },
-  { label: 'Bookings This Month', value: '18', change: '+5', icon: CalendarDays, color: 'bg-orange-50 text-[#F97316]' },
+  { label: 'Bookings This Month', value: '18', change: '+5', icon: CalendarDays, color: 'bg-orange-50 text-[#FDF0D5]' },
   { label: 'Average Rating', value: '4.97', change: '+0.02', icon: Star, color: 'bg-amber-50 text-amber-500' },
 ]
 

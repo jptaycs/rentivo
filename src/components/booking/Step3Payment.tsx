@@ -233,7 +233,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
 
       {/* Promo code */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
-        <p className="text-sm font-bold text-[#111827] flex items-center gap-2"><Tag className="w-4 h-4 text-[#F97316]" /> Promo Code</p>
+        <p className="text-sm font-bold text-[#111827] flex items-center gap-2"><Tag className="w-4 h-4 text-[#FDF0D5]" /> Promo Code</p>
         {promoApplied ? (
           <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
             <div>
@@ -256,7 +256,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
               <button
                 onClick={applyPromo}
                 disabled={!promoInput.trim()}
-                className="px-4 py-2.5 bg-[#F97316] hover:bg-orange-600 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold text-sm rounded-xl transition-colors"
+                className="px-4 py-2.5 bg-[#FDF0D5] hover:bg-orange-600 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold text-sm rounded-xl transition-colors"
               >
                 Apply
               </button>

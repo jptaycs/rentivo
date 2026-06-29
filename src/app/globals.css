@@ -51,7 +51,7 @@
 :root {
   /* Rentivo brand tokens */
   --rentivo-blue: #003049;
-  --rentivo-orange: #F97316;
+  --rentivo-orange: #FDF0D5;
   --rentivo-green: #22C55E;
 
   --background: oklch(0.984 0.003 247.858);  /* #F8FAFC slate-50 */

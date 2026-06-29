@@ -93,7 +93,7 @@ export function DashboardSidebar({ isHost = true, onClose }: DashboardSidebarPro
               <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[#003049]' : 'text-gray-400'}`} />
               <span className="flex-1">{label}</span>
               {badge ? (
-                <span className="min-w-[18px] h-[18px] bg-[#F97316] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                <span className="min-w-[18px] h-[18px] bg-[#FDF0D5] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
                   {badge}
                 </span>
               ) : null}

@@ -98,7 +98,7 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center shrink-0">
-              <Zap className="w-5 h-5 text-[#F97316]" />
+              <Zap className="w-5 h-5 text-[#FDF0D5]" />
             </div>
             <div>
               <p className="font-bold text-[#111827]">Instant Book</p>
@@ -109,7 +109,7 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
           </div>
           <div
             onClick={() => set('isInstantBook', !data.isInstantBook)}
-            className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer shrink-0 mt-1 ${data.isInstantBook ? 'bg-[#F97316]' : 'bg-gray-200'}`}
+            className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer shrink-0 mt-1 ${data.isInstantBook ? 'bg-[#FDF0D5]' : 'bg-gray-200'}`}
           >
             <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${data.isInstantBook ? 'translate-x-6' : ''}`} />
           </div>

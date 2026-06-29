@@ -60,7 +60,7 @@ export default function ListingsPage() {
                     </span>
                   )}
                   {listing.is_instant_book && (
-                    <span className="flex items-center gap-1 text-xs text-[#F97316] font-medium">
+                    <span className="flex items-center gap-1 text-xs text-[#FDF0D5] font-medium">
                       <Zap className="w-3 h-3" /> Instant Book
                     </span>
                   )}

@@ -80,7 +80,7 @@ export default function PayoutsPage() {
         {added && (
           <div className="flex items-center gap-4 p-4 bg-[#F8FAFC] rounded-xl border border-gray-100">
             <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center shrink-0">
-              <Landmark className="w-5 h-5 text-[#F97316]" />
+              <Landmark className="w-5 h-5 text-[#FDF0D5]" />
             </div>
             <div className="flex-1">
               <p className="font-semibold text-sm text-[#111827]">{method} {number}</p>

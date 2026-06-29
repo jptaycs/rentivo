@@ -175,7 +175,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
             </div>
             <div
               onClick={() => setIsInstantBook(v => !v)}
-              className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer shrink-0 mt-1 ${isInstantBook ? 'bg-[#F97316]' : 'bg-gray-200'}`}
+              className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer shrink-0 mt-1 ${isInstantBook ? 'bg-[#FDF0D5]' : 'bg-gray-200'}`}
             >
               <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${isInstantBook ? 'translate-x-6' : ''}`} />
             </div>

@@ -39,7 +39,7 @@ export function ListingCard({ listing }: ListingCardProps) {
 
         {/* Instant Book badge */}
         {listing.is_instant_book && (
-          <div className="absolute top-3 right-10 flex items-center gap-1 bg-[#F97316] text-white text-xs font-semibold px-2 py-1 rounded-full">
+          <div className="absolute top-3 right-10 flex items-center gap-1 bg-[#FDF0D5] text-white text-xs font-semibold px-2 py-1 rounded-full">
             <Zap className="w-3 h-3" />
             Instant
           </div>

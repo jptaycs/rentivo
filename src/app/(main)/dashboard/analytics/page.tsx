@@ -58,7 +58,7 @@ export default function AnalyticsPage() {
           </div>
           <div className="flex items-center gap-4 text-xs">
             <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#003049]/20 border border-[#003049]" />Views</span>
-            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#F97316]/20 border border-[#F97316]" />Bookings</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-[#FDF0D5]/20 border border-[#FDF0D5]" />Bookings</span>
           </div>
         </div>
 
@@ -71,7 +71,7 @@ export default function AnalyticsPage() {
                   style={{ height: `${(d.views / maxViews) * 100}%` }}
                 />
                 <div
-                  className="flex-1 bg-[#F97316]/20 border border-[#F97316]/40 rounded-t-sm"
+                  className="flex-1 bg-[#FDF0D5]/20 border border-[#FDF0D5]/40 rounded-t-sm"
                   style={{ height: `${(d.bookings / maxBookings) * 100}%` }}
                 />
               </div>

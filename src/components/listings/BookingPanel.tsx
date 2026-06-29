@@ -60,7 +60,7 @@ export function BookingPanel({ listing }: BookingPanelProps) {
           </div>
         )}
         {listing.is_instant_book && (
-          <div className="flex items-center gap-1 mt-2 text-[#F97316]">
+          <div className="flex items-center gap-1 mt-2 text-[#FDF0D5]">
             <Zap className="w-3.5 h-3.5" />
             <span className="text-xs font-semibold">Instant Book available</span>
           </div>

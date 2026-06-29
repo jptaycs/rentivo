@@ -46,7 +46,7 @@ export function HeroSearch() {
         <div className="text-center mb-10">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight tracking-tight">
             Rent Professional<br className="hidden sm:block" />{' '}
-            <span className="text-[#F97316]">Cameras & Phones</span>
+            <span className="text-[#FDF0D5]">Cameras & Phones</span>
           </h1>
           <p className="mt-4 text-lg text-blue-100 max-w-xl mx-auto">
             Find the perfect camera, smartphone, or lens for your next shoot — from trusted owners near you.

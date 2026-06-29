@@ -20,7 +20,7 @@ const MOCK_BLOCKS: Record<string, Record<string, string>> = {
 
 const LISTING_COLORS: Record<string, string> = {
   '1': 'bg-blue-500',
-  '2': 'bg-[#F97316]',
+  '2': 'bg-[#FDF0D5]',
   '3': 'bg-purple-500',
 }
 const LISTING_LIGHT: Record<string, string> = {

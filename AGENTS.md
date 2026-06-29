@@ -24,7 +24,7 @@ The prototype design lives in `Rentivo.html` — a bundled React app from Claude
 |-------------|------------------|-----------|
 | Primary     | `blue-600`       | `#003049` |
 | Secondary   | `white`          | `#FFFFFF` |
-| Accent      | `orange-500`     | `#F97316` |
+| Accent      | `orange-500`     | `#FDF0D5` |
 | Success     | `green-500`      | `#22C55E` |
 | Background  | `slate-50`       | `#F8FAFC` |
 | Text        | `gray-900`       | `#111827` |
