@@ -298,7 +298,7 @@ export function HeroSearch() {
   )
 
   const whatPanel = (
-    <div ref={whatPanelRef} style={whatStyle} className="bg-white rounded-2xl shadow-2xl py-4 overflow-hidden">
+    <div ref={whatPanelRef} style={whatStyle} className="animate-dropdown bg-white rounded-2xl shadow-2xl py-4 overflow-hidden">
       {filteredEquipment.length > 0 && (
         <>
           <p className="text-xs font-semibold text-gray-500 px-5 py-2">Recent searches</p>
@@ -350,7 +350,7 @@ export function HeroSearch() {
   )
 
   const wherePanel = (
-    <div ref={wherePanelRef} style={whereStyle} className="bg-white rounded-2xl shadow-2xl py-4 overflow-hidden">
+    <div ref={wherePanelRef} style={whereStyle} className="animate-dropdown bg-white rounded-2xl shadow-2xl py-4 overflow-hidden">
       {RECENT_SEARCHES.length > 0 && (
         <>
           <p className="text-xs font-semibold text-gray-500 px-5 py-2">Recent searches</p>
@@ -397,7 +397,7 @@ export function HeroSearch() {
   )
 
   const calendarPanel = (
-    <div ref={calRef} style={calStyle} className="bg-white rounded-3xl shadow-2xl p-8">
+    <div ref={calRef} style={calStyle} className="animate-dropdown bg-white rounded-3xl shadow-2xl p-8">
       {/* Dates / Flexible toggle */}
       <div className="flex justify-center mb-8">
         <div className="flex bg-gray-100 rounded-full p-1">
@@ -551,64 +551,99 @@ export function HeroSearch() {
         <form
           ref={formRef}
           onSubmit={handleSearch}
-          className="bg-white rounded-full shadow-2xl flex items-center"
+          className={`bg-white rounded-full flex items-center transition-all duration-300 ${activeField ? 'shadow-2xl' : 'shadow-xl hover:shadow-2xl'}`}
         >
           {/* What */}
           <div
             ref={whatDivRef}
-            className={`flex-1 flex flex-col px-8 py-4 rounded-full cursor-text transition-colors ${activeField === 'what' ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
             onClick={openWhat}
+            className={`relative flex-1 flex items-center gap-2 px-8 py-4 rounded-full cursor-text transition-all duration-200 ${
+              activeField === 'what' ? 'bg-white shadow-md' : activeField ? 'opacity-50 hover:opacity-75' : 'hover:bg-gray-50'
+            }`}
           >
-            <span className="text-xs font-bold text-gray-900 mb-0.5">What</span>
-            <input
-              type="text"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onFocus={openWhat}
-              placeholder="Search cameras, phones, lenses…"
-              className="text-sm text-gray-500 placeholder-gray-400 outline-none bg-transparent w-full"
-            />
+            <div className="flex-1 min-w-0">
+              <span className="block text-xs font-bold text-gray-900 mb-0.5">What</span>
+              <input
+                ref={whatInputRef}
+                type="text"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                onFocus={openWhat}
+                placeholder="Search cameras, phones, lenses…"
+                className="text-sm text-gray-500 placeholder-gray-400 outline-none bg-transparent w-full"
+              />
+            </div>
+            {query && (
+              <button type="button" onClick={e => { e.stopPropagation(); setQuery('') }}
+                className="w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors shrink-0">
+                <X className="w-3 h-3 text-gray-600" />
+              </button>
+            )}
           </div>
 
-          <div className="w-px h-8 bg-gray-200 shrink-0" />
+          <div className={`w-px h-6 bg-gray-200 shrink-0 transition-opacity duration-200 ${activeField === 'what' || activeField === 'where' ? 'opacity-0' : 'opacity-100'}`} />
 
           {/* Where */}
           <div
             ref={whereDivRef}
-            className={`flex-1 flex flex-col px-8 py-4 rounded-full cursor-text transition-colors ${activeField === 'where' ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
             onClick={openWhere}
+            className={`relative flex-1 flex items-center gap-2 px-8 py-4 rounded-full cursor-text transition-all duration-200 ${
+              activeField === 'where' ? 'bg-white shadow-md' : activeField ? 'opacity-50 hover:opacity-75' : 'hover:bg-gray-50'
+            }`}
           >
-            <span className="text-xs font-bold text-gray-900 mb-0.5">Where</span>
-            <input
-              type="text"
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-              onFocus={openWhere}
-              placeholder="City, Province, Nearby"
-              className="text-sm text-gray-500 placeholder-gray-400 outline-none bg-transparent w-full"
-            />
+            <div className="flex-1 min-w-0">
+              <span className="block text-xs font-bold text-gray-900 mb-0.5">Where</span>
+              <input
+                ref={whereInputRef}
+                type="text"
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                onFocus={openWhere}
+                placeholder="City, Province, Nearby"
+                className="text-sm text-gray-500 placeholder-gray-400 outline-none bg-transparent w-full"
+              />
+            </div>
+            {location && (
+              <button type="button" onClick={e => { e.stopPropagation(); setLocation('') }}
+                className="w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors shrink-0">
+                <X className="w-3 h-3 text-gray-600" />
+              </button>
+            )}
           </div>
 
-          <div className="w-px h-8 bg-gray-200 shrink-0" />
+          <div className={`w-px h-6 bg-gray-200 shrink-0 transition-opacity duration-200 ${activeField === 'where' || activeField === 'when' ? 'opacity-0' : 'opacity-100'}`} />
 
           {/* When */}
           <button
             ref={whenBtnRef}
             type="button"
             onClick={openCalendar}
-            className={`flex-1 flex flex-col px-8 py-4 rounded-full text-left transition-colors ${activeField === 'when' ? 'bg-gray-50' : 'hover:bg-gray-50'}`}
+            className={`relative flex-1 flex items-center justify-between px-8 py-4 rounded-full text-left transition-all duration-200 ${
+              activeField === 'when' ? 'bg-white shadow-md' : activeField ? 'opacity-50 hover:opacity-75' : 'hover:bg-gray-50'
+            }`}
           >
-            <span className="text-xs font-bold text-gray-900 mb-0.5">When</span>
-            <span className={`text-sm ${startDate ? 'text-gray-800' : 'text-gray-400'}`}>{whenLabel()}</span>
+            <div>
+              <span className="block text-xs font-bold text-gray-900 mb-0.5">When</span>
+              <span className={`text-sm ${startDate ? 'text-gray-800' : 'text-gray-400'}`}>{whenLabel()}</span>
+            </div>
+            {(startDate || endDate) && (
+              <span onClick={e => { e.stopPropagation(); setStartDate(null); setEndDate(null) }}
+                className="w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors shrink-0">
+                <X className="w-3 h-3 text-gray-600" />
+              </span>
+            )}
           </button>
 
-          {/* Search button */}
+          {/* Search button — expands with label when fields are filled */}
           <div className="pr-2 pl-2 shrink-0">
             <button
               type="submit"
-              className="w-14 h-14 rounded-full bg-[#003049] hover:bg-[#002438] text-white flex items-center justify-center transition-colors"
+              className={`flex items-center gap-2 rounded-full bg-[#003049] hover:bg-[#002438] active:scale-95 text-white transition-all duration-200 ${
+                query || location || startDate ? 'px-5 h-14 text-sm font-semibold' : 'w-14 h-14 justify-center'
+              }`}
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-5 h-5 shrink-0" />
+              {(query || location || startDate) && <span className="hidden sm:block">Search</span>}
             </button>
           </div>
         </form>

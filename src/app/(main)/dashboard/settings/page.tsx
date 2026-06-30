@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Camera, Save, Shield, Bell, Eye, EyeOff } from 'lucide-react'
+import { Camera, Save, Shield, Bell, Eye, EyeOff, HelpCircle, ChevronDown, ChevronRight, ExternalLink, MessageSquare, FileText } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 
@@ -14,6 +14,15 @@ export default function SettingsPage() {
   const [notifications, setNotifications] = useState({
     newBooking: true, messages: true, reminders: true, promos: false,
   })
+  const [openFaq, setOpenFaq] = useState<number | null>(null)
+
+  const FAQS = [
+    { q: 'How do I become a host?', a: 'Click "Become a Host" in the navbar, complete the listing wizard, and submit your gear for review. Most listings go live within 24 hours.' },
+    { q: 'What happens if equipment is damaged?', a: 'Rentivo offers Equipment Protection at checkout. Hosts are covered up to the declared value of their gear. Security deposits are held until the rental is completed.' },
+    { q: 'How are payments processed?', a: 'We support GCash, Maya, Credit/Debit Card, Apple Pay, and Google Pay. Payouts to hosts are processed within 3 business days after a completed rental.' },
+    { q: 'Can I cancel a booking?', a: 'Cancellation policies vary per listing (Flexible, Moderate, or Strict). Check the listing\'s policy before booking. Hosts may also set their own cancellation terms.' },
+    { q: 'How does identity verification work?', a: 'We require a government-issued ID and a selfie to verify your identity. This protects both hosts and renters on the platform.' },
+  ]
 
   return (
     <div className="p-6 space-y-8 max-w-2xl">
@@ -141,6 +150,58 @@ export default function SettingsPage() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Help Center */}
+      <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+        <div className="flex items-center gap-2">
+          <HelpCircle className="w-5 h-5 text-[#003049]" />
+          <h2 className="font-bold text-[#111827]">Help Center</h2>
+        </div>
+
+        {/* FAQ accordion */}
+        <div className="divide-y divide-gray-100">
+          {FAQS.map(({ q, a }, i) => (
+            <div key={i}>
+              <button
+                type="button"
+                onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                className="w-full flex items-center justify-between gap-4 py-3.5 text-left text-sm font-medium text-[#111827] hover:text-[#003049] transition-colors"
+              >
+                {q}
+                {openFaq === i
+                  ? <ChevronDown className="w-4 h-4 shrink-0 text-gray-400" />
+                  : <ChevronRight className="w-4 h-4 shrink-0 text-gray-400" />
+                }
+              </button>
+              {openFaq === i && (
+                <p className="pb-4 text-sm text-gray-500 leading-relaxed">{a}</p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Quick links */}
+        <div className="flex flex-wrap gap-3 pt-2 border-t border-gray-100">
+          <a
+            href="mailto:support@rentivo.ph"
+            className="flex items-center gap-2 text-sm font-medium text-[#003049] bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl transition-colors"
+          >
+            <MessageSquare className="w-4 h-4" /> Contact Support
+          </a>
+          <a
+            href="#"
+            className="flex items-center gap-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-xl transition-colors"
+          >
+            <FileText className="w-4 h-4" /> Terms of Service <ExternalLink className="w-3 h-3" />
+          </a>
+          <a
+            href="#"
+            className="flex items-center gap-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-xl transition-colors"
+          >
+            <FileText className="w-4 h-4" /> Privacy Policy <ExternalLink className="w-3 h-3" />
+          </a>
         </div>
       </section>
 

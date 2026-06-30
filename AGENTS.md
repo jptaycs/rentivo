@@ -297,7 +297,7 @@ Features to surface in UI:
 - [x] Promo Codes
 - [x] Equipment Protection option
 - [x] Rental Agreements
-- [ ] Recently Viewed Items
+- [x] Recently Viewed Items
 - [x] Featured Listings
 - [x] Popular Rentals carousel
 - [x] Creator Bundles

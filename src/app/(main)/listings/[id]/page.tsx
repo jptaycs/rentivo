@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { MOCK_LISTINGS } from '@/lib/mock-data'
+import { ViewTracker } from '@/components/listings/ViewTracker'
 import { PhotoGallery } from '@/components/listings/PhotoGallery'
 import { BookingPanel } from '@/components/listings/BookingPanel'
 import { HostCard } from '@/components/listings/HostCard'
@@ -30,6 +31,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
 
   return (
     <div className="bg-[#F8FAFC] min-h-screen">
+      <ViewTracker listing={listing} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Breadcrumb */}

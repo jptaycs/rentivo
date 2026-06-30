@@ -1,5 +1,6 @@
 import { HeroSearch } from '@/components/home/HeroSearch'
 import { CategoryCards } from '@/components/home/CategoryCards'
+import { RecentlyViewed } from '@/components/home/RecentlyViewed'
 import { FeaturedListings } from '@/components/home/FeaturedListings'
 import { PopularCarousel } from '@/components/home/PopularCarousel'
 import { CreatorBundles } from '@/components/home/CreatorBundles'
@@ -10,6 +11,7 @@ export default function HomePage() {
     <>
       <HeroSearch />
       <CategoryCards />
+      <RecentlyViewed />
       <FeaturedListings />
       <PopularCarousel />
       <CreatorBundles />
