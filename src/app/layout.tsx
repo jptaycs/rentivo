@@ -14,6 +14,11 @@ export const metadata: Metadata = {
   description:
     'The most trusted marketplace for renting cameras, smartphones, and lenses in the Philippines.',
   keywords: ['camera rental', 'lens rental', 'smartphone rental', 'Philippines'],
+  icons: {
+    icon: '/rentivo-logo-beige.png',
+    shortcut: '/rentivo-logo-beige.png',
+    apple: '/rentivo-logo-beige.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -5,15 +5,8 @@ import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import { Bell, MessageCircle, Menu, X, LayoutDashboard, Package, LogOut, Settings, ChevronDown } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
-const navLinks = [
-  { label: 'Cameras', href: '/search?category=mirrorless' },
-  { label: 'Phones', href: '/search?category=smartphone' },
-  { label: 'Lenses', href: '/search?category=lens' },
-  { label: 'Creator Kits', href: '/search?category=bundle' },
-]
 
 const DROPDOWN_ITEMS = [
   { label: 'Dashboard', href: '/dashboard/overview', icon: LayoutDashboard },
@@ -47,26 +40,9 @@ export function Navbar() {
 
           {/* Logo */}
           <Link href="/" className="shrink-0">
-            <Image src="/rentivo-logo.png" alt="Rentivo" width={160} height={52} className="h-12 w-auto object-contain" priority />
+            <Image src="/rentivo-logo.png" alt="Rentivo" width={220} height={72} className="h-16 w-auto object-contain" priority />
           </Link>
 
-          {/* Center nav — desktop */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => {
-              const active = pathname.startsWith(link.href.split('?')[0]) && link.href.includes('?')
-              return (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${
-                    active ? 'text-[#003049] bg-blue-50' : 'text-gray-600 hover:text-[#003049] hover:bg-blue-50'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
-          </nav>
 
           {/* Right actions — desktop */}
           <div className="hidden md:flex items-center gap-1">
@@ -156,15 +132,6 @@ export function Navbar() {
       {mobileOpen && (
         <div className="md:hidden border-t border-gray-100 bg-white px-4 pb-4 pt-2">
           <nav className="flex flex-col gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.label}
-                href={link.href}
-                className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:text-[#003049] hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                {link.label}
-              </Link>
-            ))}
             <div className="border-t border-gray-100 mt-2 pt-2 space-y-1">
               <Link href="/host/new" className="px-3 py-2.5 text-sm font-semibold text-[#111827] hover:bg-gray-50 rounded-lg block transition-colors">
                 Become a Host

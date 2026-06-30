@@ -33,7 +33,7 @@ export function AuthShell({ children, heading, subheading }: AuthShellProps) {
 
         {/* Logo */}
         <Link href="/" className="relative z-10 inline-block">
-          <Image src="/rentivo-logo.png" alt="Rentivo" width={160} height={52} className="h-14 w-auto object-contain brightness-0 invert" />
+          <Image src="/rentivo-logo-beige.png" alt="Rentivo" width={160} height={52} className="h-14 w-auto object-contain" />
         </Link>
 
         {/* Center content */}

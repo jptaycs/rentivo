@@ -8,7 +8,7 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="inline-block mb-3">
-              <Image src="/rentivo-logo.png" alt="Rentivo" width={150} height={48} className="h-11 w-auto object-contain brightness-0 invert" />
+              <Image src="/rentivo-logo-beige.png" alt="Rentivo" width={150} height={48} className="h-11 w-auto object-contain" />
             </Link>
             <p className="text-sm leading-relaxed">Rent Smarter. Create More.</p>
           </div>
