@@ -39,10 +39,24 @@ function applyFilters(listings: Listing[], filters: SearchResultsProps): Listing
   })
 }
 
+type SortKey = 'recommended' | 'price_asc' | 'price_desc' | 'rating' | 'newest'
+
+function sortListings(listings: Listing[], sort: SortKey): Listing[] {
+  const copy = [...listings]
+  switch (sort) {
+    case 'price_asc':  return copy.sort((a, b) => a.daily_price - b.daily_price)
+    case 'price_desc': return copy.sort((a, b) => b.daily_price - a.daily_price)
+    case 'rating':     return copy.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+    case 'newest':     return copy.sort((a, b) => b.created_at.localeCompare(a.created_at))
+    default:           return copy
+  }
+}
+
 export function SearchResults(props: SearchResultsProps) {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [sort, setSort] = useState<SortKey>('recommended')
 
-  const results = applyFilters(MOCK_LISTINGS, props)
+  const results = sortListings(applyFilters(MOCK_LISTINGS, props), sort)
 
   return (
     <div className="flex gap-6 items-start">
@@ -73,12 +87,16 @@ export function SearchResults(props: SearchResultsProps) {
             {props.query && <span> for "<span className="text-[#003049]">{props.query}</span>"</span>}
           </p>
           <div className="flex items-center gap-3">
-            <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 outline-none focus:border-[#003049]">
-              <option>Sort: Recommended</option>
-              <option>Price: Low to High</option>
-              <option>Price: High to Low</option>
-              <option>Highest Rated</option>
-              <option>Newest</option>
+            <select
+              value={sort}
+              onChange={e => setSort(e.target.value as SortKey)}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 outline-none focus:border-[#003049] cursor-pointer"
+            >
+              <option value="recommended">Sort: Recommended</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="rating">Highest Rated</option>
+              <option value="newest">Newest</option>
             </select>
             <button
               onClick={() => setMobileFiltersOpen(true)}

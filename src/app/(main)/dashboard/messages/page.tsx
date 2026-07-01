@@ -18,7 +18,7 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] -mt-6 -mx-6 flex">
+    <div className="h-full flex">
       {/* Thread list — desktop always visible; mobile only when mobileView=list */}
       <div className={`w-full md:w-80 lg:w-96 border-r border-gray-200 bg-white shrink-0 flex flex-col ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
         <ThreadList

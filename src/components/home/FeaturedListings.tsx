@@ -16,9 +16,17 @@ export function FeaturedListings() {
         </Link>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {MOCK_LISTINGS.map((listing) => (
+        {MOCK_LISTINGS.slice(0, 6).map((listing) => (
           <ListingCard key={listing.id} listing={listing} />
         ))}
+      </div>
+      <div className="mt-8 text-center">
+        <Link
+          href="/search"
+          className="inline-flex items-center gap-2 border border-gray-200 hover:border-[#003049] text-gray-700 hover:text-[#003049] font-semibold text-sm px-6 py-3 rounded-full transition-all"
+        >
+          View all {MOCK_LISTINGS.length} listings <ArrowRight className="w-4 h-4" />
+        </Link>
       </div>
     </section>
   )

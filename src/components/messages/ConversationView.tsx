@@ -21,15 +21,20 @@ function formatDay(iso: string) {
 export function ConversationView({ thread, onBack }: ConversationViewProps) {
   const [messages, setMessages] = useState(thread.messages)
   const [input, setInput] = useState('')
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setMessages(thread.messages)
     setInput('')
+    // instant jump to bottom when switching threads
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
   }, [thread.id])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    // smooth scroll only when a new message is appended
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+    }
   }, [messages])
 
   function send() {
@@ -76,7 +81,7 @@ export function ConversationView({ thread, onBack }: ConversationViewProps) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         <p className="text-center text-[11px] text-gray-400 font-medium">
           {formatDay(messages[0]?.at ?? new Date().toISOString())}
         </p>
@@ -100,7 +105,6 @@ export function ConversationView({ thread, onBack }: ConversationViewProps) {
             </div>
           )
         })}
-        <div ref={bottomRef} />
       </div>
 
       {/* Input */}
