@@ -23,7 +23,8 @@ export function LoginForm() {
       const supabase = createClient()
       const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
       if (authError) throw authError
-      router.push('/')
+      const next = new URLSearchParams(window.location.search).get('next')
+      router.push(next?.startsWith('/') ? next : '/')
       router.refresh()
     } catch (err: any) {
       setError(err.message ?? 'Something went wrong. Please try again.')
@@ -34,9 +35,11 @@ export function LoginForm() {
 
   async function handleGoogle() {
     const supabase = createClient()
+    const next = new URLSearchParams(window.location.search).get('next')
+    const dest = next?.startsWith('/') ? next : '/'
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=/` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(dest)}` },
     })
   }
 

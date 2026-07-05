@@ -68,7 +68,7 @@ export function SignupForm() {
 
     try {
       const supabase = createClient()
-      const { error: authError } = await supabase.auth.signUp({
+      const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -77,7 +77,13 @@ export function SignupForm() {
         },
       })
       if (authError) throw authError
-      router.push('/auth/verify?email=' + encodeURIComponent(email))
+      // Auto-confirm (e.g. local dev) returns a session; otherwise email verification is pending
+      if (data.session) {
+        router.push('/')
+        router.refresh()
+      } else {
+        router.push('/auth/verify?email=' + encodeURIComponent(email))
+      }
     } catch (err: any) {
       setError(err.message ?? 'Something went wrong. Please try again.')
     } finally {

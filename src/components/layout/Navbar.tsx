@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { Bell, MessageCircle, Menu, X, LayoutDashboard, Package, LogOut, Settings, ChevronDown } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { useUser, initials } from '@/hooks/useUser'
 
 
 const DROPDOWN_ITEMS = [
@@ -16,6 +17,7 @@ const DROPDOWN_ITEMS = [
 
 export function Navbar() {
   const pathname = usePathname()
+  const { user, loading, signOut } = useUser()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -53,69 +55,88 @@ export function Navbar() {
               Become a Host
             </Link>
 
-            <Link
-              href="/dashboard/messages"
-              className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-              title="Messages"
-            >
-              <MessageCircle className="w-5 h-5 text-gray-600" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#003049] rounded-full" />
-            </Link>
+            {user ? (
+              <>
+                <Link
+                  href="/dashboard/messages"
+                  className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+                  title="Messages"
+                >
+                  <MessageCircle className="w-5 h-5 text-gray-600" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#003049] rounded-full" />
+                </Link>
 
-            <Link
-              href="/dashboard/notifications"
-              className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-              title="Notifications"
-            >
-              <Bell className="w-5 h-5 text-gray-600" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FDF0D5] rounded-full" />
-            </Link>
+                <Link
+                  href="/dashboard/notifications"
+                  className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+                  title="Notifications"
+                >
+                  <Bell className="w-5 h-5 text-gray-600" />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FDF0D5] rounded-full" />
+                </Link>
 
-            {/* Avatar dropdown */}
-            <div ref={dropdownRef} className="relative">
-              <button
-                onClick={() => setDropdownOpen(v => !v)}
-                className="flex items-center gap-1.5 ml-1"
-              >
-                <Avatar className="w-9 h-9 ring-2 ring-transparent hover:ring-[#003049] transition-all">
-                  <AvatarImage src="" />
-                  <AvatarFallback className="bg-[#003049] text-white text-xs font-semibold">JP</AvatarFallback>
-                </Avatar>
-                <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
+                {/* Avatar dropdown */}
+                <div ref={dropdownRef} className="relative">
+                  <button
+                    onClick={() => setDropdownOpen(v => !v)}
+                    className="flex items-center gap-1.5 ml-1"
+                  >
+                    <Avatar className="w-9 h-9 ring-2 ring-transparent hover:ring-[#003049] transition-all">
+                      <AvatarImage src={user.avatarUrl ?? ''} />
+                      <AvatarFallback className="bg-[#003049] text-white text-xs font-semibold">{initials(user.name)}</AvatarFallback>
+                    </Avatar>
+                    <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
 
-              {dropdownOpen && (
-                <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden z-50">
-                  {/* Profile snippet */}
-                  <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="text-sm font-bold text-[#111827]">Juan P. Tayco</p>
-                    <p className="text-xs text-gray-400">jptayco1109@gmail.com</p>
-                  </div>
+                  {dropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden z-50">
+                      {/* Profile snippet */}
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <p className="text-sm font-bold text-[#111827]">{user.name}</p>
+                        <p className="text-xs text-gray-400">{user.email}</p>
+                      </div>
 
-                  {DROPDOWN_ITEMS.map(({ label, href, icon: Icon }) => (
-                    <Link
-                      key={href}
-                      href={href}
-                      onClick={() => setDropdownOpen(false)}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      <Icon className="w-4 h-4 text-gray-400" />
-                      {label}
-                    </Link>
-                  ))}
+                      {DROPDOWN_ITEMS.map(({ label, href, icon: Icon }) => (
+                        <Link
+                          key={href}
+                          href={href}
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                          <Icon className="w-4 h-4 text-gray-400" />
+                          {label}
+                        </Link>
+                      ))}
 
-                  <div className="border-t border-gray-100">
-                    <button
-                      onClick={() => { setDropdownOpen(false); alert('Logged out') }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Log out
-                    </button>
-                  </div>
+                      <div className="border-t border-gray-100">
+                        <button
+                          onClick={() => { setDropdownOpen(false); signOut() }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Log out
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            ) : !loading && (
+              <>
+                <Link
+                  href="/login"
+                  className="text-sm font-semibold text-[#111827] px-4 py-2 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/signup"
+                  className="text-sm font-semibold text-white bg-[#003049] hover:bg-[#002438] px-5 py-2 rounded-full transition-colors"
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile hamburger */}
@@ -136,15 +157,34 @@ export function Navbar() {
               <Link href="/host/new" className="px-3 py-2.5 text-sm font-semibold text-[#111827] hover:bg-gray-50 rounded-lg block transition-colors">
                 Become a Host
               </Link>
-              <Link href="/dashboard/overview" className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg flex items-center gap-2 transition-colors">
-                <LayoutDashboard className="w-4 h-4 text-gray-400" /> Dashboard
-              </Link>
-              <Link href="/dashboard/messages" className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg flex items-center gap-2 transition-colors">
-                <MessageCircle className="w-4 h-4 text-gray-400" /> Messages
-              </Link>
-              <Link href="/dashboard/notifications" className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg flex items-center gap-2 transition-colors">
-                <Bell className="w-4 h-4 text-gray-400" /> Notifications
-              </Link>
+              {user ? (
+                <>
+                  <Link href="/dashboard/overview" className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg flex items-center gap-2 transition-colors">
+                    <LayoutDashboard className="w-4 h-4 text-gray-400" /> Dashboard
+                  </Link>
+                  <Link href="/dashboard/messages" className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg flex items-center gap-2 transition-colors">
+                    <MessageCircle className="w-4 h-4 text-gray-400" /> Messages
+                  </Link>
+                  <Link href="/dashboard/notifications" className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg flex items-center gap-2 transition-colors">
+                    <Bell className="w-4 h-4 text-gray-400" /> Notifications
+                  </Link>
+                  <button
+                    onClick={() => signOut()}
+                    className="w-full px-3 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 rounded-lg flex items-center gap-2 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" /> Log out
+                  </button>
+                </>
+              ) : !loading && (
+                <>
+                  <Link href="/login" className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg block transition-colors">
+                    Log in
+                  </Link>
+                  <Link href="/signup" className="px-3 py-2.5 text-sm font-semibold text-white bg-[#003049] hover:bg-[#002438] rounded-lg block text-center transition-colors">
+                    Sign up
+                  </Link>
+                </>
+              )}
             </div>
           </nav>
         </div>
