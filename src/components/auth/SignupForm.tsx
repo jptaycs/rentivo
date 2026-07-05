@@ -10,17 +10,18 @@ function PasswordStrength({ password }: { password: string }) {
   const checks = [
     { label: '8+ characters', ok: password.length >= 8 },
     { label: 'Uppercase letter', ok: /[A-Z]/.test(password) },
+    { label: 'Lowercase letter', ok: /[a-z]/.test(password) },
     { label: 'Number', ok: /\d/.test(password) },
   ]
   const passed = checks.filter((c) => c.ok).length
-  const colors = ['bg-red-400', 'bg-amber-400', 'bg-[#22C55E]']
+  const colors = ['bg-red-400', 'bg-amber-400', 'bg-amber-400', 'bg-[#22C55E]']
 
   if (!password) return null
 
   return (
     <div className="mt-2 space-y-1.5">
       <div className="flex gap-1">
-        {[0, 1, 2].map((i) => (
+        {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
             className={`h-1 flex-1 rounded-full transition-all ${
@@ -58,7 +59,7 @@ export function SignupForm() {
   const [agreed, setAgreed] = useState(false)
 
   const passwordsMatch = password && confirmPassword && password === confirmPassword
-  const passwordStrong = password.length >= 8 && /[A-Z]/.test(password) && /\d/.test(password)
+  const passwordStrong = password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password)
   const canSubmit = fullName && email && passwordStrong && passwordsMatch && agreed && !loading
 
   async function handleSubmit(e: React.FormEvent) {
