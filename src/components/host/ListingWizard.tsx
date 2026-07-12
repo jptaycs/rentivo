@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, Eye } from 'lucide-react'
+import { CheckCircle2, Eye, AlertCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import { WizardStep } from './WizardStep'
-import { Step1Photos } from './Step1Photos'
+import { Step1Photos, type WizardPhoto } from './Step1Photos'
 import { Step2Details } from './Step2Details'
 import { Step3Pricing } from './Step3Pricing'
 import { Step4Calendar } from './Step4Calendar'
@@ -12,7 +13,7 @@ import { Step5Address } from './Step5Address'
 import { Step6Verify } from './Step6Verify'
 
 interface WizardState {
-  images: string[]
+  photos: WizardPhoto[]
   details: { category: string; brand: string; model: string; serialNumber: string; condition: string; description: string; accessories: string[] }
   pricing: { dailyPrice: string; weeklyPrice: string; monthlyPrice: string; securityDeposit: string }
   blockedDates: string[]
@@ -20,7 +21,7 @@ interface WizardState {
 }
 
 const INITIAL: WizardState = {
-  images: [],
+  photos: [],
   details: { category: '', brand: '', model: '', serialNumber: '', condition: '', description: '', accessories: [] },
   pricing: { dailyPrice: '', weeklyPrice: '', monthlyPrice: '', securityDeposit: '' },
   blockedDates: [],
@@ -32,17 +33,76 @@ export function ListingWizard() {
   const [state, setState] = useState<WizardState>(INITIAL)
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
-  const [listingId] = useState('1') // will be real ID from Supabase insert
+  const [error, setError] = useState('')
+  const [listingId, setListingId] = useState('')
 
   const next = () => setStep(s => Math.min(s + 1, 6))
   const back = () => setStep(s => Math.max(s - 1, 1))
 
   async function handleSubmit() {
+    setError('')
     setLoading(true)
-    // TODO: insert into Supabase listings table with state data
-    await new Promise(r => setTimeout(r, 1800))
-    setLoading(false)
-    setDone(true)
+
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('You must be signed in to create a listing.')
+
+      // Upload photos to the listing-images bucket (policy requires <uid>/ prefix)
+      const imageUrls: string[] = []
+      for (const { file } of state.photos) {
+        const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+        const path = `${user.id}/${crypto.randomUUID()}.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('listing-images')
+          .upload(path, file, { contentType: file.type })
+        if (uploadError) throw new Error(`Photo upload failed: ${uploadError.message}`)
+        imageUrls.push(supabase.storage.from('listing-images').getPublicUrl(path).data.publicUrl)
+      }
+
+      const { details, pricing, address } = state
+      const { data: listing, error: insertError } = await supabase
+        .from('listings')
+        .insert({
+          host_id: user.id,
+          category: details.category,
+          brand: details.brand,
+          model: details.model,
+          title: `${details.brand} ${details.model}`.trim(),
+          description: details.description,
+          condition: details.condition,
+          serial_number: details.serialNumber || null,
+          daily_price: Number(pricing.dailyPrice),
+          weekly_price: pricing.weeklyPrice ? Number(pricing.weeklyPrice) : null,
+          monthly_price: pricing.monthlyPrice ? Number(pricing.monthlyPrice) : null,
+          security_deposit: Number(pricing.securityDeposit || 0),
+          city: address.city,
+          province: address.province,
+          street_address: address.streetAddress || null,
+          is_instant_book: address.isInstantBook,
+          images: imageUrls,
+          accessories: details.accessories,
+        })
+        .select('id')
+        .single()
+      if (insertError) throw new Error(`Could not create listing: ${insertError.message}`)
+
+      if (state.blockedDates.length > 0) {
+        const { error: blockError } = await supabase.from('availability_blocks').insert(
+          state.blockedDates.map(d => ({ listing_id: listing.id, blocked_on: d, reason: 'personal' }))
+        )
+        if (blockError) throw new Error(`Could not save blocked dates: ${blockError.message}`)
+      }
+
+      await supabase.from('profiles').update({ is_host: true }).eq('id', user.id)
+
+      setListingId(listing.id)
+      setDone(true)
+    } catch (err: any) {
+      setError(err.message ?? 'Something went wrong. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (done) {
@@ -94,8 +154,8 @@ export function ListingWizard() {
 
       {step === 1 && (
         <Step1Photos
-          images={state.images}
-          onChange={images => setState(s => ({ ...s, images }))}
+          photos={state.photos}
+          onChange={photos => setState(s => ({ ...s, photos }))}
           onNext={next}
         />
       )}
@@ -132,11 +192,19 @@ export function ListingWizard() {
         />
       )}
       {step === 6 && (
-        <Step6Verify
-          onSubmit={handleSubmit}
-          onBack={back}
-          loading={loading}
-        />
+        <>
+          {error && (
+            <div className="flex items-start gap-2.5 bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm mb-4">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              {error}
+            </div>
+          )}
+          <Step6Verify
+            onSubmit={handleSubmit}
+            onBack={back}
+            loading={loading}
+          />
+        </>
       )}
     </>
   )

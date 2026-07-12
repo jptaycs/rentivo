@@ -4,31 +4,37 @@ import { useRef, useState } from 'react'
 import Image from 'next/image'
 import { Upload, X, GripVertical, ChevronRight, ImagePlus } from 'lucide-react'
 
+export interface WizardPhoto {
+  file: File
+  preview: string
+}
+
 interface Step1PhotosProps {
-  images: string[]
-  onChange: (images: string[]) => void
+  photos: WizardPhoto[]
+  onChange: (photos: WizardPhoto[]) => void
   onNext: () => void
 }
 
-export function Step1Photos({ images, onChange, onNext }: Step1PhotosProps) {
+export function Step1Photos({ photos, onChange, onNext }: Step1PhotosProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
   function handleFiles(files: FileList | null) {
     if (!files) return
-    const newUrls = Array.from(files)
+    const added = Array.from(files)
       .filter(f => f.type.startsWith('image/'))
-      .map(f => URL.createObjectURL(f))
-    onChange([...images, ...newUrls].slice(0, 10))
+      .map(f => ({ file: f, preview: URL.createObjectURL(f) }))
+    onChange([...photos, ...added].slice(0, 10))
   }
 
   function remove(i: number) {
-    onChange(images.filter((_, idx) => idx !== i))
+    URL.revokeObjectURL(photos[i].preview)
+    onChange(photos.filter((_, idx) => idx !== i))
   }
 
   function moveLeft(i: number) {
     if (i === 0) return
-    const next = [...images]
+    const next = [...photos]
     ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
     onChange(next)
   }
@@ -68,12 +74,12 @@ export function Step1Photos({ images, onChange, onNext }: Step1PhotosProps) {
       </div>
 
       {/* Preview grid */}
-      {images.length > 0 && (
+      {photos.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {images.map((src, i) => (
-            <div key={src} className={`relative group rounded-xl overflow-hidden ${i === 0 ? 'ring-2 ring-[#003049]' : ''}`}>
+          {photos.map(({ preview }, i) => (
+            <div key={preview} className={`relative group rounded-xl overflow-hidden ${i === 0 ? 'ring-2 ring-[#003049]' : ''}`}>
               <div className="relative aspect-[4/3]">
-                <Image src={src} alt={`Photo ${i + 1}`} fill className="object-cover" sizes="200px" />
+                <Image src={preview} alt={`Photo ${i + 1}`} fill className="object-cover" sizes="200px" />
               </div>
               {i === 0 && (
                 <div className="absolute top-2 left-2 bg-[#003049] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
@@ -97,7 +103,7 @@ export function Step1Photos({ images, onChange, onNext }: Step1PhotosProps) {
               )}
             </div>
           ))}
-          {images.length < 10 && (
+          {photos.length < 10 && (
             <button
               onClick={() => inputRef.current?.click()}
               className="aspect-[4/3] border-2 border-dashed border-gray-200 hover:border-[#003049] rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:text-[#003049] transition-colors"
@@ -115,7 +121,7 @@ export function Step1Photos({ images, onChange, onNext }: Step1PhotosProps) {
 
       <button
         onClick={onNext}
-        disabled={images.length === 0}
+        disabled={photos.length === 0}
         className="w-full bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
       >
         Continue <ChevronRight className="w-4 h-4" />
