@@ -1,42 +1,14 @@
 'use client'
 
 import { ListingCard } from '@/components/shared/ListingCard'
-import { MOCK_LISTINGS } from '@/lib/mock-data'
 import { SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { FilterSidebar } from './FilterSidebar'
 import type { Listing } from '@/types'
-import type { EquipmentCategory } from '@/types'
 
 interface SearchResultsProps {
   query: string
-  category: string
-  brand: string
-  minPrice: number
-  maxPrice: number
-  instantBook: boolean
-  verified: boolean
-  minRating: number
-}
-
-function applyFilters(listings: Listing[], filters: SearchResultsProps): Listing[] {
-  return listings.filter((l) => {
-    if (filters.query) {
-      const q = filters.query.toLowerCase()
-      if (
-        !l.title.toLowerCase().includes(q) &&
-        !l.brand.toLowerCase().includes(q) &&
-        !l.model.toLowerCase().includes(q)
-      ) return false
-    }
-    if (filters.category && l.category !== filters.category) return false
-    if (filters.brand && l.brand !== filters.brand) return false
-    if (l.daily_price < filters.minPrice || l.daily_price > filters.maxPrice) return false
-    if (filters.instantBook && !l.is_instant_book) return false
-    if (filters.verified && !l.host?.is_verified) return false
-    if (filters.minRating && (l.rating ?? 0) < filters.minRating) return false
-    return true
-  })
+  listings: Listing[]
 }
 
 type SortKey = 'recommended' | 'price_asc' | 'price_desc' | 'rating' | 'newest'
@@ -52,11 +24,11 @@ function sortListings(listings: Listing[], sort: SortKey): Listing[] {
   }
 }
 
-export function SearchResults(props: SearchResultsProps) {
+export function SearchResults({ query, listings }: SearchResultsProps) {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [sort, setSort] = useState<SortKey>('recommended')
 
-  const results = sortListings(applyFilters(MOCK_LISTINGS, props), sort)
+  const results = sortListings(listings, sort)
 
   return (
     <div className="flex gap-6 items-start">
@@ -84,7 +56,7 @@ export function SearchResults(props: SearchResultsProps) {
         <div className="flex items-center justify-between mb-5">
           <p className="text-sm text-gray-500">
             <span className="font-semibold text-[#111827]">{results.length}</span> listings found
-            {props.query && <span> for "<span className="text-[#003049]">{props.query}</span>"</span>}
+            {query && <span> for "<span className="text-[#003049]">{query}</span>"</span>}
           </p>
           <div className="flex items-center gap-3">
             <select

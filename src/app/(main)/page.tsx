@@ -5,15 +5,18 @@ import { FeaturedListings } from '@/components/home/FeaturedListings'
 import { PopularCarousel } from '@/components/home/PopularCarousel'
 import { CreatorBundles } from '@/components/home/CreatorBundles'
 import { WhyRentivo } from '@/components/home/WhyRentivo'
+import { getPopularListings } from '@/lib/listings'
 
-export default function HomePage() {
+export default async function HomePage() {
+  const popular = await getPopularListings(12)
+
   return (
     <>
       <HeroSearch />
       <CategoryCards />
       <RecentlyViewed />
       <FeaturedListings />
-      <PopularCarousel />
+      <PopularCarousel listings={popular} />
       <CreatorBundles />
       <WhyRentivo />
     </>

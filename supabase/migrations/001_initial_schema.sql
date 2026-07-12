@@ -4,8 +4,7 @@
 -- ============================================================
 
 -- Enable extensions
-create extension if not exists "uuid-ossp";
-create extension if not exists "pg_trgm"; -- for full-text search on listings
+create extension if not exists "pg_trgm" with schema extensions; -- for full-text search on listings
 
 -- ───────────────────────────────────────────────────────────
 -- ENUMS
@@ -54,7 +53,7 @@ create table public.profiles (
 -- ───────────────────────────────────────────────────────────
 
 create table public.listings (
-  id               uuid primary key default uuid_generate_v4(),
+  id               uuid primary key default gen_random_uuid(),
   host_id          uuid not null references public.profiles(id) on delete cascade,
   category         equipment_category not null,
   brand            text not null,
@@ -110,7 +109,7 @@ create index listings_city_idx on public.listings(city);
 -- ───────────────────────────────────────────────────────────
 
 create table public.availability_blocks (
-  id          uuid primary key default uuid_generate_v4(),
+  id          uuid primary key default gen_random_uuid(),
   listing_id  uuid not null references public.listings(id) on delete cascade,
   blocked_on  date not null,
   reason      text, -- 'booked' | 'personal' | null
@@ -126,7 +125,7 @@ create index availability_listing_idx on public.availability_blocks(listing_id);
 -- ───────────────────────────────────────────────────────────
 
 create table public.bookings (
-  id               uuid primary key default uuid_generate_v4(),
+  id               uuid primary key default gen_random_uuid(),
   listing_id       uuid not null references public.listings(id),
   renter_id        uuid not null references public.profiles(id),
   host_id          uuid not null references public.profiles(id),
@@ -150,7 +149,7 @@ create table public.bookings (
   payment_method   payment_method,
   payment_status   payment_status not null default 'unpaid',
   paymongo_ref     text,        -- PayMongo payment intent ID
-  booking_ref      text unique not null default 'RNT-' || upper(substring(uuid_generate_v4()::text, 1, 6)),
+  booking_ref      text unique not null default 'RNT-' || upper(substring(gen_random_uuid()::text, 1, 6)),
 
   host_notes       text,
   renter_notes     text,
@@ -172,7 +171,7 @@ create index bookings_status_idx  on public.bookings(status);
 -- ───────────────────────────────────────────────────────────
 
 create table public.messages (
-  id          uuid primary key default uuid_generate_v4(),
+  id          uuid primary key default gen_random_uuid(),
   booking_id  uuid not null references public.bookings(id) on delete cascade,
   sender_id   uuid not null references public.profiles(id),
   content     text not null,
@@ -189,7 +188,7 @@ create index messages_sender_idx  on public.messages(sender_id);
 -- ───────────────────────────────────────────────────────────
 
 create table public.reviews (
-  id           uuid primary key default uuid_generate_v4(),
+  id           uuid primary key default gen_random_uuid(),
   booking_id   uuid not null references public.bookings(id),
   reviewer_id  uuid not null references public.profiles(id),
   reviewee_id  uuid not null references public.profiles(id),
@@ -210,7 +209,7 @@ create index reviews_reviewee_idx  on public.reviews(reviewee_id);
 -- ───────────────────────────────────────────────────────────
 
 create table public.wishlist (
-  id          uuid primary key default uuid_generate_v4(),
+  id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references public.profiles(id) on delete cascade,
   listing_id  uuid not null references public.listings(id) on delete cascade,
   created_at  timestamptz not null default now(),
@@ -225,7 +224,7 @@ create index wishlist_user_idx on public.wishlist(user_id);
 -- ───────────────────────────────────────────────────────────
 
 create table public.promo_codes (
-  id              uuid primary key default uuid_generate_v4(),
+  id              uuid primary key default gen_random_uuid(),
   code            text unique not null,
   discount_pct    integer check (discount_pct between 1 and 100),
   discount_flat   integer,      -- fixed PHP amount

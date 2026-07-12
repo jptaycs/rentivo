@@ -1,9 +1,12 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { Package } from 'lucide-react'
-import { MOCK_BUNDLES } from '@/lib/mock-data'
+import { getBundles } from '@/lib/listings'
 
-export function CreatorBundles() {
+export async function CreatorBundles() {
+  const bundles = await getBundles(3)
+  if (bundles.length === 0) return null
+
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="flex items-center justify-between mb-6">
@@ -14,7 +17,7 @@ export function CreatorBundles() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {MOCK_BUNDLES.map((bundle) => (
+        {bundles.map((bundle) => (
           <Link
             key={bundle.id}
             href={`/listings/${bundle.id}`}
@@ -22,7 +25,7 @@ export function CreatorBundles() {
           >
             <div className="relative h-48 overflow-hidden">
               <Image
-                src={bundle.image}
+                src={bundle.images[0] ?? '/placeholder-equipment.jpg'}
                 alt={bundle.title}
                 fill
                 className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -39,7 +42,7 @@ export function CreatorBundles() {
             </div>
             <div className="p-4">
               <ul className="space-y-1 mb-4">
-                {bundle.items.map((item) => (
+                {bundle.accessories.map((item) => (
                   <li key={item} className="flex items-center gap-2 text-sm text-gray-600">
                     <span className="w-1 h-1 rounded-full bg-[#003049] shrink-0" />
                     {item}

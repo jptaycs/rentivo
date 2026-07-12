@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { CompactSearchBar } from '@/components/search/CompactSearchBar'
 import { SearchResults } from '@/components/search/SearchResults'
 import { Skeleton } from '@/components/ui/skeleton'
+import { searchListings, type ListingSearchParams } from '@/lib/listings'
 
 interface SearchPageProps {
   searchParams: Promise<{
@@ -36,10 +37,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Suspense fallback={<SearchSkeleton />}>
-          <SearchResults
+          <SearchResultsLoader
             query={params.q ?? ''}
             category={params.category ?? ''}
             brand={params.brand ?? ''}
+            city={params.city ?? ''}
             minPrice={Number(params.min_price ?? 0)}
             maxPrice={Number(params.max_price ?? 99999)}
             instantBook={params.instant_book === '1'}
@@ -50,6 +52,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       </div>
     </div>
   )
+}
+
+async function SearchResultsLoader(props: ListingSearchParams & { query: string }) {
+  const listings = await searchListings(props)
+  return <SearchResults query={props.query} listings={listings} />
 }
 
 function SearchSkeleton() {

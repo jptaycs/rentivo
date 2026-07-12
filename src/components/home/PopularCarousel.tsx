@@ -4,9 +4,9 @@ import { useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react'
-import { MOCK_LISTINGS } from '@/lib/mock-data'
+import type { Listing } from '@/types'
 
-export function PopularCarousel() {
+export function PopularCarousel({ listings }: { listings: Listing[] }) {
   const ref = useRef<HTMLDivElement>(null)
 
   function scroll(dir: 'left' | 'right') {
@@ -40,7 +40,7 @@ export function PopularCarousel() {
           className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {MOCK_LISTINGS.concat(MOCK_LISTINGS).map((listing, i) => (
+          {listings.concat(listings).map((listing, i) => (
             <Link
               key={`${listing.id}-${i}`}
               href={`/listings/${listing.id}`}

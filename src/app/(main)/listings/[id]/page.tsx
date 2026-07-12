@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { MOCK_LISTINGS } from '@/lib/mock-data'
+import { getListing } from '@/lib/listings'
 import { ViewTracker } from '@/components/listings/ViewTracker'
 import { PhotoGallery } from '@/components/listings/PhotoGallery'
 import { BookingPanel } from '@/components/listings/BookingPanel'
@@ -18,7 +18,7 @@ interface ListingPageProps {
 
 export default async function ListingPage({ params }: ListingPageProps) {
   const { id } = await params
-  const listing = MOCK_LISTINGS.find((l) => l.id === id)
+  const listing = await getListing(id)
 
   if (!listing) notFound()
 
