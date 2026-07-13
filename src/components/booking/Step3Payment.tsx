@@ -11,7 +11,7 @@ type PaymentMethod = 'gcash' | 'maya' | 'card' | 'apple_pay' | 'google_pay'
 interface Step3PaymentProps {
   listing: Listing
   days: number
-  onNext: (method: PaymentMethod) => void
+  onNext: (method: PaymentMethod) => Promise<void>
   onBack: () => void
 }
 
@@ -85,10 +85,12 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
   async function handlePay() {
     if (!canPay) return
     setLoading(true)
-    // Simulate PayMongo API call
-    await new Promise((r) => setTimeout(r, 1800))
-    setLoading(false)
-    onNext(method)
+    try {
+      // Creates the booking; real PayMongo charge comes later
+      await onNext(method)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

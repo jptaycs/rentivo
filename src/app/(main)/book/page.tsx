@@ -1,5 +1,5 @@
 import { redirect, notFound } from 'next/navigation'
-import { MOCK_LISTINGS } from '@/lib/mock-data'
+import { getListing } from '@/lib/listings'
 import { BookingWizard } from '@/components/booking/BookingWizard'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
@@ -17,7 +17,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
 
   if (!listingId || !from || !to) redirect('/')
 
-  const listing = MOCK_LISTINGS.find((l) => l.id === listingId)
+  const listing = await getListing(listingId)
   if (!listing) notFound()
 
   const pickupDate = from

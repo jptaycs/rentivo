@@ -1,71 +1,36 @@
 'use client'
 
 import { useState } from 'react'
-import { MessageCircle, Check, X, Calendar, MapPin } from 'lucide-react'
-
-const MOCK_BOOKINGS = [
-  {
-    id: 'BK001', ref: 'RNT-A3F9KX',
-    renter: 'Maria Santos', renterInitial: 'M',
-    equipment: 'Sony A7 IV',
-    pickup: '2026-07-02', return: '2026-07-05', days: 3,
-    total: 8540, deposit: 10000,
-    status: 'confirmed', isDelivery: false,
-    city: 'Makati',
-  },
-  {
-    id: 'BK002', ref: 'RNT-B7X2QT',
-    renter: 'John dela Cruz', renterInitial: 'J',
-    equipment: 'Canon RF 70-200mm',
-    pickup: '2026-07-06', return: '2026-07-07', days: 1,
-    total: 3800, deposit: 8000,
-    status: 'pending', isDelivery: true,
-    city: 'Quezon City',
-  },
-  {
-    id: 'BK003', ref: 'RNT-C1M5PW',
-    renter: 'Trish Mendoza', renterInitial: 'T',
-    equipment: 'Sony A7 IV',
-    pickup: '2026-07-10', return: '2026-07-14', days: 4,
-    total: 12800, deposit: 10000,
-    status: 'confirmed', isDelivery: false,
-    city: 'BGC',
-  },
-  {
-    id: 'BK004', ref: 'RNT-D4K8LN',
-    renter: 'Ryan Lim', renterInitial: 'R',
-    equipment: 'iPhone 16 Pro Max',
-    pickup: '2026-06-28', return: '2026-06-30', days: 2,
-    total: 2760, deposit: 5000,
-    status: 'completed', isDelivery: false,
-    city: 'Pasig',
-  },
-  {
-    id: 'BK005', ref: 'RNT-E9R3YH',
-    renter: 'Grace Tan', renterInitial: 'G',
-    equipment: 'Sony FX3',
-    pickup: '2026-06-20', return: '2026-06-22', days: 2,
-    total: 9540, deposit: 20000,
-    status: 'completed', isDelivery: false,
-    city: 'Mandaluyong',
-  },
-]
+import { MessageCircle, Check, X, Calendar, MapPin, Loader2, AlertCircle } from 'lucide-react'
+import { useHostBookings } from '@/hooks/useBookings'
 
 const TABS = ['All', 'Pending', 'Confirmed', 'Completed']
 
 const STATUS_STYLES: Record<string, string> = {
   confirmed: 'bg-blue-50 text-[#003049]',
   pending: 'bg-amber-50 text-amber-700',
+  active: 'bg-blue-50 text-[#003049]',
   completed: 'bg-green-50 text-[#22C55E]',
   cancelled: 'bg-red-50 text-red-500',
 }
 
 export default function BookingsPage() {
   const [tab, setTab] = useState('All')
+  const { bookings, loading, setStatus } = useHostBookings()
+  const [actingOn, setActingOn] = useState('')
+  const [error, setError] = useState('')
 
-  const filtered = MOCK_BOOKINGS.filter(
+  const filtered = bookings.filter(
     (b) => tab === 'All' || b.status === tab.toLowerCase()
   )
+
+  async function act(bookingId: string, status: 'confirmed' | 'cancelled') {
+    setError('')
+    setActingOn(bookingId)
+    const err = await setStatus(bookingId, status)
+    if (err) setError(err)
+    setActingOn('')
+  }
 
   const fmt = (d: string) =>
     new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -87,16 +52,27 @@ export default function BookingsPage() {
             {t}
             {t !== 'All' && (
               <span className="ml-1.5 text-xs opacity-60">
-                {MOCK_BOOKINGS.filter(b => b.status === t.toLowerCase()).length}
+                {bookings.filter(b => b.status === t.toLowerCase()).length}
               </span>
             )}
           </button>
         ))}
       </div>
 
+      {error && (
+        <div className="flex items-start gap-2.5 bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          {error}
+        </div>
+      )}
+
       {/* Bookings list */}
       <div className="space-y-3">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-16 text-gray-300">
+            <Loader2 className="w-8 h-8 animate-spin" />
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-gray-400 bg-white rounded-2xl border border-gray-100">
             <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="font-medium">No {tab.toLowerCase()} bookings</p>
@@ -107,11 +83,13 @@ export default function BookingsPage() {
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-[#003049]/10 flex items-center justify-center shrink-0">
-                    <span className="text-[#003049] font-bold text-sm">{b.renterInitial}</span>
+                    <span className="text-[#003049] font-bold text-sm">
+                      {(b.renter?.full_name || '?').charAt(0).toUpperCase()}
+                    </span>
                   </div>
                   <div>
-                    <p className="font-bold text-[#111827] text-sm">{b.renter}</p>
-                    <p className="text-xs text-gray-500">{b.ref}</p>
+                    <p className="font-bold text-[#111827] text-sm">{b.renter?.full_name}</p>
+                    <p className="text-xs text-gray-500">{b.booking_ref}</p>
                   </div>
                 </div>
                 <span className={`text-xs font-semibold px-3 py-1 rounded-full capitalize ${STATUS_STYLES[b.status]}`}>
@@ -122,22 +100,22 @@ export default function BookingsPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                 <div>
                   <p className="text-xs text-gray-400 font-medium mb-0.5">Equipment</p>
-                  <p className="font-semibold text-[#111827]">{b.equipment}</p>
+                  <p className="font-semibold text-[#111827]">{b.listing?.title}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 font-medium mb-0.5">Dates</p>
-                  <p className="font-semibold text-[#111827]">{fmt(b.pickup)} → {fmt(b.return)}</p>
+                  <p className="font-semibold text-[#111827]">{fmt(b.pickup_date)} → {fmt(b.return_date)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 font-medium mb-0.5">Method</p>
                   <p className="font-semibold text-[#111827] flex items-center gap-1">
                     <MapPin className="w-3 h-3 text-gray-400" />
-                    {b.isDelivery ? 'Delivery' : 'Pickup'} · {b.city}
+                    {b.is_delivery ? 'Delivery' : 'Pickup'} · {b.listing?.city}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 font-medium mb-0.5">Payout</p>
-                  <p className="font-bold text-[#003049]">₱{b.total.toLocaleString()}</p>
+                  <p className="text-xs text-gray-400 font-medium mb-0.5">Total</p>
+                  <p className="font-bold text-[#003049]">₱{b.total_amount.toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -149,10 +127,18 @@ export default function BookingsPage() {
               </button>
               {b.status === 'pending' && (
                 <>
-                  <button className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#003049] hover:bg-[#002438] px-3 py-1.5 rounded-lg transition-colors ml-auto">
-                    <Check className="w-3.5 h-3.5" /> Accept
+                  <button
+                    onClick={() => act(b.id, 'confirmed')}
+                    disabled={actingOn === b.id}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#003049] hover:bg-[#002438] disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors ml-auto"
+                  >
+                    {actingOn === b.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Accept
                   </button>
-                  <button className="flex items-center gap-1.5 text-xs font-semibold text-red-500 border border-red-200 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors">
+                  <button
+                    onClick={() => act(b.id, 'cancelled')}
+                    disabled={actingOn === b.id}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-red-500 border border-red-200 hover:bg-red-50 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
+                  >
                     <X className="w-3.5 h-3.5" /> Decline
                   </button>
                 </>

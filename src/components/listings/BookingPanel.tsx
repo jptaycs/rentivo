@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Calendar, Zap, Star, Shield } from 'lucide-react'
+import { Calendar, Zap, Star, Shield, AlertCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { isSupabaseConfigured } from '@/lib/supabase/config'
 import type { Listing } from '@/types'
 
 interface BookingPanelProps {
@@ -16,6 +18,25 @@ export function BookingPanel({ listing }: BookingPanelProps) {
   const router = useRouter()
   const [pickupDate, setPickupDate] = useState('')
   const [returnDate, setReturnDate] = useState('')
+  const [available, setAvailable] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (!pickupDate || !returnDate || returnDate <= pickupDate || !isSupabaseConfigured()) {
+      setAvailable(null)
+      return
+    }
+    let cancelled = false
+    createClient()
+      .rpc('is_listing_available', {
+        p_listing_id: listing.id,
+        p_from: pickupDate,
+        p_to: returnDate,
+      })
+      .then(({ data }) => {
+        if (!cancelled) setAvailable(data ?? true)
+      })
+    return () => { cancelled = true }
+  }, [pickupDate, returnDate, listing.id])
 
   const days = pickupDate && returnDate
     ? Math.max(
@@ -123,10 +144,18 @@ export function BookingPanel({ listing }: BookingPanelProps) {
         </div>
       )}
 
+      {/* Availability warning */}
+      {available === false && (
+        <div className="flex items-start gap-2.5 bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          These dates are unavailable. Please pick a different range.
+        </div>
+      )}
+
       {/* CTA */}
       <button
         onClick={handleBook}
-        disabled={!pickupDate || !returnDate}
+        disabled={!pickupDate || !returnDate || available === false}
         className="w-full bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-colors text-sm"
       >
         {pickupDate && returnDate ? `Book Now — ₱${total.toLocaleString()}` : 'Select dates to book'}
