@@ -7,6 +7,7 @@ import { Bell, MessageCircle, Menu, X, LayoutDashboard, Package, LogOut, Setting
 import { useState, useRef, useEffect } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useUser, initials } from '@/hooks/useUser'
+import { useNotifications } from '@/hooks/useNotifications'
 
 
 const DROPDOWN_ITEMS = [
@@ -18,6 +19,7 @@ const DROPDOWN_ITEMS = [
 export function Navbar() {
   const pathname = usePathname()
   const { user, loading, signOut } = useUser()
+  const { unreadCount } = useNotifications()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -72,7 +74,11 @@ export function Navbar() {
                   title="Notifications"
                 >
                   <Bell className="w-5 h-5 text-gray-600" />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FDF0D5] rounded-full" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 flex items-center justify-center text-[9px] font-bold text-white bg-red-500 rounded-full">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
 
                 {/* Avatar dropdown */}

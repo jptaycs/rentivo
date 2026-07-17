@@ -100,6 +100,17 @@ export interface Review {
   listing?: Listing | null
 }
 
+export interface Notification {
+  id: string
+  user_id: string
+  type: 'booking_request' | 'booking_confirmed' | 'booking_cancelled' | 'booking_completed' | 'booking_paid' | 'review_received'
+  title: string
+  body: string
+  link: string | null
+  is_read: boolean
+  created_at: string
+}
+
 export interface SearchFilters {
   query: string
   category: EquipmentCategory | ''
