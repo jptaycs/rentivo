@@ -1,14 +1,39 @@
 'use client'
 
-import { Heart } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Heart, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { useWishlistStore } from '@/store/wishlist'
+import { useWishlist } from '@/hooks/useWishlist'
+import { createClient } from '@/lib/supabase/client'
 import { MOCK_LISTINGS } from '@/lib/mock-data'
 import { ListingCard } from '@/components/shared/ListingCard'
+import type { Listing } from '@/types'
+
+const HOST_SELECT = '*, host:profiles!listings_host_id_fkey(*)'
 
 export default function WishlistPage() {
-  const ids = useWishlistStore(s => s.ids)
-  const wishlisted = MOCK_LISTINGS.filter(l => ids.includes(l.id))
+  const { ids, live } = useWishlist()
+  const [listings, setListings] = useState<Listing[] | null>(null)
+
+  useEffect(() => {
+    if (!live) {
+      setListings(MOCK_LISTINGS.filter((l) => ids.includes(l.id)))
+      return
+    }
+    if (ids.length === 0) {
+      setListings([])
+      return
+    }
+    const supabase = createClient()
+    supabase
+      .from('listings')
+      .select(HOST_SELECT)
+      .in('id', ids)
+      .eq('is_active', true)
+      .then(({ data }) => setListings((data as Listing[]) ?? []))
+  }, [live, ids])
+
+  const wishlisted = listings ?? []
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">
@@ -19,7 +44,11 @@ export default function WishlistPage() {
         )}
       </div>
 
-      {wishlisted.length === 0 ? (
+      {listings === null ? (
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
+        </div>
+      ) : wishlisted.length === 0 ? (
         <div className="text-center py-24 bg-white rounded-2xl border border-gray-100">
           <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <Heart className="w-7 h-7 text-red-400" />
@@ -32,7 +61,7 @@ export default function WishlistPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {wishlisted.map(listing => (
+          {wishlisted.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
           ))}
         </div>

@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { Heart, Star, Zap, BadgeCheck, ChevronLeft, ChevronRight } from 'lucide-react'
-import { useWishlistStore } from '@/store/wishlist'
+import { useWishlist } from '@/hooks/useWishlist'
 import { useState } from 'react'
 import type { Listing } from '@/types'
 
@@ -12,8 +12,8 @@ interface ListingCardProps {
 }
 
 export function ListingCard({ listing }: ListingCardProps) {
-  const toggle = useWishlistStore((s) => s.toggle)
-  const isWishlisted = useWishlistStore((s) => s.has(listing.id))
+  const { toggle, has } = useWishlist()
+  const isWishlisted = has(listing.id)
   const [imgIdx, setImgIdx] = useState(0)
   const [hovered, setHovered] = useState(false)
 

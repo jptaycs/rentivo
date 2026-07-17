@@ -5,6 +5,7 @@ interface WishlistStore {
   ids: string[]
   toggle: (id: string) => void
   has: (id: string) => boolean
+  setIds: (ids: string[]) => void
 }
 
 export const useWishlistStore = create<WishlistStore>()(
@@ -18,6 +19,7 @@ export const useWishlistStore = create<WishlistStore>()(
             : [...state.ids, id],
         })),
       has: (id) => get().ids.includes(id),
+      setIds: (ids) => set({ ids }),
     }),
     { name: 'rentivo-wishlist' }
   )

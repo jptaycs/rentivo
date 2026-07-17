@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, Search, CalendarDays, Heart, User } from 'lucide-react'
-import { useWishlistStore } from '@/store/wishlist'
+import { useWishlist } from '@/hooks/useWishlist'
 
 const TABS = [
   { href: '/', label: 'Home', icon: Home },
@@ -15,7 +15,7 @@ const TABS = [
 
 export function MobileBottomNav() {
   const pathname = usePathname()
-  const wishlist = useWishlistStore(s => s.ids)
+  const { ids: wishlist } = useWishlist()
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 safe-area-bottom">
