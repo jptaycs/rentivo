@@ -52,10 +52,9 @@ Rentivo.html             bundled prototype — canonical visual reference
 |----------|---------|
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Hosted Supabase (publishable key) |
 | `SUPABASE_SECRET_KEY` | Service-role writes (payment confirmation) — **set, server-only** |
-| `PAYMONGO_SECRET_KEY` | Real PayMongo charges — **not yet set** (dev simulates payments while absent) |
-| `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY` | Browser-side card tokenization — **not yet set** |
-| `PAYMONGO_WEBHOOK_SECRET` | Webhook signature verification — **not yet set** (needs a public URL) |
-| `RESEND_API_KEY` | Transactional emails — **not yet set** (logs a skip note and no-ops while absent; free tier, sandbox sender needs no domain) |
+| `PAYMONGO_SECRET_KEY` / `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY` | Real PayMongo charges — **set (test mode)**, verified live: real card charge + real GCash redirect against PayMongo's API |
+| `PAYMONGO_WEBHOOK_SECRET` | Webhook signature verification — **not yet set** (needs a public URL; `/book/complete` covers dev without it) |
+| `RESEND_API_KEY` | Transactional emails — **set**, verified working, but sandbox sender can only reach the account owner's own inbox until a domain is verified at resend.com/domains |
 | `EMAIL_FROM` | Optional override, defaults to the Resend sandbox sender |
 | `NEXT_PUBLIC_APP_URL` | Redirect return URLs (`http://localhost:3000` in dev) |
 
@@ -71,7 +70,7 @@ Rentivo.html             bundled prototype — canonical visual reference
 - **Auth**: Supabase cookie sessions via `@supabase/ssr`; `src/proxy.ts` guards `/dashboard`, `/host`, `/book`, `/messages`. Signup enforces password policy client + server; hosted project requires email confirmation.
 - **Data layer**: server components call `src/lib/listings.ts`; client pages use hooks (`useBookings`). Host joins use explicit FK hints (`profiles!listings_host_id_fkey`).
 - **Booking lifecycle**: `create_booking` RPC is the *only* insert path (direct inserts revoked). It computes all amounts server-side (12% service, 5% protection, promo discount on rental fee only) and creates the booking `pending` + `unpaid`. `mark_booking_paid` (service-role only, idempotent) is the only path to `paid`; Instant Book flips to `confirmed`, which triggers availability blocking. Renters may cancel only pending bookings; host transitions are trigger-enforced (`pending→confirmed→active→completed`).
-- **Payments**: `POST /api/payments/checkout` creates/reuses the booking, creates a PayMongo intent for the server-computed total, attaches the payment method (cards tokenized in-browser with the public key — card data never touches our server; e-wallets server-side), and returns `paid` or a redirect URL. `/book/complete` verifies the intent after GCash/Maya/3DS redirects; `POST /api/webhooks/paymongo` (`payment.paid`, HMAC-verified) is the production source of truth. No PayMongo keys → simulated payments (dev only, still requires `SUPABASE_SECRET_KEY`).
+- **Payments**: `POST /api/payments/checkout` creates/reuses the booking, creates a PayMongo intent for the server-computed total, attaches the payment method (cards tokenized in-browser with the public key — card data never touches our server; e-wallets server-side), and returns `paid` or a redirect URL. `/book/complete` verifies the intent after GCash/Maya/3DS redirects; `POST /api/webhooks/paymongo` (`payment.paid`, HMAC-verified) is the production source of truth. No PayMongo keys → simulated payments (dev only, still requires `SUPABASE_SECRET_KEY`). **Card payment methods must include `billing.email`** (PayMongo API requirement discovered live — 400s without it); the card form auto-fills it from the signed-in user's account email rather than asking for it again.
 - **Notifications**: written *only* by security-definer triggers on `bookings` (request/confirmed/cancelled/completed/paid) and `reviews` (received) — never inserted by clients, so RLS only needs to scope reads and `is_read` updates to the owning user. `useNotifications` subscribes via Realtime; powers the navbar bell badge and the dashboard page.
 - **Messaging**: threads are derived from bookings the signed-in user is party to (`useThreads`), not a separate conversations table — a thread is a booking with ≥1 message. `useConversation` subscribes per-booking via Realtime and auto-marks incoming messages read while open. "Message Host"/"Message" CTAs deep-link to `/dashboard/messages?booking=<id>`.
 - **Analytics**: `listings.view_count` increments via the `increment_listing_view` RPC (security definer, callable by anon+authenticated) called from `ViewTracker` on the listing detail page — a plain counter, not a deduped events log.
@@ -91,7 +90,7 @@ Rentivo.html             bundled prototype — canonical visual reference
 - [x] Host listing wizard: photo upload to Storage, listing + availability insert (63f2a3e)
 - [x] Booking flow with server-side pricing via `create_booking` RPC (154e9dd)
 - [x] Renter/host booking dashboards (`useBookings`) with Accept/Decline
-- [x] PayMongo integration (8a4cb1d): checkout + webhook routes, card tokenization, `/book/complete`, promo codes server-side, simulated dev mode — verified e2e against the live DB
+- [x] PayMongo integration (8a4cb1d, 0f1d610): checkout + webhook routes, card tokenization, `/book/complete`, promo codes server-side — **verified with real test-mode keys**: a real card charge (succeeded, amount-checked directly against PayMongo's API) and a real GCash authorization redirect (reachable URL). Falls back to simulated mode when keys are absent.
 - [x] Wishlist wired to the `wishlist` table with guest→account heart migration on sign-in (2a77550)
 - [x] Host public profiles (`/hosts/[id]`) + review submission/display on completed bookings, both directions (cb2b9d0)
 - [x] Host + renter dashboards fully live: Overview, My Listings (pause/activate/delete), Calendar (real availability_blocks), Earnings (+CSV export), Analytics (real view counts via `increment_listing_view`), Receipts, Reviews, Settings (profile/avatar/password) (6f20fe1)
@@ -102,10 +101,13 @@ Rentivo.html             bundled prototype — canonical visual reference
 
 ## To Do
 
-**Payments — go live (only remaining backend gap)**
-- [ ] Add PayMongo test keys (`PAYMONGO_SECRET_KEY`, `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY`) and verify a real test-mode GCash + card charge
+**Payments — production hardening (test mode fully verified)**
+- [ ] Switch to live PayMongo keys when ready to accept real money (test keys are in use now — never commit live keys)
 - [ ] Deploy (Vercel), register webhook URL, set `PAYMONGO_WEBHOOK_SECRET`
-- [ ] Refund path: host decline / renter cancel after payment → PayMongo refund + `payment_status='refunded'`
+- [ ] Refund path: host decline / renter cancel after payment → PayMongo refund + `payment_status='refunded'` (the decline email currently promises a refund that isn't automated yet)
+
+**Email — reaches only your own inbox until this is done**
+- [ ] Verify a domain at resend.com/domains and point `EMAIL_FROM` at it — real users (and the demo accounts) get a 403 from Resend's sandbox sender until then
 
 **Deferred — needs a product decision, not just wiring**
 - [ ] Payout accounts/history (dashboard/payouts is still mock — no schema for storing bank/e-wallet payout methods; this touches real money movement so needs a deliberate design, not a quick migration)
@@ -115,7 +117,6 @@ Rentivo.html             bundled prototype — canonical visual reference
 
 **Polish / later**
 - [ ] Recently-viewed persistence for logged-in users (currently localStorage)
-- [ ] Add `RESEND_API_KEY` to actually send the booking emails (currently wired but no-op — see below)
 - [ ] Weekly/monthly discount pricing in checkout math (fields exist on listings)
 - [ ] Search: availability-date filtering, map view
 - [ ] Apple Pay / Google Pay — blocked: PayMongo doesn't support them; keep "Coming soon"
