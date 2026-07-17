@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { MessageCircle, Check, X, Calendar, MapPin, Loader2, AlertCircle } from 'lucide-react'
-import { useHostBookings } from '@/hooks/useBookings'
+import { MessageCircle, Check, X, Calendar, MapPin, Loader2, AlertCircle, Star } from 'lucide-react'
+import { useHostBookings, type BookingWithRefs } from '@/hooks/useBookings'
+import { useReviewedBookings } from '@/hooks/useReviewedBookings'
+import { ReviewModal } from '@/components/shared/ReviewModal'
 
 const TABS = ['All', 'Pending', 'Confirmed', 'Completed']
 
@@ -19,6 +21,8 @@ export default function BookingsPage() {
   const { bookings, loading, setStatus } = useHostBookings()
   const [actingOn, setActingOn] = useState('')
   const [error, setError] = useState('')
+  const { reviewedIds, markReviewed } = useReviewedBookings()
+  const [reviewing, setReviewing] = useState<BookingWithRefs | null>(null)
 
   const filtered = bookings.filter(
     (b) => tab === 'All' || b.status === tab.toLowerCase()
@@ -125,6 +129,20 @@ export default function BookingsPage() {
               <button className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#003049] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                 <MessageCircle className="w-3.5 h-3.5" /> Message
               </button>
+              {b.status === 'completed' && (
+                reviewedIds.has(b.id) ? (
+                  <span className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-[#22C55E] px-3 py-1.5">
+                    <Check className="w-3.5 h-3.5" /> Reviewed
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setReviewing(b)}
+                    className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-amber-600 border border-amber-200 hover:bg-amber-50 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    <Star className="w-3.5 h-3.5" /> Review Renter
+                  </button>
+                )
+              )}
               {b.status === 'pending' && (
                 <>
                   <button
@@ -147,6 +165,17 @@ export default function BookingsPage() {
           </div>
         ))}
       </div>
+
+      {reviewing && (
+        <ReviewModal
+          open
+          onClose={() => setReviewing(null)}
+          bookingId={reviewing.id}
+          revieweeId={reviewing.renter_id}
+          revieweeName={reviewing.renter?.full_name ?? 'your renter'}
+          onSubmitted={markReviewed}
+        />
+      )}
     </div>
   )
 }

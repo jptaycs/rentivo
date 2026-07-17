@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Calendar, MapPin, MessageCircle, Star, Package, Loader2 } from 'lucide-react'
-import { useMyRentals } from '@/hooks/useBookings'
+import { Calendar, MapPin, MessageCircle, Star, Package, Loader2, Check } from 'lucide-react'
+import { useMyRentals, type BookingWithRefs } from '@/hooks/useBookings'
+import { useReviewedBookings } from '@/hooks/useReviewedBookings'
+import { ReviewModal } from '@/components/shared/ReviewModal'
 
 const TABS = ['Upcoming', 'History']
 
@@ -21,6 +23,8 @@ const UPCOMING_STATUSES = ['pending', 'confirmed', 'active']
 export default function RentalsPage() {
   const [tab, setTab] = useState('Upcoming')
   const { bookings, loading } = useMyRentals()
+  const { reviewedIds, markReviewed } = useReviewedBookings()
+  const [reviewing, setReviewing] = useState<BookingWithRefs | null>(null)
 
   const items = bookings.filter((b) =>
     tab === 'Upcoming'
@@ -93,14 +97,35 @@ export default function RentalsPage() {
                 <MessageCircle className="w-3.5 h-3.5" /> Message Host
               </button>
               {item.status === 'completed' && (
-                <button className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-amber-600 border border-amber-200 hover:bg-amber-50 px-3 py-1.5 rounded-lg transition-colors">
-                  <Star className="w-3.5 h-3.5" /> Leave Review
-                </button>
+                reviewedIds.has(item.id) ? (
+                  <span className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-[#22C55E] px-3 py-1.5">
+                    <Check className="w-3.5 h-3.5" /> Reviewed
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setReviewing(item)}
+                    className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-amber-600 border border-amber-200 hover:bg-amber-50 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    <Star className="w-3.5 h-3.5" /> Leave Review
+                  </button>
+                )
               )}
             </div>
           </div>
         ))}
       </div>
+
+      {reviewing && (
+        <ReviewModal
+          open
+          onClose={() => setReviewing(null)}
+          bookingId={reviewing.id}
+          revieweeId={reviewing.host_id}
+          revieweeName={reviewing.host?.full_name ?? 'your host'}
+          listingId={reviewing.listing_id}
+          onSubmitted={markReviewed}
+        />
+      )}
     </div>
   )
 }

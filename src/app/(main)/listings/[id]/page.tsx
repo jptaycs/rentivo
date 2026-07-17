@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
-import { getListing } from '@/lib/listings'
+import { getListing, getListingReviews } from '@/lib/listings'
+import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { ViewTracker } from '@/components/listings/ViewTracker'
 import { PhotoGallery } from '@/components/listings/PhotoGallery'
 import { BookingPanel } from '@/components/listings/BookingPanel'
@@ -21,6 +22,8 @@ export default async function ListingPage({ params }: ListingPageProps) {
   const listing = await getListing(id)
 
   if (!listing) notFound()
+
+  const reviews = isSupabaseConfigured() ? await getListingReviews(listing.id) : undefined
 
   const CONDITION_LABELS: Record<string, string> = {
     mint: 'Mint condition',
@@ -207,7 +210,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
             {/* Reviews */}
             <section>
               <h2 className="text-xl font-bold text-[#111827] mb-6">Reviews</h2>
-              <ReviewsList rating={listing.rating} reviewCount={listing.review_count} />
+              <ReviewsList rating={listing.rating} reviewCount={listing.review_count} reviews={reviews} />
             </section>
 
             <Separator />

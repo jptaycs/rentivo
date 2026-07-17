@@ -23,7 +23,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1621155346337-1d19476ba7d6?w=800&q=80', 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80', 'https://images.unsplash.com/photo-1588681664899-f142ff2dc9b1?w=800&q=80'],
     accessories: ['Battery x2', 'Charger', 'Strap', 'Body Cap'],
     created_at: '2024-01-01',
-    host: { id: 'host1', full_name: 'Mark Reyes', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.9, host_review_count: 89, response_time_hours: 1, created_at: '2023-01-01' },
+    host: { id: 'host1', full_name: 'Mark Reyes', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.9, host_review_count: 89, response_time_hours: 1, bio: null, city: null, created_at: '2023-01-01' },
   },
   {
     id: '2',
@@ -47,7 +47,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=800&q=80', 'https://images.unsplash.com/photo-1520390138845-fd2d229dd553?w=800&q=80'],
     accessories: ['Battery', 'Charger', 'USB-C Cable'],
     created_at: '2024-01-02',
-    host: { id: 'host2', full_name: 'Anna Cruz', avatar_url: null, is_verified: true, is_host: true, host_rating: 5.0, host_review_count: 42, response_time_hours: 2, created_at: '2023-06-01' },
+    host: { id: 'host2', full_name: 'Anna Cruz', avatar_url: null, is_verified: true, is_host: true, host_rating: 5.0, host_review_count: 42, response_time_hours: 2, bio: null, city: null, created_at: '2023-06-01' },
   },
   {
     id: '3',
@@ -71,7 +71,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?w=800&q=80', 'https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=800&q=80'],
     accessories: ['Lightning Cable', 'Adapter', 'Case'],
     created_at: '2024-01-03',
-    host: { id: 'host3', full_name: 'Carlo Santos', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.8, host_review_count: 31, response_time_hours: 3, created_at: '2023-09-01' },
+    host: { id: 'host3', full_name: 'Carlo Santos', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.8, host_review_count: 31, response_time_hours: 3, bio: null, city: null, created_at: '2023-09-01' },
   },
   {
     id: '4',
@@ -95,7 +95,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1617005082133-548c4dd27f35?w=800&q=80'],
     accessories: ['Front Cap', 'Rear Cap', 'Hood', 'Pouch'],
     created_at: '2024-01-04',
-    host: { id: 'host4', full_name: 'Lea Villanueva', avatar_url: null, is_verified: false, is_host: true, host_rating: 4.7, host_review_count: 28, response_time_hours: 4, created_at: '2023-07-01' },
+    host: { id: 'host4', full_name: 'Lea Villanueva', avatar_url: null, is_verified: false, is_host: true, host_rating: 4.7, host_review_count: 28, response_time_hours: 4, bio: null, city: null, created_at: '2023-07-01' },
   },
   {
     id: '5',
@@ -119,7 +119,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1616161560417-66d4db5892ec?w=800&q=80'],
     accessories: ['Battery x2', 'XLR Adapter', 'USB-C Cable'],
     created_at: '2024-01-05',
-    host: { id: 'host5', full_name: 'Ryan Lim', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.9, host_review_count: 15, response_time_hours: 2, created_at: '2023-05-01' },
+    host: { id: 'host5', full_name: 'Ryan Lim', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.9, host_review_count: 15, response_time_hours: 2, bio: null, city: null, created_at: '2023-05-01' },
   },
   {
     id: '6',
@@ -143,7 +143,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=800&q=80'],
     accessories: ['USB-C Cable', 'S Pen', 'Case'],
     created_at: '2024-01-06',
-    host: { id: 'host6', full_name: 'Grace Tan', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.8, host_review_count: 17, response_time_hours: 1, created_at: '2023-10-01' },
+    host: { id: 'host6', full_name: 'Grace Tan', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.8, host_review_count: 17, response_time_hours: 1, bio: null, city: null, created_at: '2023-10-01' },
   },
   {
     id: '7',
@@ -167,7 +167,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=800&q=80'],
     accessories: ['Battery x2', 'Charger', 'USB-C Cable', 'Strap'],
     created_at: '2024-02-01',
-    host: { id: 'host7', full_name: 'James Ong', avatar_url: null, is_verified: true, is_host: true, host_rating: 5.0, host_review_count: 36, response_time_hours: 1, created_at: '2023-03-01' },
+    host: { id: 'host7', full_name: 'James Ong', avatar_url: null, is_verified: true, is_host: true, host_rating: 5.0, host_review_count: 36, response_time_hours: 1, bio: null, city: null, created_at: '2023-03-01' },
   },
   {
     id: '8',
@@ -191,7 +191,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=800&q=80'],
     accessories: ['Battery x2', 'Charger', 'SD Card 128GB', 'Strap'],
     created_at: '2024-02-05',
-    host: { id: 'host8', full_name: 'Sofia Mendoza', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.9, host_review_count: 48, response_time_hours: 2, created_at: '2023-04-01' },
+    host: { id: 'host8', full_name: 'Sofia Mendoza', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.9, host_review_count: 48, response_time_hours: 2, bio: null, city: null, created_at: '2023-04-01' },
   },
   {
     id: '9',
@@ -215,7 +215,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1583394838336-acd977736f90?w=800&q=80'],
     accessories: ['Battery x2', 'Charger', 'USB-C Cable', 'Strap'],
     created_at: '2024-02-10',
-    host: { id: 'host9', full_name: 'Ben Aguilar', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.8, host_review_count: 22, response_time_hours: 3, created_at: '2023-08-01' },
+    host: { id: 'host9', full_name: 'Ben Aguilar', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.8, host_review_count: 22, response_time_hours: 3, bio: null, city: null, created_at: '2023-08-01' },
   },
   {
     id: '10',
@@ -239,7 +239,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1609902726285-00668009f004?w=800&q=80'],
     accessories: ['Battery x3', 'Charger', 'CF Express Card', 'Strap'],
     created_at: '2024-02-15',
-    host: { id: 'host10', full_name: 'Trisha Gomez', avatar_url: null, is_verified: true, is_host: true, host_rating: 5.0, host_review_count: 61, response_time_hours: 1, created_at: '2023-02-01' },
+    host: { id: 'host10', full_name: 'Trisha Gomez', avatar_url: null, is_verified: true, is_host: true, host_rating: 5.0, host_review_count: 61, response_time_hours: 1, bio: null, city: null, created_at: '2023-02-01' },
   },
   {
     id: '11',
@@ -263,7 +263,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=800&q=80'],
     accessories: ['USB-C Cable', 'MagSafe Charger', 'Case'],
     created_at: '2024-02-20',
-    host: { id: 'host11', full_name: 'Nina Reyes', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.9, host_review_count: 38, response_time_hours: 2, created_at: '2023-11-01' },
+    host: { id: 'host11', full_name: 'Nina Reyes', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.9, host_review_count: 38, response_time_hours: 2, bio: null, city: null, created_at: '2023-11-01' },
   },
   {
     id: '12',
@@ -287,7 +287,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&q=80'],
     accessories: ['USB-C Cable', 'Charger', 'Case'],
     created_at: '2024-03-01',
-    host: { id: 'host12', full_name: 'Andrei Flores', avatar_url: null, is_verified: false, is_host: true, host_rating: 4.7, host_review_count: 14, response_time_hours: 4, created_at: '2023-12-01' },
+    host: { id: 'host12', full_name: 'Andrei Flores', avatar_url: null, is_verified: false, is_host: true, host_rating: 4.7, host_review_count: 14, response_time_hours: 4, bio: null, city: null, created_at: '2023-12-01' },
   },
   {
     id: '13',
@@ -311,7 +311,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&q=80'],
     accessories: ['USB-C Cable', 'S Pen', 'Case', 'Charger'],
     created_at: '2024-03-05',
-    host: { id: 'host13', full_name: 'Maricel Santos', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.8, host_review_count: 9, response_time_hours: 2, created_at: '2024-01-01' },
+    host: { id: 'host13', full_name: 'Maricel Santos', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.8, host_review_count: 9, response_time_hours: 2, bio: null, city: null, created_at: '2024-01-01' },
   },
   {
     id: '14',
@@ -335,7 +335,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=800&q=80'],
     accessories: ['Battery x2', 'Charger', 'USB-C Cable', 'Strap'],
     created_at: '2024-03-10',
-    host: { id: 'host14', full_name: 'Diego Ramos', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.9, host_review_count: 19, response_time_hours: 3, created_at: '2023-06-15' },
+    host: { id: 'host14', full_name: 'Diego Ramos', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.9, host_review_count: 19, response_time_hours: 3, bio: null, city: null, created_at: '2023-06-15' },
   },
   {
     id: '15',
@@ -359,7 +359,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=800&q=80'],
     accessories: ['USB-C Cable', 'MagSafe Charger', 'Case', 'Screen Protector'],
     created_at: '2024-03-15',
-    host: { id: 'host15', full_name: 'Camille Bautista', avatar_url: null, is_verified: true, is_host: true, host_rating: 5.0, host_review_count: 27, response_time_hours: 1, created_at: '2023-07-20' },
+    host: { id: 'host15', full_name: 'Camille Bautista', avatar_url: null, is_verified: true, is_host: true, host_rating: 5.0, host_review_count: 27, response_time_hours: 1, bio: null, city: null, created_at: '2023-07-20' },
   },
   {
     id: '16',
@@ -383,7 +383,7 @@ export const MOCK_LISTINGS: Listing[] = [
     images: ['https://images.unsplash.com/photo-1616161560417-66d4db5892ec?w=800&q=80'],
     accessories: ['Battery x3', 'CFast Card', 'HDMI Cable', 'Battery Grip'],
     created_at: '2024-03-20',
-    host: { id: 'host16', full_name: 'Marco Dela Cruz', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.9, host_review_count: 13, response_time_hours: 2, created_at: '2023-09-10' },
+    host: { id: 'host16', full_name: 'Marco Dela Cruz', avatar_url: null, is_verified: true, is_host: true, host_rating: 4.9, host_review_count: 13, response_time_hours: 2, bio: null, city: null, created_at: '2023-09-10' },
   },
 ]
 

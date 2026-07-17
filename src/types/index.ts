@@ -17,6 +17,8 @@ export interface Profile {
   host_rating: number | null
   host_review_count: number
   response_time_hours: number | null
+  bio: string | null
+  city: string | null
   created_at: string
 }
 

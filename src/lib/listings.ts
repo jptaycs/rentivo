@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { MOCK_LISTINGS, MOCK_BUNDLES } from '@/lib/mock-data'
-import type { Listing } from '@/types'
+import type { Listing, Review } from '@/types'
 
 function mockBundleAsListing(b: (typeof MOCK_BUNDLES)[number]): Listing {
   return {
@@ -114,6 +114,19 @@ export async function getListing(id: string): Promise<Listing | null> {
     throw new Error(`Failed to load listing: ${error.message}`)
   }
   return data as Listing | null
+}
+
+export async function getListingReviews(listingId: string, limit = 6): Promise<Review[]> {
+  if (!isSupabaseConfigured()) return []
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('reviews')
+    .select('*, reviewer:profiles!reviews_reviewer_id_fkey(*)')
+    .eq('listing_id', listingId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) return []
+  return data as Review[]
 }
 
 export async function searchListings(params: ListingSearchParams): Promise<Listing[]> {
