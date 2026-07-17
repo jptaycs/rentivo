@@ -4,6 +4,7 @@ import { ChevronLeft, XCircle, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isPayMongoConfigured, getPaymentIntent } from '@/lib/paymongo'
+import { notifyBookingPaid } from '@/lib/email'
 import { Step4Confirmation } from '@/components/booking/Step4Confirmation'
 import type { Booking, Listing } from '@/types'
 
@@ -49,7 +50,10 @@ export default async function BookingCompletePage({ searchParams }: CompletePage
           p_booking_id: booking.id,
           p_paymongo_ref: booking.paymongo_ref,
         })
-        if (paid) booking = { ...booking, ...(paid as Booking) }
+        if (paid) {
+          booking = { ...booking, ...(paid as Booking) }
+          notifyBookingPaid(booking.id).catch((e) => console.error('[email] notifyBookingPaid failed', e))
+        }
       } else if (intent.attributes.status === 'processing') {
         processing = true
       }

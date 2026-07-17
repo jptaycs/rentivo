@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { verifyWebhookSignature } from '@/lib/paymongo'
+import { notifyBookingPaid } from '@/lib/email'
 
 /**
  * PayMongo webhook — source of truth for payment confirmation.
@@ -39,14 +40,15 @@ export async function POST(req: Request) {
       const admin = createAdminClient()
       const { data: booking } = await admin
         .from('bookings')
-        .select('id')
+        .select('id, payment_status')
         .eq('paymongo_ref', intentId)
         .maybeSingle()
-      if (booking) {
+      if (booking && booking.payment_status !== 'paid') {
         await admin.rpc('mark_booking_paid', {
           p_booking_id: booking.id,
           p_paymongo_ref: intentId,
         })
+        notifyBookingPaid(booking.id).catch((e) => console.error('[email] notifyBookingPaid failed', e))
       }
     }
   }

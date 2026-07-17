@@ -55,12 +55,13 @@ export function useHostBookings() {
   const base = useBookingsBy('host_id')
 
   async function setStatus(bookingId: string, status: 'confirmed' | 'cancelled') {
-    const supabase = createClient()
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status })
-      .eq('id', bookingId)
-    if (error) return error.message
+    const res = await fetch(`/api/bookings/${bookingId}/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    const data = await res.json().catch(() => null)
+    if (!res.ok) return data?.error ?? 'Something went wrong.'
     await base.reload()
     return null
   }

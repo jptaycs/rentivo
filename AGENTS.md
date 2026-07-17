@@ -55,6 +55,8 @@ Rentivo.html             bundled prototype — canonical visual reference
 | `PAYMONGO_SECRET_KEY` | Real PayMongo charges — **not yet set** (dev simulates payments while absent) |
 | `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY` | Browser-side card tokenization — **not yet set** |
 | `PAYMONGO_WEBHOOK_SECRET` | Webhook signature verification — **not yet set** (needs a public URL) |
+| `RESEND_API_KEY` | Transactional emails — **not yet set** (logs a skip note and no-ops while absent; free tier, sandbox sender needs no domain) |
+| `EMAIL_FROM` | Optional override, defaults to the Resend sandbox sender |
 | `NEXT_PUBLIC_APP_URL` | Redirect return URLs (`http://localhost:3000` in dev) |
 
 - `npm run dev` / `npm run build` / `npm run lint`
@@ -73,6 +75,7 @@ Rentivo.html             bundled prototype — canonical visual reference
 - **Notifications**: written *only* by security-definer triggers on `bookings` (request/confirmed/cancelled/completed/paid) and `reviews` (received) — never inserted by clients, so RLS only needs to scope reads and `is_read` updates to the owning user. `useNotifications` subscribes via Realtime; powers the navbar bell badge and the dashboard page.
 - **Messaging**: threads are derived from bookings the signed-in user is party to (`useThreads`), not a separate conversations table — a thread is a booking with ≥1 message. `useConversation` subscribes per-booking via Realtime and auto-marks incoming messages read while open. "Message Host"/"Message" CTAs deep-link to `/dashboard/messages?booking=<id>`.
 - **Analytics**: `listings.view_count` increments via the `increment_listing_view` RPC (security definer, callable by anon+authenticated) called from `ViewTracker` on the listing detail page — a plain counter, not a deduped events log.
+- **Transactional email** (`src/lib/email.ts`, Resend): `notifyBookingPaid()` fires from all three places a booking can become paid (checkout route's simulated + real-charge branches, `/book/complete`'s redirect-verification, and the webhook — each guarded so it only fires on the actual unpaid→paid transition) and sends the host a "new request/instant booking" email plus the renter a "confirmed" or "payment received, awaiting host" email depending on `is_instant_book`. `notifyBookingResponded()` fires from the new `POST /api/bookings/[id]/respond` route (host accept/decline now goes through this route instead of a direct client-side table update, so a server context exists to send from) and emails the renter confirmed/declined. No `RESEND_API_KEY` → each call no-ops with a console log instead of failing; verified live by checking those log lines against triggered flows.
 - **Security model** (004, extended in 012/013): explicit per-table grants, column-level protection (no self-granting `is_verified`, immutable booking amounts), promo codes readable only via `validate_promo_code()` RPC, storage buckets with mime/size limits and `<uid>/…` folder-scoped writes, security headers in `next.config.ts`, `safeRedirectPath()` on all `?next=` redirects.
 
 ---
@@ -94,6 +97,7 @@ Rentivo.html             bundled prototype — canonical visual reference
 - [x] Host + renter dashboards fully live: Overview, My Listings (pause/activate/delete), Calendar (real availability_blocks), Earnings (+CSV export), Analytics (real view counts via `increment_listing_view`), Receipts, Reviews, Settings (profile/avatar/password) (6f20fe1)
 - [x] In-app notifications: `notifications` table + security-definer triggers on booking/review lifecycle, Realtime-subscribed, navbar bell badge (1092e9e)
 - [x] Realtime messaging: threads derived from bookings, per-conversation Realtime subscriptions, read receipts (3d235e3)
+- [x] Transactional email via Resend: booking request/confirmed/declined/instant/payment-received, free tier, no-ops cleanly without a key
 - [x] Demo accounts + repeatable e2e smoke-test pattern (scripts in scratchpad history)
 
 ## To Do
@@ -111,7 +115,7 @@ Rentivo.html             bundled prototype — canonical visual reference
 
 **Polish / later**
 - [ ] Recently-viewed persistence for logged-in users (currently localStorage)
-- [ ] Email notifications (booking confirmed/declined) — in-app notifications are live, email is not
+- [ ] Add `RESEND_API_KEY` to actually send the booking emails (currently wired but no-op — see below)
 - [ ] Weekly/monthly discount pricing in checkout math (fields exist on listings)
 - [ ] Search: availability-date filtering, map view
 - [ ] Apple Pay / Google Pay — blocked: PayMongo doesn't support them; keep "Coming soon"

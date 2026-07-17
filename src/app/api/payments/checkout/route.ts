@@ -8,6 +8,7 @@ import {
   attachPaymentIntent,
   paymentErrorMessage,
 } from '@/lib/paymongo'
+import { notifyBookingPaid } from '@/lib/email'
 import type { Booking } from '@/types'
 
 interface CheckoutBody {
@@ -102,6 +103,7 @@ export async function POST(req: Request) {
         p_paymongo_ref: 'pi_simulated_dev',
       })
       if (error) throw new Error(error.message)
+      notifyBookingPaid(booking.id).catch((e) => console.error('[email] notifyBookingPaid failed', e))
       return NextResponse.json({ status: 'paid', simulated: true, booking: paid })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Payment simulation failed.'
@@ -157,6 +159,7 @@ export async function POST(req: Request) {
           // Charge went through; webhook / return page will reconcile
           return NextResponse.json({ status: 'redirect', url: returnUrl, bookingId: booking.id })
         }
+        notifyBookingPaid(booking.id).catch((e) => console.error('[email] notifyBookingPaid failed', e))
         return NextResponse.json({ status: 'paid', booking: paid })
       }
       case 'awaiting_next_action':
