@@ -1,27 +1,85 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronLeft, Lock, Loader2, Check, Tag, X } from 'lucide-react'
-import Image from 'next/image'
+import { ChevronLeft, Lock, Loader2, Check, Tag, X, AlertCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import { calcPricing } from './OrderSummary'
 import type { Listing } from '@/types'
 
 type PaymentMethod = 'gcash' | 'maya' | 'card' | 'apple_pay' | 'google_pay'
 
+export interface CheckoutPayload {
+  method: PaymentMethod
+  phone?: string
+  promoCode?: string
+  paymentMethodId?: string
+}
+
 interface Step3PaymentProps {
   listing: Listing
   days: number
-  onNext: (method: PaymentMethod) => Promise<void>
+  onNext: (payload: CheckoutPayload) => Promise<void>
   onBack: () => void
 }
 
-const METHODS: { id: PaymentMethod; label: string; logo: string; color: string }[] = [
+interface AppliedPromo {
+  code: string
+  pct: number | null
+  flat: number | null
+}
+
+const PAYMONGO_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY
+
+const METHODS: {
+  id: PaymentMethod
+  label: string
+  logo: string
+  color: string
+  comingSoon?: boolean
+}[] = [
   { id: 'gcash', label: 'GCash', logo: '/logos/gcash.svg', color: 'border-blue-400' },
   { id: 'maya', label: 'Maya', logo: '/logos/maya.svg', color: 'border-green-400' },
   { id: 'card', label: 'Credit / Debit Card', logo: '/logos/card.svg', color: 'border-gray-300' },
-  { id: 'apple_pay', label: 'Apple Pay', logo: '/logos/apple-pay.svg', color: 'border-gray-900' },
-  { id: 'google_pay', label: 'Google Pay', logo: '/logos/google-pay.svg', color: 'border-gray-300' },
+  { id: 'apple_pay', label: 'Apple Pay', logo: '/logos/apple-pay.svg', color: 'border-gray-900', comingSoon: true },
+  { id: 'google_pay', label: 'Google Pay', logo: '/logos/google-pay.svg', color: 'border-gray-300', comingSoon: true },
 ]
+
+/** Card data goes straight to PayMongo with the public key — never to our server. */
+async function createCardPaymentMethod(card: {
+  number: string
+  expMonth: number
+  expYear: number
+  cvc: string
+  name: string
+}): Promise<string> {
+  const res = await fetch('https://api.paymongo.com/v1/payment_methods', {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${btoa(`${PAYMONGO_PUBLIC_KEY}:`)}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      data: {
+        attributes: {
+          type: 'card',
+          details: {
+            card_number: card.number,
+            exp_month: card.expMonth,
+            exp_year: card.expYear,
+            cvc: card.cvc,
+          },
+          billing: { name: card.name },
+        },
+      },
+    }),
+  })
+  const json = await res.json().catch(() => null)
+  if (!res.ok) {
+    const detail = json?.errors?.map((e: { detail?: string }) => e.detail).filter(Boolean).join(' ')
+    throw new Error(detail || 'Your card could not be processed. Please check your details.')
+  }
+  return json.data.id as string
+}
 
 export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProps) {
   const [method, setMethod] = useState<PaymentMethod>('gcash')
@@ -32,45 +90,48 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
   const [cardName, setCardName] = useState('')
   const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [promoCode, setPromoCode] = useState('')
+  const [payError, setPayError] = useState('')
+  const [promo, setPromo] = useState<AppliedPromo | null>(null)
   const [promoInput, setPromoInput] = useState('')
   const [promoError, setPromoError] = useState('')
-  const [promoApplied, setPromoApplied] = useState(false)
+  const [promoChecking, setPromoChecking] = useState(false)
 
-  const VALID_CODES: Record<string, number> = { RENTIVO10: 0.10, WELCOME15: 0.15, CREATOR20: 0.20 }
-
-  function applyPromo() {
+  async function applyPromo() {
     const code = promoInput.trim().toUpperCase()
     if (!code) return
-    if (VALID_CODES[code]) {
-      setPromoCode(code)
-      setPromoApplied(true)
-      setPromoError('')
-    } else {
+    setPromoChecking(true)
+    setPromoError('')
+    const supabase = createClient()
+    const { data, error } = await supabase.rpc('validate_promo_code', { p_code: code })
+    setPromoChecking(false)
+    const row = data?.[0]
+    if (error || !row) {
       setPromoError('Invalid or expired promo code.')
-      setPromoApplied(false)
+      setPromo(null)
+      return
     }
+    setPromo({ code: row.code, pct: row.discount_pct, flat: row.discount_flat })
   }
 
   function removePromo() {
-    setPromoCode('')
+    setPromo(null)
     setPromoInput('')
-    setPromoApplied(false)
     setPromoError('')
   }
 
-  const { total: baseTotal } = calcPricing(listing, days)
-  const discount = promoApplied && VALID_CODES[promoCode] ? Math.round(baseTotal * VALID_CODES[promoCode]) : 0
+  const { rentalFee, total: baseTotal } = calcPricing(listing, days)
+  // Discount applies to the rental fee only — never the refundable deposit
+  const discount = promo
+    ? Math.min(rentalFee, Math.round((rentalFee * (promo.pct ?? 0)) / 100) + (promo.flat ?? 0))
+    : 0
   const total = baseTotal - discount
 
   const isWallet = method === 'gcash' || method === 'maya'
   const isCard = method === 'card'
-  const isDigitalWallet = method === 'apple_pay' || method === 'google_pay'
 
   const canPay =
     agreed &&
-    (isDigitalWallet ||
-      (isWallet && mobileNumber.replace(/\D/g, '').length === 11) ||
+    ((isWallet && mobileNumber.replace(/\D/g, '').length === 11) ||
       (isCard && cardNumber.replace(/\s/g, '').length === 16 && cardExpiry && cardCvv.length >= 3 && cardName))
 
   function formatCard(val: string) {
@@ -85,9 +146,26 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
   async function handlePay() {
     if (!canPay) return
     setLoading(true)
+    setPayError('')
     try {
-      // Creates the booking; real PayMongo charge comes later
-      await onNext(method)
+      let paymentMethodId: string | undefined
+      if (isCard && PAYMONGO_PUBLIC_KEY) {
+        paymentMethodId = await createCardPaymentMethod({
+          number: cardNumber.replace(/\s/g, ''),
+          expMonth: Number(cardExpiry.slice(0, 2)),
+          expYear: 2000 + Number(cardExpiry.slice(3)),
+          cvc: cardCvv,
+          name: cardName,
+        })
+      }
+      await onNext({
+        method,
+        phone: isWallet ? `+63${mobileNumber.replace(/\D/g, '').slice(1)}` : undefined,
+        promoCode: promo?.code,
+        paymentMethodId,
+      })
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : 'Payment failed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -107,10 +185,12 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
           {METHODS.map((m) => (
             <label
               key={m.id}
-              className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                method === m.id
-                  ? `${m.color} bg-blue-50/40`
-                  : 'border-gray-200 bg-white hover:border-gray-300'
+              className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
+                m.comingSoon
+                  ? 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-60'
+                  : method === m.id
+                    ? `${m.color} bg-blue-50/40 cursor-pointer`
+                    : 'border-gray-200 bg-white hover:border-gray-300 cursor-pointer'
               }`}
             >
               <input
@@ -118,6 +198,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
                 name="payment"
                 value={m.id}
                 checked={method === m.id}
+                disabled={m.comingSoon}
                 onChange={() => setMethod(m.id)}
                 className="sr-only"
               />
@@ -134,6 +215,11 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
                 {m.label.split(' ')[0].slice(0, 4).toUpperCase()}
               </div>
               <span className="font-medium text-[#111827] text-sm">{m.label}</span>
+              {m.comingSoon && (
+                <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-gray-400 bg-gray-100 rounded-full px-2.5 py-1">
+                  Coming soon
+                </span>
+              )}
             </label>
           ))}
         </div>
@@ -157,7 +243,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
             />
           </div>
           <p className="text-xs text-gray-400">
-            You'll receive a payment request on your {method === 'gcash' ? 'GCash' : 'Maya'} app.
+            You'll be redirected to {method === 'gcash' ? 'GCash' : 'Maya'} to authorize the payment.
           </p>
         </div>
       )}
@@ -222,24 +308,13 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
         </div>
       )}
 
-      {/* Digital wallet note */}
-      {isDigitalWallet && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-5 text-center">
-          <p className="text-sm text-gray-500">
-            You'll be prompted to authenticate with{' '}
-            <strong>{method === 'apple_pay' ? 'Face ID / Touch ID' : 'your Google account'}</strong>{' '}
-            to complete payment.
-          </p>
-        </div>
-      )}
-
       {/* Promo code */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
         <p className="text-sm font-bold text-[#111827] flex items-center gap-2"><Tag className="w-4 h-4 text-[#FDF0D5]" /> Promo Code</p>
-        {promoApplied ? (
+        {promo ? (
           <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
             <div>
-              <p className="text-sm font-bold text-green-700">{promoCode} applied</p>
+              <p className="text-sm font-bold text-green-700">{promo.code} applied</p>
               <p className="text-xs text-green-600">Saving ₱{discount.toLocaleString()} on this booking</p>
             </div>
             <button onClick={removePromo} className="text-green-500 hover:text-green-700 transition-colors">
@@ -257,10 +332,10 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
               />
               <button
                 onClick={applyPromo}
-                disabled={!promoInput.trim()}
+                disabled={!promoInput.trim() || promoChecking}
                 className="px-4 py-2.5 bg-[#FDF0D5] hover:bg-orange-600 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold text-sm rounded-xl transition-colors"
               >
-                Apply
+                {promoChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
               </button>
             </div>
             {promoError && <p className="text-xs text-red-500">{promoError}</p>}
@@ -287,6 +362,14 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
           <strong>₱{listing.security_deposit.toLocaleString()}</strong> is refundable upon return.
         </p>
       </label>
+
+      {/* Payment error */}
+      {payError && (
+        <div className="flex items-start gap-2.5 bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          {payError}
+        </div>
+      )}
 
       {/* Nav */}
       <div className="flex gap-3">

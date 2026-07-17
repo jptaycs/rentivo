@@ -60,8 +60,14 @@ export interface Booking {
   total_amount: number
   status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
   is_delivery: boolean
-  payment_method: 'gcash' | 'maya' | 'card' | 'apple_pay' | 'google_pay'
+  delivery_address: string | null
+  payment_method: 'gcash' | 'maya' | 'card' | 'apple_pay' | 'google_pay' | null
   payment_status: 'unpaid' | 'paid' | 'refunded'
+  paymongo_ref: string | null
+  paid_at: string | null
+  promo_code: string | null
+  discount: number
+  booking_ref: string
   created_at: string
   listing?: Listing
   renter?: Profile

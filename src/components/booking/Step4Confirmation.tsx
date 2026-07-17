@@ -2,23 +2,15 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { CheckCircle2, Download, MessageCircle, Calendar, MapPin, Shield } from 'lucide-react'
-import { calcPricing } from './OrderSummary'
-import type { Listing } from '@/types'
-
-type PaymentMethod = 'gcash' | 'maya' | 'card' | 'apple_pay' | 'google_pay'
+import { CheckCircle2, Download, MessageCircle, Calendar, MapPin, Shield, Clock } from 'lucide-react'
+import type { Listing, Booking } from '@/types'
 
 interface Step4ConfirmationProps {
   listing: Listing
-  pickupDate: string
-  returnDate: string
-  days: number
-  isDelivery: boolean
-  paymentMethod: PaymentMethod
-  bookingRef: string
+  booking: Booking
 }
 
-const METHOD_LABELS: Record<PaymentMethod, string> = {
+const METHOD_LABELS: Record<string, string> = {
   gcash: 'GCash',
   maya: 'Maya',
   card: 'Credit Card',
@@ -26,16 +18,9 @@ const METHOD_LABELS: Record<PaymentMethod, string> = {
   google_pay: 'Google Pay',
 }
 
-export function Step4Confirmation({
-  listing,
-  pickupDate,
-  returnDate,
-  days,
-  isDelivery,
-  paymentMethod,
-  bookingRef,
-}: Step4ConfirmationProps) {
-  const { rentalFee, serviceFee, protectionFee, total } = calcPricing(listing, days)
+export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) {
+  const days = booking.total_days
+  const isConfirmed = booking.status === 'confirmed'
 
   const fmt = (d: string) =>
     new Date(d).toLocaleDateString('en-PH', {
@@ -49,16 +34,24 @@ export function Step4Confirmation({
     <div className="space-y-8">
       {/* Success header */}
       <div className="text-center py-4">
-        <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-5">
-          <CheckCircle2 className="w-10 h-10 text-[#22C55E]" />
+        <div className={`w-20 h-20 ${isConfirmed ? 'bg-green-50' : 'bg-blue-50'} rounded-full flex items-center justify-center mx-auto mb-5`}>
+          {isConfirmed ? (
+            <CheckCircle2 className="w-10 h-10 text-[#22C55E]" />
+          ) : (
+            <Clock className="w-10 h-10 text-[#003049]" />
+          )}
         </div>
-        <h2 className="text-3xl font-bold text-[#111827]">Booking Confirmed!</h2>
+        <h2 className="text-3xl font-bold text-[#111827]">
+          {isConfirmed ? 'Booking Confirmed!' : 'Payment Received!'}
+        </h2>
         <p className="text-gray-500 mt-2">
-          Your rental is confirmed. The host has been notified.
+          {isConfirmed
+            ? 'Your rental is confirmed. The host has been notified.'
+            : 'Your payment is in — the host will confirm your booking shortly.'}
         </p>
         <div className="mt-4 inline-flex items-center gap-2 bg-[#F8FAFC] border border-gray-200 rounded-full px-5 py-2">
           <span className="text-xs text-gray-500 font-medium">Booking Reference</span>
-          <span className="text-sm font-bold text-[#003049] tracking-wider">{bookingRef}</span>
+          <span className="text-sm font-bold text-[#003049] tracking-wider">{booking.booking_ref}</span>
         </div>
       </div>
 
@@ -68,7 +61,7 @@ export function Step4Confirmation({
         <div className="bg-[#003049] px-6 py-4 flex items-center justify-between">
           <div>
             <p className="text-blue-200 text-xs font-medium">Digital Receipt</p>
-            <p className="text-white font-bold">{bookingRef}</p>
+            <p className="text-white font-bold">{booking.booking_ref}</p>
           </div>
           <button className="flex items-center gap-1.5 text-xs text-blue-100 hover:text-white transition-colors bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5">
             <Download className="w-3.5 h-3.5" />
@@ -100,17 +93,17 @@ export function Step4Confirmation({
             {
               icon: Calendar,
               label: 'Pickup Date',
-              value: fmt(pickupDate),
+              value: fmt(booking.pickup_date),
             },
             {
               icon: Calendar,
               label: 'Return Date',
-              value: fmt(returnDate),
+              value: fmt(booking.return_date),
             },
             {
               icon: MapPin,
               label: 'Method',
-              value: isDelivery ? 'Delivery to your address' : `Pickup from host in ${listing.city}`,
+              value: booking.is_delivery ? 'Delivery to your address' : `Pickup from host in ${listing.city}`,
             },
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex items-center justify-between px-5 py-3.5">
@@ -127,30 +120,38 @@ export function Step4Confirmation({
         <div className="px-5 py-4 bg-[#F8FAFC] space-y-2 text-sm border-t border-gray-100">
           <div className="flex justify-between text-gray-600">
             <span>Rental fee ({days} day{days > 1 ? 's' : ''})</span>
-            <span>₱{rentalFee.toLocaleString()}</span>
+            <span>₱{booking.rental_fee.toLocaleString()}</span>
           </div>
+          {booking.discount > 0 && (
+            <div className="flex justify-between text-green-600">
+              <span>Promo {booking.promo_code}</span>
+              <span>−₱{booking.discount.toLocaleString()}</span>
+            </div>
+          )}
           <div className="flex justify-between text-gray-600">
             <span>Service fee</span>
-            <span>₱{serviceFee.toLocaleString()}</span>
+            <span>₱{booking.service_fee.toLocaleString()}</span>
           </div>
           <div className="flex justify-between text-gray-600">
             <span>Protection fee</span>
-            <span>₱{protectionFee.toLocaleString()}</span>
+            <span>₱{booking.protection_fee.toLocaleString()}</span>
           </div>
           <div className="flex justify-between text-gray-600">
             <span>Security deposit</span>
-            <span>₱{listing.security_deposit.toLocaleString()}</span>
+            <span>₱{booking.security_deposit.toLocaleString()}</span>
           </div>
           <div className="flex justify-between font-bold text-[#111827] text-base border-t border-gray-200 pt-2 mt-1">
             <span>Total Paid</span>
-            <span className="text-[#003049]">₱{total.toLocaleString()}</span>
+            <span className="text-[#003049]">₱{booking.total_amount.toLocaleString()}</span>
           </div>
         </div>
 
         {/* Payment method */}
         <div className="flex items-center justify-between px-5 py-3.5 border-t border-gray-100">
           <span className="text-sm text-gray-500">Payment Method</span>
-          <span className="text-sm font-semibold text-[#111827]">{METHOD_LABELS[paymentMethod]}</span>
+          <span className="text-sm font-semibold text-[#111827]">
+            {(booking.payment_method && METHOD_LABELS[booking.payment_method]) ?? '—'}
+          </span>
         </div>
       </div>
 
@@ -167,8 +168,12 @@ export function Step4Confirmation({
         <h3 className="font-bold text-[#111827] mb-3">What's next?</h3>
         <ol className="space-y-3">
           {[
-            'The host will confirm your booking within 24 hours.',
-            isDelivery ? 'The host will reach out to coordinate delivery.' : 'You will receive the exact pickup address once confirmed.',
+            isConfirmed
+              ? 'Your booking is confirmed — no further action needed.'
+              : 'The host will confirm your booking within 24 hours.',
+            booking.is_delivery
+              ? 'The host will reach out to coordinate delivery.'
+              : 'You will receive the exact pickup address once confirmed.',
             'Message the host if you have any questions.',
             'Return the equipment in the same condition by the return date.',
           ].map((step, i) => (

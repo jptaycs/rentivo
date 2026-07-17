@@ -2,16 +2,13 @@
 
 import { useState } from 'react'
 import { AlertCircle } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { StepIndicator } from './StepIndicator'
 import { OrderSummary } from './OrderSummary'
 import { Step1Review } from './Step1Review'
 import { Step2Pickup } from './Step2Pickup'
-import { Step3Payment } from './Step3Payment'
+import { Step3Payment, type CheckoutPayload } from './Step3Payment'
 import { Step4Confirmation } from './Step4Confirmation'
 import type { Listing, Booking } from '@/types'
-
-type PaymentMethod = 'gcash' | 'maya' | 'card' | 'apple_pay' | 'google_pay'
 
 interface BookingWizardProps {
   listing: Listing
@@ -24,32 +21,56 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
   const [step, setStep] = useState(0)
   const [isDelivery, setIsDelivery] = useState(false)
   const [deliveryAddress, setDeliveryAddress] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('gcash')
-  const [booking, setBooking] = useState<(Booking & { booking_ref: string }) | null>(null)
+  const [booking, setBooking] = useState<Booking | null>(null)
+  const [bookingId, setBookingId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   const goNext = () => setStep((s) => Math.min(s + 1, 3))
   const goBack = () => setStep((s) => Math.max(s - 1, 0))
 
-  async function handlePaymentComplete(method: PaymentMethod) {
+  async function handlePaymentComplete(payload: CheckoutPayload) {
     setError('')
-    setPaymentMethod(method)
 
-    const supabase = createClient()
-    const { data, error: rpcError } = await supabase.rpc('create_booking', {
-      p_listing_id: listing.id,
-      p_pickup_date: pickupDate,
-      p_return_date: returnDate,
-      p_is_delivery: isDelivery,
-      p_delivery_address: isDelivery ? deliveryAddress : null,
-      p_payment_method: method,
+    const res = await fetch('/api/payments/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        listingId: listing.id,
+        pickupDate,
+        returnDate,
+        isDelivery,
+        deliveryAddress: isDelivery ? deliveryAddress : null,
+        bookingId,
+        ...payload,
+      }),
     })
 
-    if (rpcError) {
-      setError(rpcError.message.replace(/^.*?: /, ''))
+    let data: {
+      status?: 'paid' | 'redirect'
+      url?: string
+      booking?: Booking
+      bookingId?: string
+      error?: string
+    }
+    try {
+      data = await res.json()
+    } catch {
+      setError('Something went wrong while processing your payment. Please try again.')
       return
     }
-    setBooking(data)
+
+    // Keep the unpaid booking so a retry doesn't create a duplicate
+    if (data.bookingId) setBookingId(data.bookingId)
+
+    if (!res.ok) {
+      setError(data.error ?? 'Payment failed. Please try again.')
+      return
+    }
+    if (data.status === 'redirect' && data.url) {
+      window.location.assign(data.url)
+      return
+    }
+    setBooking(data.booking ?? null)
     goNext()
   }
 
@@ -99,15 +120,7 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
             </>
           )}
           {step === 3 && booking && (
-            <Step4Confirmation
-              listing={listing}
-              pickupDate={pickupDate}
-              returnDate={returnDate}
-              days={days}
-              isDelivery={isDelivery}
-              paymentMethod={paymentMethod}
-              bookingRef={booking.booking_ref}
-            />
+            <Step4Confirmation listing={listing} booking={booking} />
           )}
         </div>
 
