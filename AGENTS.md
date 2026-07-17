@@ -56,7 +56,6 @@ Rentivo.html             bundled prototype — canonical visual reference
 | `PAYMONGO_WEBHOOK_SECRET` | Webhook signature verification — **not yet set** (needs a public URL; `/book/complete` covers dev without it) |
 | `RESEND_API_KEY` | Transactional emails — **set**, verified working, but sandbox sender can only reach the account owner's own inbox until a domain is verified at resend.com/domains |
 | `EMAIL_FROM` | Optional override, defaults to the Resend sandbox sender |
-| `NEXT_PUBLIC_MAPBOX_TOKEN` | Pickup-location map on the listing detail page — **not yet set** (shows a plain placeholder while absent; free up to 50k loads/month, public token is safe to expose client-side) |
 | `NEXT_PUBLIC_APP_URL` | Redirect return URLs (`http://localhost:3000` in dev) |
 
 - `npm run dev` / `npm run build` / `npm run lint`
@@ -76,7 +75,7 @@ Rentivo.html             bundled prototype — canonical visual reference
 - **Messaging**: threads are derived from bookings the signed-in user is party to (`useThreads`), not a separate conversations table — a thread is a booking with ≥1 message. `useConversation` subscribes per-booking via Realtime and auto-marks incoming messages read while open. "Message Host"/"Message" CTAs deep-link to `/dashboard/messages?booking=<id>`.
 - **Analytics**: `listings.view_count` increments via the `increment_listing_view` RPC (security definer, callable by anon+authenticated) called from `ViewTracker` on the listing detail page — a plain counter, not a deduped events log.
 - **Transactional email** (`src/lib/email.ts`, Resend): `notifyBookingPaid()` fires from all three places a booking can become paid (checkout route's simulated + real-charge branches, `/book/complete`'s redirect-verification, and the webhook — each guarded so it only fires on the actual unpaid→paid transition) and sends the host a "new request/instant booking" email plus the renter a "confirmed" or "payment received, awaiting host" email depending on `is_instant_book`. `notifyBookingResponded()` fires from the new `POST /api/bookings/[id]/respond` route (host accept/decline now goes through this route instead of a direct client-side table update, so a server context exists to send from) and emails the renter confirmed/declined. No `RESEND_API_KEY` → each call no-ops with a console log instead of failing; verified live by checking those log lines against triggered flows.
-- **Pickup map**: `PickupMap` renders a Mapbox Static Images API pin at the listing's **city center** (`src/lib/ph-locations.ts`, a static PH city/province → lat-lng table — no geocoding API call, no ongoing cost). Deliberately coarse: matches the existing privacy copy ("exact pickup address is shared after your booking is confirmed"). Note `listings.latitude`/`longitude` columns exist in the schema (001) but are unused/always null — don't wire them into any public-facing map without a privacy review, since unlike the city lookup they could hold an exact address if ever populated by a future feature.
+- **Pickup map**: `PickupMap` (`src/components/listings/PickupMap.tsx`) renders an interactive Leaflet map + OpenStreetMap tiles, pinned at the listing's **city center** (`src/lib/ph-locations.ts`, a static PH city/province → lat-lng table — no geocoding API, no ongoing cost, no account needed anywhere). Deliberately coarse: matches the existing privacy copy ("exact pickup address is shared after your booking is confirmed"). Switched off Mapbox mid-build after their signup flow rejected the account twice (unrelated to this repo) — OSM/Leaflet needs zero signup, which is why it's the default here rather than a hosted static-maps API. Leaflet touches `window`/`document`, so `PickupMapLeaflet.tsx` is `next/dynamic`-imported with `ssr: false` from the (client) `PickupMap.tsx` wrapper — don't import it directly into a Server Component, and don't drop the `ssr:false` guard. Note `listings.latitude`/`longitude` columns exist in the schema (001) but are unused/always null — don't wire them into any public-facing map without a privacy review, since unlike the city lookup they could hold an exact address if ever populated by a future feature.
 - **Security model** (004, extended in 012/013): explicit per-table grants, column-level protection (no self-granting `is_verified`, immutable booking amounts), promo codes readable only via `validate_promo_code()` RPC, storage buckets with mime/size limits and `<uid>/…` folder-scoped writes, security headers in `next.config.ts`, `safeRedirectPath()` on all `?next=` redirects. **`src/lib/listings.ts`'s `LISTING_COLUMNS`/`HOST_SELECT` is an explicit column list, not `*`** — found and fixed while building the map feature: `select('*')` on the public listings read path was leaking `street_address` into the RSC payload of `/listings/[id]`, `/hosts/[id]`, and search/home, before any booking existed. Any new listings query must use `LISTING_COLUMNS` (or extend it deliberately) rather than reaching for `*`. Verified live: created a listing with a real street address, confirmed it never appears in the rendered page HTML.
 
 ---
@@ -99,7 +98,7 @@ Rentivo.html             bundled prototype — canonical visual reference
 - [x] In-app notifications: `notifications` table + security-definer triggers on booking/review lifecycle, Realtime-subscribed, navbar bell badge (1092e9e)
 - [x] Realtime messaging: threads derived from bookings, per-conversation Realtime subscriptions, read receipts (3d235e3)
 - [x] Transactional email via Resend: booking request/confirmed/declined/instant/payment-received, free tier, no-ops cleanly without a key
-- [x] Pickup-location map on listing detail (Mapbox Static Images API, city-level pin, free tier) — also caught and fixed a pre-existing bug where `select('*')` leaked `street_address` publicly on every listing/host-profile/search fetch
+- [x] Pickup-location map on listing detail (Leaflet + OpenStreetMap, city-level pin, zero signup/cost) — also caught and fixed a pre-existing bug where `select('*')` leaked `street_address` publicly on every listing/host-profile/search fetch
 - [x] Demo accounts + repeatable e2e smoke-test pattern (scripts in scratchpad history)
 
 ## To Do
@@ -111,9 +110,6 @@ Rentivo.html             bundled prototype — canonical visual reference
 
 **Email — reaches only your own inbox until this is done**
 - [ ] Verify a domain at resend.com/domains and point `EMAIL_FROM` at it — real users (and the demo accounts) get a 403 from Resend's sandbox sender until then
-
-**Maps — needs a token to actually render**
-- [ ] Add `NEXT_PUBLIC_MAPBOX_TOKEN` (free, no card, account.mapbox.com/access-tokens) — currently shows a plain placeholder box instead of a map
 
 **Deferred — needs a product decision, not just wiring**
 - [ ] Payout accounts/history (dashboard/payouts is still mock — no schema for storing bank/e-wallet payout methods; this touches real money movement so needs a deliberate design, not a quick migration)
