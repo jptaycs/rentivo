@@ -1,24 +1,25 @@
 'use client'
 
 import { useState } from 'react'
-import { Download, FileText, Search } from 'lucide-react'
-
-const MOCK_RECEIPTS = [
-  { id: 'r1', ref: 'RNT-A3F9KX', equipment: 'Sony A7 IV', host: 'Carlo Santos', from: 'Jun 2', to: 'Jun 5', days: 3, total: 10800, date: '2026-06-02' },
-  { id: 'r2', ref: 'RNT-B7X2QT', equipment: 'Canon RF 70-200mm f/2.8', host: 'Maria Reyes', from: 'May 15', to: 'May 17', days: 2, total: 6400, date: '2026-05-15' },
-  { id: 'r3', ref: 'RNT-C1M5PW', equipment: 'Sony FX3', host: 'Jess Aguilar', from: 'Apr 20', to: 'Apr 24', days: 4, total: 22000, date: '2026-04-20' },
-  { id: 'r4', ref: 'RNT-D4K8LN', equipment: 'iPhone 16 Pro Max', host: 'Carlo Santos', from: 'Mar 8', to: 'Mar 10', days: 2, total: 3600, date: '2026-03-08' },
-]
+import Link from 'next/link'
+import { Download, FileText, Search, Loader2 } from 'lucide-react'
+import { useMyRentals } from '@/hooks/useBookings'
+import { isSupabaseConfigured } from '@/lib/supabase/config'
 
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH')}`
 
 export default function ReceiptsPage() {
+  const live = isSupabaseConfigured()
+  const { bookings, loading } = useMyRentals()
   const [query, setQuery] = useState('')
 
-  const filtered = MOCK_RECEIPTS.filter(r =>
-    r.ref.toLowerCase().includes(query.toLowerCase()) ||
-    r.equipment.toLowerCase().includes(query.toLowerCase())
+  const receipts = bookings.filter((b) => b.payment_status === 'paid')
+  const filtered = receipts.filter(r =>
+    r.booking_ref.toLowerCase().includes(query.toLowerCase()) ||
+    (r.listing?.title ?? '').toLowerCase().includes(query.toLowerCase())
   )
+
+  const dateFmt = (d: string) => new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -40,7 +41,11 @@ export default function ReceiptsPage() {
 
       {/* Receipts list */}
       <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
-        {filtered.length === 0 ? (
+        {live && loading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <FileText className="w-10 h-10 text-gray-200 mb-3" />
             <p className="font-semibold text-gray-400">No receipts found</p>
@@ -53,21 +58,24 @@ export default function ReceiptsPage() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[#111827] truncate">{r.equipment}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{r.ref} · {r.from}–{r.to} 2026 · {r.days} day{r.days > 1 ? 's' : ''} · Host: {r.host}</p>
+                <p className="text-sm font-bold text-[#111827] truncate">{r.listing?.title}</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {r.booking_ref} · {dateFmt(r.pickup_date)}–{dateFmt(r.return_date)} · {r.total_days} day{r.total_days > 1 ? 's' : ''} · Host: {r.host?.full_name}
+                </p>
               </div>
 
               <div className="text-right shrink-0">
-                <p className="text-sm font-bold text-[#111827]">{fmt(r.total)}</p>
-                <p className="text-xs text-gray-400">{new Date(r.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                <p className="text-sm font-bold text-[#111827]">{fmt(r.total_amount)}</p>
+                <p className="text-xs text-gray-400">{r.paid_at ? dateFmt(r.paid_at) : ''}</p>
               </div>
 
-              <button
-                onClick={() => alert(`Downloading receipt for ${r.ref}…`)}
+              <Link
+                href={`/book/complete?booking=${r.id}`}
                 className="w-9 h-9 border border-gray-200 rounded-xl flex items-center justify-center hover:border-[#003049] hover:text-[#003049] text-gray-400 transition-colors shrink-0"
+                aria-label="View receipt"
               >
                 <Download className="w-4 h-4" />
-              </button>
+              </Link>
             </div>
           ))
         )}
@@ -76,8 +84,8 @@ export default function ReceiptsPage() {
       {/* Total spent */}
       {filtered.length > 0 && (
         <div className="bg-[#F8FAFC] border border-gray-100 rounded-2xl px-5 py-4 flex items-center justify-between">
-          <span className="text-sm text-gray-500">Total spent ({filtered.length} rentals)</span>
-          <span className="font-bold text-[#111827]">{fmt(filtered.reduce((a, r) => a + r.total, 0))}</span>
+          <span className="text-sm text-gray-500">Total spent ({filtered.length} rental{filtered.length > 1 ? 's' : ''})</span>
+          <span className="font-bold text-[#111827]">{fmt(filtered.reduce((a, r) => a + r.total_amount, 0))}</span>
         </div>
       )}
     </div>

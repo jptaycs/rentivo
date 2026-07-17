@@ -23,6 +23,7 @@ function mockBundleAsListing(b: (typeof MOCK_BUNDLES)[number]): Listing {
     is_active: true,
     rating: null,
     review_count: 0,
+    view_count: 0,
     images: [b.image],
     accessories: b.items,
     created_at: '2024-01-01',

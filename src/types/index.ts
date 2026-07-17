@@ -41,6 +41,7 @@ export interface Listing {
   is_active: boolean
   rating: number | null
   review_count: number
+  view_count: number
   images: string[]
   accessories: string[]
   created_at: string
@@ -96,6 +97,7 @@ export interface Review {
   comment: string
   created_at: string
   reviewer?: Profile
+  listing?: Listing | null
 }
 
 export interface SearchFilters {
