@@ -93,9 +93,10 @@ export default function RentalsPage() {
                 className="text-xs font-medium text-gray-600 hover:text-[#003049] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                 View listing
               </Link>
-              <button className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#003049] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
+              <Link href={`/dashboard/messages?booking=${item.id}`}
+                className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#003049] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                 <MessageCircle className="w-3.5 h-3.5" /> Message Host
-              </button>
+              </Link>
               {item.status === 'completed' && (
                 reviewedIds.has(item.id) ? (
                   <span className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-[#22C55E] px-3 py-1.5">
