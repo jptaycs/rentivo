@@ -27,16 +27,20 @@ The project started from a Claude Design prototype (`Rentivo.html` — still the
 ```
 supabase/migrations/     001 schema · 002 triggers · 003 RLS · 004 hardening · 005 seed
                          006/008 demo accounts · 007 create_booking RPC · 009 payments
+                         010 host profiles+review seeds · 011 listing views · 012 notifications
+                         013 message read receipts
 src/app/(auth)/          login, signup, verify, callback, forgot/reset password
 src/app/(main)/          home, search, listings/[id], book, book/complete, hosts/[id],
-                         dashboard/* (14 pages), host/new (listing wizard)
+                         dashboard/* (14 pages, all live-wired), host/new (listing wizard)
 src/app/api/             payments/checkout, webhooks/paymongo
 src/components/          auth, booking, dashboard, home, host, layout, listings,
                          messages, search, shared, ui
-src/hooks/               useUser, useBookings, useRecentlyViewed
-src/lib/                 listings.ts (server data layer), paymongo.ts (server-only),
+src/hooks/               useUser, useBookings, useMyListings, useProfile, useWishlist,
+                         useMyReviews, useReviewedBookings, useNotifications, useThreads,
+                         useConversation, useAvailabilityBlocks, useRecentlyViewed
+src/lib/                 listings.ts, hosts.ts (server data layers), paymongo.ts (server-only),
                          supabase/{client,server,admin,middleware,config}, mock-data.ts
-src/types/index.ts       Listing, Booking, Profile, Message, Review …
+src/types/index.ts       Listing, Booking, Profile, Message, Review, Notification …
 Rentivo.html             bundled prototype — canonical visual reference
 ```
 
@@ -66,7 +70,10 @@ Rentivo.html             bundled prototype — canonical visual reference
 - **Data layer**: server components call `src/lib/listings.ts`; client pages use hooks (`useBookings`). Host joins use explicit FK hints (`profiles!listings_host_id_fkey`).
 - **Booking lifecycle**: `create_booking` RPC is the *only* insert path (direct inserts revoked). It computes all amounts server-side (12% service, 5% protection, promo discount on rental fee only) and creates the booking `pending` + `unpaid`. `mark_booking_paid` (service-role only, idempotent) is the only path to `paid`; Instant Book flips to `confirmed`, which triggers availability blocking. Renters may cancel only pending bookings; host transitions are trigger-enforced (`pending→confirmed→active→completed`).
 - **Payments**: `POST /api/payments/checkout` creates/reuses the booking, creates a PayMongo intent for the server-computed total, attaches the payment method (cards tokenized in-browser with the public key — card data never touches our server; e-wallets server-side), and returns `paid` or a redirect URL. `/book/complete` verifies the intent after GCash/Maya/3DS redirects; `POST /api/webhooks/paymongo` (`payment.paid`, HMAC-verified) is the production source of truth. No PayMongo keys → simulated payments (dev only, still requires `SUPABASE_SECRET_KEY`).
-- **Security model** (004): explicit per-table grants, column-level protection (no self-granting `is_verified`, immutable booking amounts), promo codes readable only via `validate_promo_code()` RPC, storage buckets with mime/size limits and `<uid>/…` folder-scoped writes, security headers in `next.config.ts`, `safeRedirectPath()` on all `?next=` redirects.
+- **Notifications**: written *only* by security-definer triggers on `bookings` (request/confirmed/cancelled/completed/paid) and `reviews` (received) — never inserted by clients, so RLS only needs to scope reads and `is_read` updates to the owning user. `useNotifications` subscribes via Realtime; powers the navbar bell badge and the dashboard page.
+- **Messaging**: threads are derived from bookings the signed-in user is party to (`useThreads`), not a separate conversations table — a thread is a booking with ≥1 message. `useConversation` subscribes per-booking via Realtime and auto-marks incoming messages read while open. "Message Host"/"Message" CTAs deep-link to `/dashboard/messages?booking=<id>`.
+- **Analytics**: `listings.view_count` increments via the `increment_listing_view` RPC (security definer, callable by anon+authenticated) called from `ViewTracker` on the listing detail page — a plain counter, not a deduped events log.
+- **Security model** (004, extended in 012/013): explicit per-table grants, column-level protection (no self-granting `is_verified`, immutable booking amounts), promo codes readable only via `validate_promo_code()` RPC, storage buckets with mime/size limits and `<uid>/…` folder-scoped writes, security headers in `next.config.ts`, `safeRedirectPath()` on all `?next=` redirects.
 
 ---
 
@@ -82,36 +89,33 @@ Rentivo.html             bundled prototype — canonical visual reference
 - [x] Booking flow with server-side pricing via `create_booking` RPC (154e9dd)
 - [x] Renter/host booking dashboards (`useBookings`) with Accept/Decline
 - [x] PayMongo integration (8a4cb1d): checkout + webhook routes, card tokenization, `/book/complete`, promo codes server-side, simulated dev mode — verified e2e against the live DB
+- [x] Wishlist wired to the `wishlist` table with guest→account heart migration on sign-in (2a77550)
+- [x] Host public profiles (`/hosts/[id]`) + review submission/display on completed bookings, both directions (cb2b9d0)
+- [x] Host + renter dashboards fully live: Overview, My Listings (pause/activate/delete), Calendar (real availability_blocks), Earnings (+CSV export), Analytics (real view counts via `increment_listing_view`), Receipts, Reviews, Settings (profile/avatar/password) (6f20fe1)
+- [x] In-app notifications: `notifications` table + security-definer triggers on booking/review lifecycle, Realtime-subscribed, navbar bell badge (1092e9e)
+- [x] Realtime messaging: threads derived from bookings, per-conversation Realtime subscriptions, read receipts (3d235e3)
 - [x] Demo accounts + repeatable e2e smoke-test pattern (scripts in scratchpad history)
 
 ## To Do
 
-**Payments — go live**
+**Payments — go live (only remaining backend gap)**
 - [ ] Add PayMongo test keys (`PAYMONGO_SECRET_KEY`, `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY`) and verify a real test-mode GCash + card charge
 - [ ] Deploy (Vercel), register webhook URL, set `PAYMONGO_WEBHOOK_SECRET`
 - [ ] Refund path: host decline / renter cancel after payment → PayMongo refund + `payment_status='refunded'`
 
-**Dashboards — replace remaining mock data**
-- [ ] Overview (real stats), Earnings, Payouts, Analytics (from paid bookings)
-- [ ] Receipts (paid bookings; wire the "Download PDF" button)
-- [ ] Calendar (listings' availability_blocks + bookings)
-- [ ] Wishlist (table + RLS exist; wire heart buttons and dashboard page)
-- [ ] Notifications (in-app first; table needed)
-- [ ] My Listings management (activate/deactivate, edit page polish)
-- [ ] Account settings (profile update, avatar upload to `avatars` bucket)
-
-**Core features**
-- [ ] Realtime messaging (replace `mock-messages.ts`; `messages` table exists; wire "Message Host" CTAs to booking threads)
-- [ ] Reviews: submission after completed bookings (schema + rating triggers ready), display on listings/host profiles
-- [ ] `/hosts/[id]` public profile from live data
+**Deferred — needs a product decision, not just wiring**
+- [ ] Payout accounts/history (dashboard/payouts is still mock — no schema for storing bank/e-wallet payout methods; this touches real money movement so needs a deliberate design, not a quick migration)
+- [ ] Self-service account deletion (Settings currently routes to "contact support" instead of a destructive self-serve delete, since it needs a service-role cascade across listings/bookings/reviews)
 - [ ] Identity verification upload (`verification-docs` bucket ready) → `is_verified` badge flow
+- [ ] Image attachments in messages (`messages.image_url` column exists, no upload UI yet)
 
 **Polish / later**
 - [ ] Recently-viewed persistence for logged-in users (currently localStorage)
-- [ ] Email notifications (booking confirmed/declined)
+- [ ] Email notifications (booking confirmed/declined) — in-app notifications are live, email is not
 - [ ] Weekly/monthly discount pricing in checkout math (fields exist on listings)
 - [ ] Search: availability-date filtering, map view
 - [ ] Apple Pay / Google Pay — blocked: PayMongo doesn't support them; keep "Coming soon"
+- [ ] Notification preferences (Settings toggles are local-only, not persisted)
 
 ---
 
