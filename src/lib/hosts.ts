@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { LISTING_COLUMNS } from '@/lib/listings'
 import type { Listing, Profile, Review } from '@/types'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -21,7 +22,7 @@ export async function getHostProfile(id: string): Promise<HostProfileData | null
     supabase.from('profiles').select('*').eq('id', id).eq('is_host', true).maybeSingle(),
     supabase
       .from('listings')
-      .select('*, host:profiles!listings_host_id_fkey(*)')
+      .select(`${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey(*)`)
       .eq('host_id', id)
       .eq('is_active', true)
       .eq('is_draft', false)
@@ -37,7 +38,7 @@ export async function getHostProfile(id: string): Promise<HostProfileData | null
 
   if (!profile) return null
 
-  const listingRows = (listings ?? []) as Listing[]
+  const listingRows = (listings ?? []) as unknown as Listing[]
   return {
     profile: profile as Profile,
     listings: listingRows,

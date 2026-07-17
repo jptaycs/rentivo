@@ -3,6 +3,7 @@ import { getListing, getListingReviews } from '@/lib/listings'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { ViewTracker } from '@/components/listings/ViewTracker'
 import { PhotoGallery } from '@/components/listings/PhotoGallery'
+import { PickupMap } from '@/components/listings/PickupMap'
 import { BookingPanel } from '@/components/listings/BookingPanel'
 import { HostCard } from '@/components/listings/HostCard'
 import { ReviewsList } from '@/components/listings/ReviewsList'
@@ -155,6 +156,14 @@ export default async function ListingPage({ params }: ListingPageProps) {
                   </div>
                 ))}
               </div>
+            </section>
+
+            <Separator />
+
+            {/* Pickup Location */}
+            <section>
+              <h2 className="text-xl font-bold text-[#111827] mb-4">Pickup Location</h2>
+              <PickupMap city={listing.city} province={listing.province} />
             </section>
 
             <Separator />
