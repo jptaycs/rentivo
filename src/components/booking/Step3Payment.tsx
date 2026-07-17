@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ChevronLeft, Lock, Loader2, Check, Tag, X, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useUser } from '@/hooks/useUser'
 import { calcPricing } from './OrderSummary'
 import type { Listing } from '@/types'
 
@@ -51,6 +52,7 @@ async function createCardPaymentMethod(card: {
   expYear: number
   cvc: string
   name: string
+  email: string
 }): Promise<string> {
   const res = await fetch('https://api.paymongo.com/v1/payment_methods', {
     method: 'POST',
@@ -68,7 +70,7 @@ async function createCardPaymentMethod(card: {
             exp_year: card.expYear,
             cvc: card.cvc,
           },
-          billing: { name: card.name },
+          billing: { name: card.name, email: card.email },
         },
       },
     }),
@@ -82,6 +84,7 @@ async function createCardPaymentMethod(card: {
 }
 
 export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProps) {
+  const { user } = useUser()
   const [method, setMethod] = useState<PaymentMethod>('gcash')
   const [mobileNumber, setMobileNumber] = useState('')
   const [cardNumber, setCardNumber] = useState('')
@@ -156,6 +159,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
           expYear: 2000 + Number(cardExpiry.slice(3)),
           cvc: cardCvv,
           name: cardName,
+          email: user?.email ?? '',
         })
       }
       await onNext({
