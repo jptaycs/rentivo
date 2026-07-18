@@ -45,9 +45,28 @@ function useBookingsBy(column: 'renter_id' | 'host_id') {
   return { bookings, loading, reload }
 }
 
+async function respondToBooking(bookingId: string, status: 'confirmed' | 'cancelled') {
+  const res = await fetch(`/api/bookings/${bookingId}/respond`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  })
+  const data = await res.json().catch(() => null)
+  if (!res.ok) return data?.error ?? 'Something went wrong.'
+  return null
+}
+
 /** Bookings I made as a renter */
 export function useMyRentals() {
-  return useBookingsBy('renter_id')
+  const base = useBookingsBy('renter_id')
+
+  async function cancel(bookingId: string) {
+    const err = await respondToBooking(bookingId, 'cancelled')
+    if (!err) await base.reload()
+    return err
+  }
+
+  return { ...base, cancel }
 }
 
 /** Bookings on my listings as a host */
@@ -55,15 +74,9 @@ export function useHostBookings() {
   const base = useBookingsBy('host_id')
 
   async function setStatus(bookingId: string, status: 'confirmed' | 'cancelled') {
-    const res = await fetch(`/api/bookings/${bookingId}/respond`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    })
-    const data = await res.json().catch(() => null)
-    if (!res.ok) return data?.error ?? 'Something went wrong.'
-    await base.reload()
-    return null
+    const err = await respondToBooking(bookingId, status)
+    if (!err) await base.reload()
+    return err
   }
 
   return { ...base, setStatus }

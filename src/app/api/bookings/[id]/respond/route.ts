@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { notifyBookingResponded } from '@/lib/email'
+import { refundBooking } from '@/lib/refunds'
 
 /**
- * Host accept/decline for a pending booking. Wraps the same RLS-scoped
- * update the client used to do directly, adding a server-side email
- * notification to the renter once the transition succeeds.
+ * Host accept/decline of a pending booking, or renter cancellation of
+ * their own pending booking — RLS + the enforce_booking_transition
+ * trigger decide who's actually allowed to make which transition here.
+ * Wraps the same update the client used to do directly, adding a
+ * server-side refund + email notification once it succeeds.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -39,7 +42,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: error.message.replace(/^.*?: /, '') }, { status: 400 })
   }
 
-  notifyBookingResponded(id, body.status).catch((e) => console.error('[email] notifyBookingResponded failed', e))
+  if (body.status === 'cancelled') {
+    const cancelledBy = user.id === data.renter_id ? 'renter' : 'host'
+    const { refunded, error: refundError } = await refundBooking(id)
+    if (refundError) console.error('[refund] booking', id, refundError)
+    notifyBookingResponded(id, 'cancelled', cancelledBy, refunded).catch((e) =>
+      console.error('[email] notifyBookingResponded failed', e)
+    )
+  } else {
+    notifyBookingResponded(id, 'confirmed').catch((e) => console.error('[email] notifyBookingResponded failed', e))
+  }
 
   return NextResponse.json({ booking: data })
 }

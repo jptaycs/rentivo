@@ -27,12 +27,19 @@ export interface PaymentIntent {
     next_action: { type: string; redirect: { url: string; return_url: string } } | null
     last_payment_error: { failed_message?: string } | Record<string, unknown> | null
     metadata: Record<string, string> | null
+    /** The underlying charge(s) — refunds target a payment id (pay_...), not the intent (pi_...) */
+    payments?: { id: string }[]
   }
 }
 
 export interface PaymentMethod {
   id: string
   attributes: { type: string }
+}
+
+export interface Refund {
+  id: string
+  attributes: { status: string; amount: number }
 }
 
 export function isPayMongoConfigured() {
@@ -126,6 +133,28 @@ export function attachPaymentIntent(intentId: string, paymentMethodId: string, r
 
 export function getPaymentIntent(intentId: string) {
   return pmFetch<PaymentIntent>(`/payment_intents/${intentId}`)
+}
+
+/** Full refund of a completed charge. `paymentId` is the `pay_...` id from the intent's `payments[]`, not the intent id itself. */
+export function createRefund(opts: {
+  paymentId: string
+  amountCentavos: number
+  reason?: 'requested_by_customer' | 'duplicate' | 'fraudulent' | 'others'
+  notes?: string
+}) {
+  return pmFetch<Refund>('/refunds', {
+    method: 'POST',
+    body: {
+      data: {
+        attributes: {
+          amount: opts.amountCentavos,
+          payment_id: opts.paymentId,
+          reason: opts.reason ?? 'requested_by_customer',
+          notes: opts.notes,
+        },
+      },
+    },
+  })
 }
 
 export function paymentErrorMessage(intent: PaymentIntent): string {

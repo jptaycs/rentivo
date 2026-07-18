@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Calendar, MapPin, MessageCircle, Star, Package, Loader2, Check } from 'lucide-react'
+import { Calendar, MapPin, MessageCircle, Star, Package, Loader2, Check, X, AlertCircle } from 'lucide-react'
 import { useMyRentals, type BookingWithRefs } from '@/hooks/useBookings'
 import { useReviewedBookings } from '@/hooks/useReviewedBookings'
 import { ReviewModal } from '@/components/shared/ReviewModal'
@@ -22,9 +22,20 @@ const UPCOMING_STATUSES = ['pending', 'confirmed', 'active']
 
 export default function RentalsPage() {
   const [tab, setTab] = useState('Upcoming')
-  const { bookings, loading } = useMyRentals()
+  const { bookings, loading, cancel } = useMyRentals()
   const { reviewedIds, markReviewed } = useReviewedBookings()
   const [reviewing, setReviewing] = useState<BookingWithRefs | null>(null)
+  const [cancellingId, setCancellingId] = useState('')
+  const [error, setError] = useState('')
+
+  async function handleCancel(booking: BookingWithRefs) {
+    if (!confirm(`Cancel your booking for ${booking.listing?.title}? ${booking.payment_status === 'paid' ? 'You will be refunded in full.' : ''}`)) return
+    setError('')
+    setCancellingId(booking.id)
+    const err = await cancel(booking.id)
+    if (err) setError(err)
+    setCancellingId('')
+  }
 
   const items = bookings.filter((b) =>
     tab === 'Upcoming'
@@ -50,6 +61,13 @@ export default function RentalsPage() {
           </button>
         ))}
       </div>
+
+      {error && (
+        <div className="flex items-start gap-2.5 bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          {error}
+        </div>
+      )}
 
       <div className="space-y-4">
         {loading ? (
@@ -97,6 +115,15 @@ export default function RentalsPage() {
                 className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#003049] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                 <MessageCircle className="w-3.5 h-3.5" /> Message Host
               </Link>
+              {item.status === 'pending' && (
+                <button
+                  onClick={() => handleCancel(item)}
+                  disabled={cancellingId === item.id}
+                  className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-red-500 border border-red-200 hover:bg-red-50 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  {cancellingId === item.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />} Cancel
+                </button>
+              )}
               {item.status === 'completed' && (
                 reviewedIds.has(item.id) ? (
                   <span className="ml-auto flex items-center gap-1.5 text-xs font-semibold text-[#22C55E] px-3 py-1.5">

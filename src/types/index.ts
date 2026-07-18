@@ -67,6 +67,7 @@ export interface Booking {
   payment_method: 'gcash' | 'maya' | 'card' | 'apple_pay' | 'google_pay' | null
   payment_status: 'unpaid' | 'paid' | 'refunded'
   paymongo_ref: string | null
+  refund_ref: string | null
   paid_at: string | null
   promo_code: string | null
   discount: number

@@ -117,7 +117,13 @@ function renterPendingHtml(ctx: EmailContext) {
   )
 }
 
-function renterDeclinedHtml(ctx: EmailContext) {
+function refundLine(totalAmount: number, refunded: boolean) {
+  return refunded
+    ? `A refund of ${fmtPeso(totalAmount)} has been processed back to your original payment method — it usually takes 5–10 business days to reflect, depending on your bank or e-wallet.`
+    : `You have not been charged further. Our team will follow up to process a refund of ${fmtPeso(totalAmount)} to your original payment method.`
+}
+
+function renterDeclinedHtml(ctx: EmailContext, refunded: boolean) {
   return layout(
     `Your booking ${ctx.bookingRef} was declined`,
     `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">Booking Declined</h1>
@@ -126,9 +132,24 @@ function renterDeclinedHtml(ctx: EmailContext) {
        (${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}, ref ${ctx.bookingRef}).
      </p>
      <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
-       You have not been charged further, and our team will process a refund of ${fmtPeso(ctx.totalAmount)} to your original payment method.
+       ${refundLine(ctx.totalAmount, refunded)}
      </p>
      ${button(`${APP_URL}/search`, 'Browse Other Equipment')}`
+  )
+}
+
+function hostCancelledByRenterHtml(ctx: EmailContext, refunded: boolean) {
+  return layout(
+    `Booking ${ctx.bookingRef} was cancelled by the renter`,
+    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">Booking Cancelled</h1>
+     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
+       <strong>${ctx.otherPartyName}</strong> cancelled their booking for <strong>${ctx.listingTitle}</strong>
+       (${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}, ref ${ctx.bookingRef}). The dates are open again.
+     </p>
+     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
+       ${refunded ? 'The renter has been refunded in full.' : 'The renter\'s refund is being processed.'}
+     </p>
+     ${button(`${APP_URL}/dashboard/calendar`, 'View Calendar')}`
   )
 }
 
@@ -207,13 +228,22 @@ export async function notifyBookingPaid(bookingId: string) {
   ])
 }
 
-/** Call after a host confirms or declines a pending booking. */
-export async function notifyBookingResponded(bookingId: string, status: 'confirmed' | 'cancelled') {
+/**
+ * Call after a booking's status changes via host confirm/decline or renter
+ * cancel. `cancelledBy` only matters when status is 'cancelled' — it
+ * decides who gets notified (the *other* party) and which template fires.
+ */
+export async function notifyBookingResponded(
+  bookingId: string,
+  status: 'confirmed' | 'cancelled',
+  cancelledBy?: 'host' | 'renter',
+  refunded = false
+) {
   const ctx = await loadBookingContext(bookingId)
   if (!ctx) return
-  const { booking, renterEmail, hostName } = ctx
+  const { booking, renterEmail, hostEmail, renterName, hostName } = ctx
 
-  const base = {
+  const forRenter = {
     bookingRef: booking.booking_ref,
     listingTitle: booking.listing?.title ?? 'a listing',
     pickupDate: booking.pickup_date,
@@ -223,8 +253,14 @@ export async function notifyBookingResponded(bookingId: string, status: 'confirm
   }
 
   if (status === 'confirmed') {
-    await send(renterEmail, `Booking Confirmed — ${booking.booking_ref}`, renterConfirmedHtml(base))
+    await send(renterEmail, `Booking Confirmed — ${booking.booking_ref}`, renterConfirmedHtml(forRenter))
+    return
+  }
+
+  if (cancelledBy === 'renter') {
+    const forHost = { ...forRenter, otherPartyName: renterName }
+    await send(hostEmail, `Booking Cancelled — ${booking.booking_ref}`, hostCancelledByRenterHtml(forHost, refunded))
   } else {
-    await send(renterEmail, `Booking Declined — ${booking.booking_ref}`, renterDeclinedHtml(base))
+    await send(renterEmail, `Booking Declined — ${booking.booking_ref}`, renterDeclinedHtml(forRenter, refunded))
   }
 }
