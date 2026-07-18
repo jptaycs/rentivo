@@ -121,7 +121,8 @@ Rentivo.html             bundled prototype — canonical visual reference
 **Polish / later**
 - [ ] Recently-viewed persistence for logged-in users (currently localStorage)
 - [ ] Weekly/monthly discount pricing in checkout math (fields exist on listings)
-- [ ] Search: availability-date filtering, map view
+- [ ] Search: availability-date filtering
+- [ ] Search results map view — a map of all matching listings on `/search`, distinct from the single-listing pickup map already shipped on `/listings/[id]` (could reuse the Leaflet setup, just with multiple markers)
 - [ ] Apple Pay / Google Pay — blocked: PayMongo doesn't support them; keep "Coming soon"
 - [ ] Notification preferences (Settings toggles are local-only, not persisted)
 
