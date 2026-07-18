@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useProfile } from '@/hooks/useProfile'
 import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { VerificationCard } from '@/components/shared/VerificationCard'
 
 export default function SettingsPage() {
   const live = isSupabaseConfigured()
@@ -194,6 +195,8 @@ export default function SettingsPage() {
           {saved ? 'Saved' : 'Save Changes'}
         </button>
       </section>
+
+      {live && <VerificationCard />}
 
       {/* Security */}
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">

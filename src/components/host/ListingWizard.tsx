@@ -10,7 +10,7 @@ import { Step2Details } from './Step2Details'
 import { Step3Pricing } from './Step3Pricing'
 import { Step4Calendar } from './Step4Calendar'
 import { Step5Address } from './Step5Address'
-import { Step6Verify } from './Step6Verify'
+import { Step6Verify, type VerifyData } from './Step6Verify'
 
 interface WizardState {
   photos: WizardPhoto[]
@@ -18,6 +18,7 @@ interface WizardState {
   pricing: { dailyPrice: string; weeklyPrice: string; monthlyPrice: string; securityDeposit: string }
   blockedDates: string[]
   address: { streetAddress: string; city: string; province: string; isInstantBook: boolean }
+  verify: VerifyData
 }
 
 const INITIAL: WizardState = {
@@ -26,6 +27,7 @@ const INITIAL: WizardState = {
   pricing: { dailyPrice: '', weeklyPrice: '', monthlyPrice: '', securityDeposit: '' },
   blockedDates: [],
   address: { streetAddress: '', city: '', province: '', isInstantBook: false },
+  verify: { idFile: null, selfieFile: null, agreed: false },
 }
 
 export function ListingWizard() {
@@ -95,6 +97,32 @@ export function ListingWizard() {
       }
 
       await supabase.from('profiles').update({ is_host: true }).eq('id', user.id)
+
+      // Identity verification — only if the host actually picked new files
+      // (already-verified hosts, or ones with a submission already pending, skip this)
+      if (state.verify.idFile && state.verify.selfieFile) {
+        const idExt = state.verify.idFile.name.split('.').pop()?.toLowerCase() || 'jpg'
+        const selfieExt = state.verify.selfieFile.name.split('.').pop()?.toLowerCase() || 'jpg'
+        const idPath = `${user.id}/id-${Date.now()}.${idExt}`
+        const selfiePath = `${user.id}/selfie-${Date.now()}.${selfieExt}`
+
+        const { error: idUploadError } = await supabase.storage
+          .from('verification-docs')
+          .upload(idPath, state.verify.idFile, { contentType: state.verify.idFile.type })
+        if (idUploadError) throw new Error(`ID upload failed: ${idUploadError.message}`)
+
+        const { error: selfieUploadError } = await supabase.storage
+          .from('verification-docs')
+          .upload(selfiePath, state.verify.selfieFile, { contentType: state.verify.selfieFile.type })
+        if (selfieUploadError) throw new Error(`Selfie upload failed: ${selfieUploadError.message}`)
+
+        const { error: verifyInsertError } = await supabase.from('verification_requests').insert({
+          user_id: user.id,
+          id_doc_path: idPath,
+          selfie_path: selfiePath,
+        })
+        if (verifyInsertError) throw new Error(`Could not submit verification: ${verifyInsertError.message}`)
+      }
 
       setListingId(listing.id)
       setDone(true)
@@ -200,6 +228,8 @@ export function ListingWizard() {
             </div>
           )}
           <Step6Verify
+            data={state.verify}
+            onChange={verify => setState(s => ({ ...s, verify }))}
             onSubmit={handleSubmit}
             onBack={back}
             loading={loading}

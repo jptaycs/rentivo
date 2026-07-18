@@ -101,6 +101,17 @@ export interface Review {
   listing?: Listing | null
 }
 
+export interface VerificationRequest {
+  id: string
+  user_id: string
+  id_doc_path: string
+  selfie_path: string
+  status: 'pending' | 'approved' | 'rejected'
+  reviewer_notes: string | null
+  created_at: string
+  reviewed_at: string | null
+}
+
 export interface Notification {
   id: string
   user_id: string
