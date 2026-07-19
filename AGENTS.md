@@ -121,7 +121,7 @@ Rentivo.html             bundled prototype — canonical visual reference
 - [x] Deploy (Vercel) — live at `https://rentivo-taupe.vercel.app`, PayMongo webhook registered + `PAYMONGO_WEBHOOK_SECRET` set in Vercel
 - [x] Added `https://rentivo-taupe.vercel.app/auth/callback` to Supabase's redirect allow-list (2026-07-19) — prod OAuth/email redirects now work
 - [ ] Publish the Google OAuth consent screen (currently Testing mode — only added test users can use Google sign-in)
-- [ ] Add `https://rentivo-taupe.vercel.app/reset-password` to the Supabase redirect allow-list (or a `https://rentivo-taupe.vercel.app/**` wildcard) — `ForgotPasswordForm` redirects there, and it's NOT covered by the `/auth/callback` entry, so prod password-reset emails currently fall back to the Site URL (localhost) and break. Consider also switching Site URL itself to the prod domain.
+- [x] Supabase auth URL config finalized via Management API (2026-07-19): Site URL → `https://rentivo-taupe.vercel.app`; allow-list now covers `/auth/callback` and `/reset-password` on both localhost and prod (the `/reset-password` entry was missing, which silently broke prod password-reset emails). Note: the Supabase CLI's stored token works against `api.supabase.com/v1/projects/<ref>/config/auth` for this kind of dashboard-only change.
 
 **Email — reaches only your own inbox until this is done**
 - [ ] Verify a domain at resend.com/domains and point `EMAIL_FROM` at it — real users (and the demo accounts) get a 403 from Resend's sandbox sender until then
