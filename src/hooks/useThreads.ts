@@ -63,7 +63,7 @@ export function useThreads() {
     const bookingIds = rows.map((b) => b.id)
     const { data: messages } = await supabase
       .from('messages')
-      .select('booking_id, content, sender_id, is_read, created_at')
+      .select('booking_id, content, image_url, sender_id, is_read, created_at')
       .in('booking_id', bookingIds)
       .order('created_at', { ascending: true })
 
@@ -86,7 +86,7 @@ export function useThreads() {
           bookingRef: b.booking_ref,
           listingTitle: b.listing?.title ?? 'Rentivo booking',
           otherUser: other,
-          lastMessage: last.content,
+          lastMessage: last.content || (last.image_url ? '📷 Photo' : ''),
           lastAt: last.created_at,
           unreadCount: msgs.filter((m) => m.sender_id !== user.id && !m.is_read).length,
         }
