@@ -121,6 +121,7 @@ Rentivo.html             bundled prototype — canonical visual reference
 - [x] Deploy (Vercel) — live at `https://rentivo-taupe.vercel.app`, PayMongo webhook registered + `PAYMONGO_WEBHOOK_SECRET` set in Vercel
 - [x] Added `https://rentivo-taupe.vercel.app/auth/callback` to Supabase's redirect allow-list (2026-07-19) — prod OAuth/email redirects now work
 - [ ] Publish the Google OAuth consent screen (currently Testing mode — only added test users can use Google sign-in)
+- [ ] Add `https://rentivo-taupe.vercel.app/reset-password` to the Supabase redirect allow-list (or a `https://rentivo-taupe.vercel.app/**` wildcard) — `ForgotPasswordForm` redirects there, and it's NOT covered by the `/auth/callback` entry, so prod password-reset emails currently fall back to the Site URL (localhost) and break. Consider also switching Site URL itself to the prod domain.
 
 **Email — reaches only your own inbox until this is done**
 - [ ] Verify a domain at resend.com/domains and point `EMAIL_FROM` at it — real users (and the demo accounts) get a 403 from Resend's sandbox sender until then
@@ -136,6 +137,8 @@ Rentivo.html             bundled prototype — canonical visual reference
 - [ ] Search results map view — a map of all matching listings on `/search`, distinct from the single-listing pickup map already shipped on `/listings/[id]` (could reuse the Leaflet setup, just with multiple markers)
 - [ ] Apple Pay / Google Pay — blocked: PayMongo doesn't support them; keep "Coming soon"
 - [ ] Notification preferences (Settings toggles are local-only, not persisted)
+- [ ] Add a `Content-Security-Policy` header in `next.config.ts` — recommended by the image-attachments final review as defense-in-depth for rendering user-content URLs (the bucket-prefix guard in `ConversationView` is the current protection)
+- [ ] Repo-wide lint cleanup: 44 pre-existing `react-hooks/set-state-in-effect` errors from a newer eslint-plugin-react-hooks — none introduced by recent work, but `npm run lint` is not clean
 
 ---
 
