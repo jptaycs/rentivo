@@ -1,9 +1,10 @@
 'use client'
 
 import { ListingCard } from '@/components/shared/ListingCard'
-import { SlidersHorizontal } from 'lucide-react'
+import { SlidersHorizontal, LayoutGrid, Map as MapIcon } from 'lucide-react'
 import { useState } from 'react'
 import { FilterSidebar } from './FilterSidebar'
+import { SearchMap } from './SearchMap'
 import type { Listing } from '@/types'
 
 interface SearchResultsProps {
@@ -27,6 +28,7 @@ function sortListings(listings: Listing[], sort: SortKey): Listing[] {
 export function SearchResults({ query, listings }: SearchResultsProps) {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [sort, setSort] = useState<SortKey>('recommended')
+  const [view, setView] = useState<'list' | 'map'>('list')
 
   const results = sortListings(listings, sort)
 
@@ -59,6 +61,28 @@ export function SearchResults({ query, listings }: SearchResultsProps) {
             {query && <span> for "<span className="text-[#003049]">{query}</span>"</span>}
           </p>
           <div className="flex items-center gap-3">
+            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setView('list')}
+                aria-pressed={view === 'list'}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
+                  view === 'list' ? 'bg-[#003049] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                List
+              </button>
+              <button
+                onClick={() => setView('map')}
+                aria-pressed={view === 'map'}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
+                  view === 'map' ? 'bg-[#003049] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <MapIcon className="w-4 h-4" />
+                Map
+              </button>
+            </div>
             <select
               value={sort}
               onChange={e => setSort(e.target.value as SortKey)}
@@ -86,6 +110,8 @@ export function SearchResults({ query, listings }: SearchResultsProps) {
             <h3 className="text-lg font-bold text-[#111827] mb-2">No listings found</h3>
             <p className="text-sm text-gray-500">Try adjusting your filters or search terms.</p>
           </div>
+        ) : view === 'map' ? (
+          <SearchMap listings={results} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
             {results.map((listing) => (
