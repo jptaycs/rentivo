@@ -119,7 +119,7 @@ Rentivo.html             bundled prototype — canonical visual reference
 **Payments — production hardening (test mode fully verified)**
 - [ ] Switch to live PayMongo keys when ready to accept real money (test keys are in use now — never commit live keys)
 - [x] Deploy (Vercel) — live at `https://rentivo-taupe.vercel.app`, PayMongo webhook registered + `PAYMONGO_WEBHOOK_SECRET` set in Vercel
-- [ ] Add `https://rentivo-taupe.vercel.app/auth/callback` to Supabase's redirect allow-list (Authentication → URL Configuration) — until then, OAuth/email links from prod redirect to localhost
+- [x] Added `https://rentivo-taupe.vercel.app/auth/callback` to Supabase's redirect allow-list (2026-07-19) — prod OAuth/email redirects now work
 - [ ] Publish the Google OAuth consent screen (currently Testing mode — only added test users can use Google sign-in)
 
 **Email — reaches only your own inbox until this is done**
