@@ -1,7 +1,7 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
-import { Send, ArrowLeft, CalendarDays } from 'lucide-react'
+import { useRef, useState, useEffect, useMemo } from 'react'
+import { Send, ArrowLeft, CalendarDays, ImagePlus, X } from 'lucide-react'
 import Link from 'next/link'
 import type { ConversationHeader } from '@/hooks/useConversation'
 import type { Message } from '@/types'
@@ -10,7 +10,7 @@ interface ConversationViewProps {
   header: ConversationHeader
   messages: Message[]
   currentUserId: string | null
-  onSend: (text: string) => Promise<string | null>
+  onSend: (text: string, imageFile?: File) => Promise<string | null>
   onBack?: () => void
 }
 
@@ -26,11 +26,23 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [pendingImage, setPendingImage] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const previewUrl = useMemo(
+    () => (pendingImage ? URL.createObjectURL(pendingImage) : null),
+    [pendingImage]
+  )
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+    }
+  }, [previewUrl])
 
   useEffect(() => {
     setInput('')
     setError('')
+    setPendingImage(null)
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
   }, [header.bookingId])
 
@@ -42,14 +54,17 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
 
   async function send() {
     const text = input.trim()
-    if (!text || sending) return
+    const image = pendingImage
+    if ((!text && !image) || sending) return
     setSending(true)
     setError('')
     setInput('')
-    const err = await onSend(text)
+    setPendingImage(null)
+    const err = await onSend(text, image ?? undefined)
     if (err) {
       setError(err)
       setInput(text)
+      setPendingImage(image)
     }
     setSending(false)
   }
@@ -103,12 +118,23 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
               return (
                 <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                   <div className="max-w-[75%] group">
-                    <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                    <div className={`rounded-2xl text-sm leading-relaxed overflow-hidden ${
                       isMe
                         ? 'bg-[#003049] text-white rounded-br-sm'
                         : 'bg-white border border-gray-200 text-[#111827] rounded-bl-sm shadow-sm'
                     }`}>
-                      {msg.content}
+                      {msg.image_url && (
+                        <a href={msg.image_url} target="_blank" rel="noopener noreferrer" className="block">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={msg.image_url}
+                            alt="Attached photo"
+                            loading="lazy"
+                            className="max-h-64 w-full object-cover"
+                          />
+                        </a>
+                      )}
+                      {msg.content && <div className="px-4 py-2.5">{msg.content}</div>}
                     </div>
                     <p className={`text-[10px] text-gray-400 mt-1 ${isMe ? 'text-right' : ''}`}>
                       {formatTime(msg.created_at)}
@@ -124,7 +150,38 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
       {/* Input */}
       <div className="px-4 py-3 border-t border-gray-100 bg-white shrink-0">
         {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+        {previewUrl && (
+          <div className="mb-2 inline-flex items-start gap-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={previewUrl} alt="Attachment preview" className="h-16 w-16 object-cover rounded-lg border border-gray-200" />
+            <button
+              onClick={() => setPendingImage(null)}
+              className="w-5 h-5 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors"
+              aria-label="Remove attachment"
+            >
+              <X className="w-3 h-3 text-gray-500" />
+            </button>
+          </div>
+        )}
         <div className="flex items-center gap-2 bg-[#F8FAFC] border border-gray-200 rounded-2xl px-4 py-2.5 focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) setPendingImage(f)
+              e.target.value = ''
+            }}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="text-gray-400 hover:text-[#003049] transition-colors shrink-0"
+            aria-label="Attach an image"
+          >
+            <ImagePlus className="w-4.5 h-4.5" />
+          </button>
           <input
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -134,7 +191,7 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
           />
           <button
             onClick={send}
-            disabled={!input.trim() || sending}
+            disabled={(!input.trim() && !pendingImage) || sending}
             className="w-8 h-8 bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 text-white rounded-xl flex items-center justify-center transition-colors shrink-0"
           >
             <Send className="w-3.5 h-3.5" />
