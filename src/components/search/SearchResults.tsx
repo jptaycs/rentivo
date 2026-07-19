@@ -2,7 +2,7 @@
 
 import { ListingCard } from '@/components/shared/ListingCard'
 import { SlidersHorizontal, LayoutGrid, Map as MapIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { FilterSidebar } from './FilterSidebar'
 import { SearchMap } from './SearchMap'
 import type { Listing } from '@/types'
@@ -30,7 +30,7 @@ export function SearchResults({ query, listings }: SearchResultsProps) {
   const [sort, setSort] = useState<SortKey>('recommended')
   const [view, setView] = useState<'list' | 'map'>('list')
 
-  const results = sortListings(listings, sort)
+  const results = useMemo(() => sortListings(listings, sort), [listings, sort])
 
   return (
     <div className="flex gap-6 items-start">
@@ -63,6 +63,7 @@ export function SearchResults({ query, listings }: SearchResultsProps) {
           <div className="flex items-center gap-3">
             <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
               <button
+                type="button"
                 onClick={() => setView('list')}
                 aria-pressed={view === 'list'}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -73,6 +74,7 @@ export function SearchResults({ query, listings }: SearchResultsProps) {
                 List
               </button>
               <button
+                type="button"
                 onClick={() => setView('map')}
                 aria-pressed={view === 'map'}
                 className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${

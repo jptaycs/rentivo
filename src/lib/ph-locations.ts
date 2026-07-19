@@ -17,7 +17,7 @@ const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   marikina: { lat: 14.6507, lng: 121.1029 },
   paranaque: { lat: 14.4793, lng: 121.0198 },
   manila: { lat: 14.5995, lng: 120.9842 },
-  pasay: { lat: 14.5378, lng: 121.0014 },
+  pasay: { lat: 14.5378, lng: 120.9896 },
   'las pinas': { lat: 14.4499, lng: 120.9829 },
   muntinlupa: { lat: 14.4081, lng: 121.0415 },
 

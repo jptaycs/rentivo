@@ -9,6 +9,7 @@ interface SearchMapLeafletProps {
   listings: Listing[]
 }
 
+// Escapes for text content and double-quoted attributes — all generated HTML attributes must stay double-quoted
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -68,7 +69,7 @@ export default function SearchMapLeaflet({ listings }: SearchMapLeafletProps) {
             const thumb = item.images[0]
               ? `<img src="${escapeHtml(item.images[0])}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'" />`
               : `<span style="width:40px;height:40px;border-radius:8px;background:#F1F5F9;flex-shrink:0"></span>`
-            return `<a href="/listings/${item.id}" style="display:flex;align-items:center;gap:8px;padding:6px 0;text-decoration:none;color:#111827">
+            return `<a href="/listings/${escapeHtml(item.id)}" style="display:flex;align-items:center;gap:8px;padding:6px 0;text-decoration:none;color:#111827">
               ${thumb}
               <span style="min-width:0">
                 <span style="display:block;font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">${escapeHtml(item.title)}</span>
