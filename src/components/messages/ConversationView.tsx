@@ -29,6 +29,7 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
   const [pendingImage, setPendingImage] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const activeBookingId = useRef(header.bookingId)
   const previewUrl = useMemo(
     () => (pendingImage ? URL.createObjectURL(pendingImage) : null),
     [pendingImage]
@@ -40,6 +41,7 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
   }, [previewUrl])
 
   useEffect(() => {
+    activeBookingId.current = header.bookingId
     setInput('')
     setError('')
     setPendingImage(null)
@@ -56,12 +58,13 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
     const text = input.trim()
     const image = pendingImage
     if ((!text && !image) || sending) return
+    const sentFrom = header.bookingId
     setSending(true)
     setError('')
     setInput('')
     setPendingImage(null)
     const err = await onSend(text, image ?? undefined)
-    if (err) {
+    if (err && activeBookingId.current === sentFrom) {
       setError(err)
       setInput(text)
       setPendingImage(image)
