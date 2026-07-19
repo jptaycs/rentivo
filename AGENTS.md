@@ -50,12 +50,14 @@ Rentivo.html             bundled prototype — canonical visual reference
 
 `.env.local` (gitignored) holds all keys; commented placeholders document each one.
 
+**Deployed to Vercel (2026-07-19): production at `https://rentivo-taupe.vercel.app`**, project `appnado/rentivo`, CLI linked (`vercel deploy --prod --yes`). All env vars below are set in Vercel production (`NEXT_PUBLIC_APP_URL` points at the prod domain there). Still test-mode PayMongo keys — no real money.
+
 | Variable | Purpose |
 |----------|---------|
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Hosted Supabase (publishable key) |
 | `SUPABASE_SECRET_KEY` | Service-role writes (payment confirmation) — **set, server-only** |
 | `PAYMONGO_SECRET_KEY` / `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY` | Real PayMongo charges — **set (test mode)**, verified live: real card charge + real GCash redirect against PayMongo's API |
-| `PAYMONGO_WEBHOOK_SECRET` | Webhook signature verification — **not yet set** (needs a public URL; `/book/complete` covers dev without it) |
+| `PAYMONGO_WEBHOOK_SECRET` | Webhook signature verification — **set in Vercel production only** (webhook `hook_qe4ks5Yx3EFF9JXjTb7j8Jjn` → `/api/webhooks/paymongo`, event `payment.paid`); unset locally, where `/book/complete` covers it |
 | `RESEND_API_KEY` | Transactional emails — **set**, verified working, but sandbox sender can only reach the account owner's own inbox until a domain is verified at resend.com/domains |
 | `EMAIL_FROM` | Optional override, defaults to the Resend sandbox sender |
 | `NEXT_PUBLIC_APP_URL` | Redirect return URLs (`http://localhost:3000` in dev) |
@@ -115,7 +117,9 @@ Rentivo.html             bundled prototype — canonical visual reference
 
 **Payments — production hardening (test mode fully verified)**
 - [ ] Switch to live PayMongo keys when ready to accept real money (test keys are in use now — never commit live keys)
-- [ ] Deploy (Vercel), register webhook URL, set `PAYMONGO_WEBHOOK_SECRET`; also add the production `/auth/callback` URL to Supabase's redirect allow-list and publish the Google OAuth consent screen (currently Testing mode — only added test users can use Google sign-in)
+- [x] Deploy (Vercel) — live at `https://rentivo-taupe.vercel.app`, PayMongo webhook registered + `PAYMONGO_WEBHOOK_SECRET` set in Vercel
+- [ ] Add `https://rentivo-taupe.vercel.app/auth/callback` to Supabase's redirect allow-list (Authentication → URL Configuration) — until then, OAuth/email links from prod redirect to localhost
+- [ ] Publish the Google OAuth consent screen (currently Testing mode — only added test users can use Google sign-in)
 
 **Email — reaches only your own inbox until this is done**
 - [ ] Verify a domain at resend.com/domains and point `EMAIL_FROM` at it — real users (and the demo accounts) get a 403 from Resend's sandbox sender until then
