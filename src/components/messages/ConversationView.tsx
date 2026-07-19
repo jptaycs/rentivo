@@ -6,6 +6,8 @@ import Link from 'next/link'
 import type { ConversationHeader } from '@/hooks/useConversation'
 import type { Message } from '@/types'
 
+const IMAGE_URL_PREFIX = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/message-images/`
+
 interface ConversationViewProps {
   header: ConversationHeader
   messages: Message[]
@@ -118,6 +120,7 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
             </p>
             {messages.map((msg) => {
               const isMe = msg.sender_id === currentUserId
+              const imageUrl = msg.image_url?.startsWith(IMAGE_URL_PREFIX) ? msg.image_url : null
               return (
                 <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                   <div className="max-w-[75%] group">
@@ -126,11 +129,11 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
                         ? 'bg-[#003049] text-white rounded-br-sm'
                         : 'bg-white border border-gray-200 text-[#111827] rounded-bl-sm shadow-sm'
                     }`}>
-                      {msg.image_url && (
-                        <a href={msg.image_url} target="_blank" rel="noopener noreferrer" className="block">
+                      {imageUrl && (
+                        <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="block">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={msg.image_url}
+                            src={imageUrl}
                             alt="Attached photo"
                             loading="lazy"
                             className="max-h-64 w-full object-cover"
