@@ -113,12 +113,25 @@ export function useConversation(bookingId: string | null) {
     }
   }, [bookingId, userId])
 
-  async function send(content: string): Promise<string | null> {
-    if (!bookingId || !userId || !content.trim()) return null
+  async function send(content: string, imageFile?: File): Promise<string | null> {
+    if (!bookingId || !userId) return null
+    if (!content.trim() && !imageFile) return null
     const supabase = createClient()
+
+    let imageUrl: string | null = null
+    if (imageFile) {
+      const ext = imageFile.type.split('/')[1] ?? 'jpg'
+      const path = `${userId}/${crypto.randomUUID()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('message-images')
+        .upload(path, imageFile, { contentType: imageFile.type })
+      if (uploadError) return uploadError.message
+      imageUrl = supabase.storage.from('message-images').getPublicUrl(path).data.publicUrl
+    }
+
     const { data, error } = await supabase
       .from('messages')
-      .insert({ booking_id: bookingId, sender_id: userId, content: content.trim() })
+      .insert({ booking_id: bookingId, sender_id: userId, content: content.trim(), image_url: imageUrl })
       .select()
       .single()
     if (!error && data) {
