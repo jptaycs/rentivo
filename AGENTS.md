@@ -56,8 +56,8 @@ Rentivo.html             bundled prototype — canonical visual reference
 |----------|---------|
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Hosted Supabase (publishable key) |
 | `SUPABASE_SECRET_KEY` | Service-role writes (payment confirmation) — **set, server-only** |
-| `PAYMONGO_SECRET_KEY` / `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY` | Real PayMongo charges — **set (test mode)**, verified live: real card charge + real GCash redirect against PayMongo's API |
-| `PAYMONGO_WEBHOOK_SECRET` | Webhook signature verification — **set in Vercel production only** (webhook `hook_qe4ks5Yx3EFF9JXjTb7j8Jjn` → `/api/webhooks/paymongo`, event `payment.paid`); unset locally, where `/book/complete` covers it |
+| `PAYMONGO_SECRET_KEY` / `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY` | Real PayMongo charges — **live keys set in Vercel production (2026-07-29)**; local `.env.local` intentionally stays on test-mode keys so local dev never triggers a real charge |
+| `PAYMONGO_WEBHOOK_SECRET` | Webhook signature verification — **live webhook set in Vercel production only** (`hook_MWhim6Q86M9GHLLA9XjwpYS3` → `/api/webhooks/paymongo`, event `payment.paid`, registered 2026-07-29 via PayMongo's webhooks API with the live secret key). The earlier test-mode webhook (`hook_qe4ks5Yx3EFF9JXjTb7j8Jjn`) is left registered and still used locally — test/live webhooks are separate namespaces in PayMongo and don't interfere. Unset locally, where `/book/complete` covers it |
 | `RESEND_API_KEY` | Transactional emails — **set**, verified working, but sandbox sender can only reach the account owner's own inbox until a domain is verified at resend.com/domains |
 | `EMAIL_FROM` | Optional override, defaults to the Resend sandbox sender |
 | `NEXT_PUBLIC_APP_URL` | Redirect return URLs (`http://localhost:3000` in dev) |
@@ -119,8 +119,8 @@ Rentivo.html             bundled prototype — canonical visual reference
 
 ## To Do
 
-**Payments — production hardening (test mode fully verified)**
-- [ ] Switch to live PayMongo keys when ready to accept real money (test keys are in use now — never commit live keys)
+**Payments — production hardening**
+- [x] Switch to live PayMongo keys (2026-07-29) — production now processes real money (card/GCash/Maya); local dev deliberately stays on test keys. Not yet verified with an actual real-money charge (that's a deliberate one-off the account owner should do, not something to automate) — the underlying checkout/webhook code path was already verified end-to-end in test mode
 - [x] Deploy (Vercel) — live at `https://rentivo-taupe.vercel.app`, PayMongo webhook registered + `PAYMONGO_WEBHOOK_SECRET` set in Vercel
 - [x] Added `https://rentivo-taupe.vercel.app/auth/callback` to Supabase's redirect allow-list (2026-07-19) — prod OAuth/email redirects now work
 - [x] Google OAuth consent screen published (2026-07-19) — In production, External: any Google account can sign in. Basic scopes only, so no Google verification required (users may see an "unverified app" note; optional to clear via verification later).
