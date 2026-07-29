@@ -112,6 +112,37 @@ export interface VerificationRequest {
   reviewed_at: string | null
 }
 
+export interface PayoutAccount {
+  id: string
+  user_id: string
+  method: 'GCash' | 'Maya' | 'Bank Transfer (Instapay)' | 'BDO' | 'BPI' | 'UnionBank'
+  account_number: string
+  account_name: string
+  status: 'pending' | 'verified' | 'rejected'
+  reviewer_notes: string | null
+  created_at: string
+  reviewed_at: string | null
+}
+
+export interface PayoutItem {
+  payout_request_id: string
+  booking_id: string
+  amount: number
+}
+
+export interface PayoutRequest {
+  id: string
+  host_id: string
+  payout_account_id: string
+  amount: number
+  status: 'pending' | 'paid' | 'failed'
+  reference: string | null
+  notes: string | null
+  requested_at: string
+  processed_at: string | null
+  items?: PayoutItem[]
+}
+
 export interface Notification {
   id: string
   user_id: string
