@@ -23,8 +23,8 @@ export function ForgotPasswordForm() {
       })
       if (authError) throw authError
       setSent(true)
-    } catch (err: any) {
-      setError(err.message ?? 'Something went wrong. Please try again.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }

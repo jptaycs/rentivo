@@ -24,12 +24,6 @@ export function CompactSearchBar() {
     router.push(`/search?${p.toString()}`)
   }
 
-  function dateLabel() {
-    if (from && to) return `${from} → ${to}`
-    if (from) return from
-    return 'Any dates'
-  }
-
   return (
     <form
       onSubmit={handleSearch}

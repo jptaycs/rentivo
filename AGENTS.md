@@ -139,7 +139,7 @@ Rentivo.html             bundled prototype — canonical visual reference
 - [ ] Apple Pay / Google Pay — blocked: PayMongo doesn't support them; keep "Coming soon"
 - [ ] Notification preferences (Settings toggles are local-only, not persisted)
 - [ ] Add a `Content-Security-Policy` header in `next.config.ts` — recommended by the image-attachments final review as defense-in-depth for rendering user-content URLs (the bucket-prefix guard in `ConversationView` is the current protection)
-- [ ] Repo-wide lint cleanup: 46 pre-existing `react-hooks/set-state-in-effect` errors (was 44; `usePayoutAccount`/`usePayoutRequests` added 2 more of the same established reload-in-effect pattern used by every other data hook) from a newer eslint-plugin-react-hooks — not a regression, but `npm run lint` is not clean
+- [ ] Repo-wide lint cleanup: 19 remaining `react-hooks/set-state-in-effect` errors (2026-08-23: cleaned up every other lint error/warning — 22 `react/no-unescaped-entities`, 5 `@typescript-eslint/no-explicit-any`, 8 warnings — leaving only this one rule) from a newer eslint-plugin-react-hooks flagging the standard `useEffect(() => reload(), [reload])` data-fetch pattern used by every data hook — not a regression, and refactoring it is a deliberate later effort (high surface area across core data hooks) rather than a quick fix, but `npm run lint` is still not clean. Also found and fixed (2026-08-23): a stale `.claude/worktrees/payout-accounts-history` git worktree (already merged into main) whose unignored `.next` build output was inflating lint output to 1576 errors — removed the worktree and hardened `eslint.config.mjs`'s ignores to also match nested paths (`**/.next/**` etc.) so a future worktree can't repeat this.
 
 ---
 

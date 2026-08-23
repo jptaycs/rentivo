@@ -57,8 +57,8 @@ export function ResetPasswordForm() {
       if (authError) throw authError
       setDone(true)
       setTimeout(() => router.push('/'), 2500)
-    } catch (err: any) {
-      setError(err.message ?? 'Something went wrong. Please try again.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }

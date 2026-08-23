@@ -60,12 +60,12 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
       ) : isVerified ? (
         <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-xl">
           <BadgeCheck className="w-6 h-6 text-[#22C55E] shrink-0" />
-          <p className="text-sm font-semibold text-green-700">You're already verified — no need to resubmit.</p>
+          <p className="text-sm font-semibold text-green-700">You&apos;re already verified — no need to resubmit.</p>
         </div>
       ) : request?.status === 'pending' ? (
         <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-100 rounded-xl">
           <Clock className="w-6 h-6 text-amber-500 shrink-0" />
-          <p className="text-sm font-semibold text-amber-700">Your documents are under review. We'll notify you once verified.</p>
+          <p className="text-sm font-semibold text-amber-700">Your documents are under review. We&apos;ll notify you once verified.</p>
         </div>
       ) : (
         <>
@@ -73,7 +73,7 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
             <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-100 rounded-xl">
               <XCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-semibold text-red-700">Your last submission wasn't approved.</p>
+                <p className="text-sm font-semibold text-red-700">Your last submission wasn&apos;t approved.</p>
                 {request.reviewer_notes && <p className="text-xs text-red-500 mt-0.5">{request.reviewer_notes}</p>}
                 <p className="text-xs text-red-500 mt-0.5">Please upload clearer documents below to try again.</p>
               </div>
@@ -98,7 +98,7 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
                 <p className={`text-sm font-semibold ${data.idFile ? 'text-[#22C55E]' : 'text-gray-700'}`}>
                   {data.idFile ? data.idFile.name : 'Upload government ID'}
                 </p>
-                <p className="text-xs text-gray-400">Passport, Driver's License, or PhilSys ID · JPG, PNG, PDF</p>
+                <p className="text-xs text-gray-400">Passport, Driver&apos;s License, or PhilSys ID · JPG, PNG, PDF</p>
               </div>
             </button>
           </div>
@@ -137,7 +137,7 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
           {data.agreed && <CheckCircle2 className="w-3 h-3 text-white" />}
         </div>
         <p className="text-sm text-gray-600 leading-relaxed">
-          I confirm that this equipment belongs to me, the information provided is accurate, and I agree to Rentivo's{' '}
+          I confirm that this equipment belongs to me, the information provided is accurate, and I agree to Rentivo&apos;s{' '}
           <a href="#" className="text-[#003049] hover:underline">Host Terms of Service</a> and{' '}
           <a href="#" className="text-[#003049] hover:underline">Equipment Listing Policy</a>.
         </p>

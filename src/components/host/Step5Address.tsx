@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, MapPin, Zap, Info } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, Zap } from 'lucide-react'
 
 interface AddressData {
   streetAddress: string

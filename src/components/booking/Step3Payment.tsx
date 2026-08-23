@@ -247,7 +247,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
             />
           </div>
           <p className="text-xs text-gray-400">
-            You'll be redirected to {method === 'gcash' ? 'GCash' : 'Maya'} to authorize the payment.
+            You&apos;ll be redirected to {method === 'gcash' ? 'GCash' : 'Maya'} to authorize the payment.
           </p>
         </div>
       )}

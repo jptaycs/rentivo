@@ -33,7 +33,7 @@ export function FilterSidebar({ onClose }: FilterSidebarProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const get = (key: string) => searchParams.get(key) ?? ''
+  const get = useCallback((key: string) => searchParams.get(key) ?? '', [searchParams])
 
   const update = useCallback(
     (key: string, value: string) => {

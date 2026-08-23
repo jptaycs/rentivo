@@ -40,7 +40,7 @@ export function VerificationCard() {
       ) : isVerified ? (
         <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-xl">
           <BadgeCheck className="w-6 h-6 text-[#22C55E] shrink-0" />
-          <p className="text-sm font-semibold text-green-700">You're verified. A badge now shows on your profile and listings.</p>
+          <p className="text-sm font-semibold text-green-700">You&apos;re verified. A badge now shows on your profile and listings.</p>
         </div>
       ) : request?.status === 'pending' ? (
         <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-100 rounded-xl">
@@ -57,7 +57,7 @@ export function VerificationCard() {
             <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-100 rounded-xl">
               <XCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-semibold text-red-700">Your last submission wasn't approved.</p>
+                <p className="text-xs font-semibold text-red-700">Your last submission wasn&apos;t approved.</p>
                 {request.reviewer_notes && <p className="text-xs text-red-500 mt-0.5">{request.reviewer_notes}</p>}
               </div>
             </div>

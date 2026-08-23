@@ -60,7 +60,7 @@ export function Step2Details({ data, onChange, onNext, onBack }: Step2DetailsPro
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-[#111827]">Equipment details</h2>
-        <p className="text-gray-500 text-sm mt-1">Tell renters exactly what they're getting.</p>
+        <p className="text-gray-500 text-sm mt-1">Tell renters exactly what they&apos;re getting.</p>
       </div>
 
       {/* Category */}

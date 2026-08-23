@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { Listing } from '@/types'
 
 const KEY = 'rentivo_recently_viewed'
@@ -16,18 +16,18 @@ export function useRecentlyViewed() {
     } catch {}
   }, [])
 
-  function addItem(listing: Listing) {
+  const addItem = useCallback((listing: Listing) => {
     setItems(prev => {
       const updated = [listing, ...prev.filter(i => i.id !== listing.id)].slice(0, MAX)
       try { localStorage.setItem(KEY, JSON.stringify(updated)) } catch {}
       return updated
     })
-  }
+  }, [])
 
-  function clearItems() {
+  const clearItems = useCallback(() => {
     setItems([])
     try { localStorage.removeItem(KEY) } catch {}
-  }
+  }, [])
 
   return { items, addItem, clearItems }
 }

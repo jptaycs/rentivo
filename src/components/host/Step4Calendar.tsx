@@ -46,7 +46,7 @@ export function Step4Calendar({ blockedDates, onChange, onNext, onBack }: Step4C
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-[#111827]">Set your availability</h2>
-        <p className="text-gray-500 text-sm mt-1">Click dates to mark them as unavailable. Leave all clear if you're available anytime.</p>
+        <p className="text-gray-500 text-sm mt-1">Click dates to mark them as unavailable. Leave all clear if you&apos;re available anytime.</p>
       </div>
 
       {/* Calendar */}

@@ -26,8 +26,8 @@ export function LoginForm() {
       if (authError) throw authError
       router.push(safeRedirectPath(new URLSearchParams(window.location.search).get('next')))
       router.refresh()
-    } catch (err: any) {
-      setError(err.message ?? 'Something went wrong. Please try again.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }

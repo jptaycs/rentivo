@@ -126,8 +126,8 @@ export function ListingWizard() {
 
       setListingId(listing.id)
       setDone(true)
-    } catch (err: any) {
-      setError(err.message ?? 'Something went wrong. Please try again.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -142,7 +142,7 @@ export function ListingWizard() {
         <div>
           <h2 className="text-3xl font-bold text-[#111827]">Listing submitted!</h2>
           <p className="text-gray-500 mt-2 leading-relaxed max-w-md mx-auto">
-            Your listing is under review. We'll verify your details and activate it within <strong>24 hours</strong>. You'll get an email once it's live.
+            Your listing is under review. We&apos;ll verify your details and activate it within <strong>24 hours</strong>. You&apos;ll get an email once it&apos;s live.
           </p>
         </div>
 

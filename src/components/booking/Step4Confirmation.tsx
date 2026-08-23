@@ -159,13 +159,13 @@ export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) 
       <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-xl text-sm text-green-800">
         <Shield className="w-5 h-5 text-[#22C55E] shrink-0" />
         <p>
-          Your rental is covered by Rentivo's <strong>Equipment Protection Plan</strong>. In case of damage or loss, contact support within 24 hours of your return date.
+          Your rental is covered by Rentivo&apos;s <strong>Equipment Protection Plan</strong>. In case of damage or loss, contact support within 24 hours of your return date.
         </p>
       </div>
 
       {/* Next steps */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
-        <h3 className="font-bold text-[#111827] mb-3">What's next?</h3>
+        <h3 className="font-bold text-[#111827] mb-3">What&apos;s next?</h3>
         <ol className="space-y-3">
           {[
             isConfirmed

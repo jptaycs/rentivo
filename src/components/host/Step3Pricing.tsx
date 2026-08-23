@@ -35,7 +35,6 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
 
   const canContinue = daily >= 100 && Number(data.securityDeposit) >= 0
 
-  const field = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100 transition-all bg-white'
   const label = 'block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5'
 
   return (

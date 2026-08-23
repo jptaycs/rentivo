@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { MapPin, Truck, ChevronRight, ChevronLeft, Check } from 'lucide-react'
 import type { Listing } from '@/types'
 
@@ -57,7 +56,7 @@ export function Step2Pickup({
             <p className={`font-bold ${!isDelivery ? 'text-[#003049]' : 'text-[#111827]'}`}>
               Pickup
             </p>
-            <p className="text-xs text-gray-500 mt-1">Collect from the host's location</p>
+            <p className="text-xs text-gray-500 mt-1">Collect from the host&apos;s location</p>
             <p className="text-xs font-semibold text-[#22C55E] mt-2">Free</p>
           </div>
         </button>

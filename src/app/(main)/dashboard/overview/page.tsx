@@ -79,7 +79,7 @@ export default function OverviewPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#111827]">Welcome back, {firstName} 👋</h1>
-          <p className="text-gray-500 text-sm mt-0.5">Here's what's happening with your listings.</p>
+          <p className="text-gray-500 text-sm mt-0.5">Here&apos;s what&apos;s happening with your listings.</p>
         </div>
         <Link
           href="/host/new"

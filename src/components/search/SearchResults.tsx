@@ -58,7 +58,7 @@ export function SearchResults({ query, listings }: SearchResultsProps) {
         <div className="flex items-center justify-between mb-5">
           <p className="text-sm text-gray-500">
             <span className="font-semibold text-[#111827]">{results.length}</span> listings found
-            {query && <span> for "<span className="text-[#003049]">{query}</span>"</span>}
+            {query && <span> for &quot;<span className="text-[#003049]">{query}</span>&quot;</span>}
           </p>
           <div className="flex items-center gap-3">
             <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">

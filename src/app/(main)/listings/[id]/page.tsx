@@ -147,7 +147,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
 
             {/* What's Included */}
             <section>
-              <h2 className="text-xl font-bold text-[#111827] mb-4">What's Included</h2>
+              <h2 className="text-xl font-bold text-[#111827] mb-4">What&apos;s Included</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {listing.accessories.map((item) => (
                   <div key={item} className="flex items-center gap-2 text-sm text-gray-700">

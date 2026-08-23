@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import Image from 'next/image'
-import { Upload, X, GripVertical, ChevronRight, ImagePlus } from 'lucide-react'
+import { Upload, X, ChevronRight, ImagePlus } from 'lucide-react'
 
 export interface WizardPhoto {
   file: File
