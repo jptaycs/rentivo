@@ -8,6 +8,7 @@ import { useUser } from '@/hooks/useUser'
 import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { VerificationCard } from '@/components/shared/VerificationCard'
+import { QrPaymentCard } from '@/components/shared/QrPaymentCard'
 
 export default function SettingsPage() {
   const live = isSupabaseConfigured()
@@ -252,6 +253,8 @@ export default function SettingsPage() {
       </section>
 
       {live && <VerificationCard />}
+
+      {live && <QrPaymentCard />}
 
       {/* Security */}
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">

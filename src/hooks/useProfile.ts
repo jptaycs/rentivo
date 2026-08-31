@@ -70,5 +70,43 @@ export function useProfile() {
     return null
   }
 
-  return { profile, email, loading, update, uploadAvatar }
+  async function uploadQrCode(file: File, label: string) {
+    if (!profile) return 'Not signed in.'
+    const supabase = createClient()
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+    const path = `${profile.id}/${crypto.randomUUID()}.${ext}`
+    const { error: uploadError } = await supabase.storage
+      .from('payment-qr-codes')
+      .upload(path, file, { contentType: file.type })
+    if (uploadError) return uploadError.message
+    const { error } = await supabase
+      .from('profiles')
+      .update({ qr_payment_url: path, qr_payment_label: label })
+      .eq('id', profile.id)
+    if (error) return error.message
+    await reload()
+    return null
+  }
+
+  async function removeQrCode() {
+    if (!profile) return 'Not signed in.'
+    const supabase = createClient()
+    if (profile.qr_payment_url) {
+      const { error: removeError } = await supabase.storage
+        .from('payment-qr-codes')
+        .remove([profile.qr_payment_url])
+      // Non-fatal, matching the account-deletion route's storage-cleanup
+      // pattern: a storage hiccup must not block clearing the profile.
+      if (removeError) console.error('[qr-payment] storage remove failed', removeError)
+    }
+    const { error } = await supabase
+      .from('profiles')
+      .update({ qr_payment_url: null, qr_payment_label: null })
+      .eq('id', profile.id)
+    if (error) return error.message
+    await reload()
+    return null
+  }
+
+  return { profile, email, loading, update, uploadAvatar, uploadQrCode, removeQrCode }
 }
