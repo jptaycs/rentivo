@@ -142,7 +142,12 @@ Rentivo.html             bundled prototype — canonical visual reference
 
 **Polish / later**
 - [ ] Apple Pay / Google Pay — blocked: PayMongo doesn't support them; keep "Coming soon"
-- [ ] Repo-wide lint cleanup: 19 remaining `react-hooks/set-state-in-effect` errors (2026-08-23: cleaned up every other lint error/warning — 22 `react/no-unescaped-entities`, 5 `@typescript-eslint/no-explicit-any`, 8 warnings — leaving only this one rule) from a newer eslint-plugin-react-hooks flagging the standard `useEffect(() => reload(), [reload])` data-fetch pattern used by every data hook — not a regression, and refactoring it is a deliberate later effort (high surface area across core data hooks) rather than a quick fix, but `npm run lint` is still not clean. Also found and fixed (2026-08-23): a stale `.claude/worktrees/payout-accounts-history` git worktree (already merged into main) whose unignored `.next` build output was inflating lint output to 1576 errors — removed the worktree and hardened `eslint.config.mjs`'s ignores to also match nested paths (`**/.next/**` etc.) so a future worktree can't repeat this.
+
+**Done, 2026-08-23**
+- Repo-wide lint cleanup — 22 `react/no-unescaped-entities`, 5 `@typescript-eslint/no-explicit-any`, 8 warnings. Also found and fixed a stale `.claude/worktrees/payout-accounts-history` git worktree (already merged into main) whose unignored `.next` build output was inflating lint output to 1576 errors — removed the worktree and hardened `eslint.config.mjs`'s ignores to also match nested paths (`**/.next/**` etc.) so a future worktree can't repeat this.
+
+**Done, 2026-08-31**
+- The last 19 `react-hooks/set-state-in-effect` errors: all came from genuinely idiomatic patterns (the standard `useEffect(() => reload(), [reload])` fetch-on-mount pattern used by nearly every data hook, resetting UI state on prop/route change, deriving local state from async-loaded data) — none were bugs. Restructuring each to avoid the rule (e.g. React's "adjusting state on prop change" recipe) would mean a bespoke rewrite per call site across every core data hook, and this project has no test suite to verify 19 such rewrites don't introduce regressions — the exact risk that had this deferred. Took the safe path instead: a targeted `eslint-disable-next-line` with a one-line justification at each site (19 files, one comment line each, zero logic changes — confirmed via diff). `npm run lint` and `npm run build` are both clean.
 
 ---
 
