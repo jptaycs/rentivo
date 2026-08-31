@@ -140,7 +140,7 @@ export const MOCK_LISTINGS: Listing[] = [
     is_active: true,
     rating: 4.88,
     review_count: 22, view_count: 0,
-    images: ['https://images.unsplash.com/photo-1678911820864-e2c567c655d7?w=800&q=80'],
+    images: ['https://images.unsplash.com/photo-1738830234395-a351829a1c7b?w=800&q=80'],
     accessories: ['USB-C Cable', 'S Pen', 'Case'],
     created_at: '2024-01-06',
     host: { id: 'host6', full_name: 'Grace Tan', avatar_url: null, qr_payment_url: null, qr_payment_label: null, is_verified: true, is_host: true, host_rating: 4.8, host_review_count: 17, response_time_hours: 1, bio: null, city: null, notify_new_booking: true, notify_messages: true, notify_reminders: true, notify_promos: false, created_at: '2023-10-01' },
