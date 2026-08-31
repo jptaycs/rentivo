@@ -23,6 +23,8 @@ export interface Profile {
   notify_messages: boolean
   notify_reminders: boolean
   notify_promos: boolean
+  qr_payment_url: string | null
+  qr_payment_label: string | null
   created_at: string
 }
 
@@ -68,7 +70,7 @@ export interface Booking {
   status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
   is_delivery: boolean
   delivery_address: string | null
-  payment_method: 'gcash' | 'maya' | 'card' | 'apple_pay' | 'google_pay' | null
+  payment_method: 'gcash' | 'maya' | 'card' | 'apple_pay' | 'google_pay' | 'host_qr' | null
   payment_status: 'unpaid' | 'paid' | 'refunded'
   paymongo_ref: string | null
   refund_ref: string | null
