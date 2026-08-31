@@ -128,6 +128,7 @@ export default function SettingsPage() {
   async function handleDeleteAccount() {
     setDeleting(true)
     setDeleteError('')
+    let succeeded = false
     try {
       const res = await fetch('/api/account/delete', {
         method: 'POST',
@@ -140,10 +141,15 @@ export default function SettingsPage() {
         setDeleting(false)
         return
       }
-      await signOut()
+      succeeded = true
     } catch {
       setDeleteError('Failed to delete account. Please try again.')
       setDeleting(false)
+    }
+    // signOut() lives outside the try/catch: the account is already deleted by
+    // this point, so a sign-out failure must not report a false deletion failure.
+    if (succeeded) {
+      await signOut()
     }
   }
 
@@ -401,7 +407,8 @@ export default function SettingsPage() {
         {!deleteOpen && (
           <button
             onClick={() => setDeleteOpen(true)}
-            className="inline-block text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-100 px-4 py-2 rounded-xl transition-colors"
+            disabled={!live}
+            className="inline-block text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-100 px-4 py-2 rounded-xl disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
           >
             Delete Account
           </button>
@@ -433,7 +440,7 @@ export default function SettingsPage() {
               </button>
               <button
                 onClick={handleDeleteAccount}
-                disabled={deleteConfirmText !== 'DELETE' || deleting}
+                disabled={!live || deleteConfirmText !== 'DELETE' || deleting}
                 className="flex-1 bg-red-600 text-white rounded-xl py-3 text-sm font-bold hover:bg-red-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
               >
                 {deleting ? 'Deleting…' : 'Delete My Account'}

@@ -50,6 +50,29 @@ export async function POST(req: Request) {
     )
   }
 
+  // Eligibility gate: block while a payout request is still pending. Disbursement is
+  // manual — an admin reads payout_accounts.account_number/account_name to send the
+  // money — so scrubbing those fields now would strand real owed money with no way
+  // for the (locked-out) host to restore it.
+  const { data: pendingPayout, error: pendingPayoutError } = await admin
+    .from('payout_requests')
+    .select('id')
+    .eq('host_id', uid)
+    .eq('status', 'pending')
+    .limit(1)
+  if (pendingPayoutError) {
+    return NextResponse.json({ error: pendingPayoutError.message }, { status: 500 })
+  }
+  if (pendingPayout && pendingPayout.length > 0) {
+    return NextResponse.json(
+      {
+        error:
+          'You have a payout in progress. Please wait for it to be processed before deleting your account.',
+      },
+      { status: 400 }
+    )
+  }
+
   // Anonymize the profile — keep the row, scrub PII
   const { error: profileError } = await admin
     .from('profiles')
@@ -66,10 +89,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: profileError.message }, { status: 500 })
   }
 
-  // Deactivate listings — never hard-delete, they may have booking history
-  const { error: listingsError } = await admin.from('listings').update({ is_active: false }).eq('host_id', uid)
+  // Deactivate listings — never hard-delete, they may have booking history — and
+  // scrub the pickup address, which is the host's own home address and has no
+  // remaining transactional value once every booking is in a final state.
+  const { error: listingsError } = await admin
+    .from('listings')
+    .update({ is_active: false, street_address: null })
+    .eq('host_id', uid)
   if (listingsError) {
     return NextResponse.json({ error: listingsError.message }, { status: 500 })
+  }
+
+  // Null the delivery address the user typed at checkout. The eligibility gate above
+  // guarantees every remaining booking is completed or cancelled, so no in-flight
+  // delivery depends on it — the bookings themselves stay untouched, this only clears
+  // one PII column on rows that belong to the deleting user.
+  const { error: deliveryAddressError } = await admin
+    .from('bookings')
+    .update({ delivery_address: null })
+    .eq('renter_id', uid)
+  if (deliveryAddressError) {
+    return NextResponse.json({ error: deliveryAddressError.message }, { status: 500 })
   }
 
   // Capture verification doc storage paths before deleting the row
@@ -79,6 +119,43 @@ export async function POST(req: Request) {
     .eq('user_id', uid)
   if (verificationsReadError) {
     return NextResponse.json({ error: verificationsReadError.message }, { status: 500 })
+  }
+
+  // Storage cleanup runs BEFORE the row deletes below, so a failure here can never
+  // orphan files whose only record of their path was verification_requests. Both
+  // blocks are non-fatal by design: a storage hiccup must not block the auth
+  // soft-delete (the step that actually ends the account), and leaving the rows in
+  // place means a retry can still find and remove the files.
+  // The message-images bucket is deliberately NOT cleaned up here — those images are
+  // part of the counterparty's retained conversation history, same reasoning as
+  // leaving messages rows untouched.
+
+  // Storage cleanup: avatars (list, since avatar_url is a public URL not a stored path).
+  // Explicit limit: uploadAvatar writes a new timestamped path each time rather than
+  // overwriting, so the default 100 could miss files for a heavy avatar-changer.
+  const { data: avatarFiles, error: avatarListError } = await admin.storage
+    .from('avatars')
+    .list(uid, { limit: 1000 })
+  if (avatarListError) {
+    console.error('[account-delete] avatar storage list failed', avatarListError)
+  } else if (avatarFiles && avatarFiles.length > 0) {
+    const { error: avatarRemoveError } = await admin.storage
+      .from('avatars')
+      .remove(avatarFiles.map((f) => `${uid}/${f.name}`))
+    if (avatarRemoveError) {
+      console.error('[account-delete] avatar storage remove failed', avatarRemoveError)
+    }
+  }
+
+  // Storage cleanup: verification docs (paths captured above, exact stored paths)
+  const docPaths = (verifications ?? [])
+    .flatMap((v) => [v.id_doc_path, v.selfie_path])
+    .filter((p): p is string => Boolean(p))
+  if (docPaths.length > 0) {
+    const { error: docRemoveError } = await admin.storage.from('verification-docs').remove(docPaths)
+    if (docRemoveError) {
+      console.error('[account-delete] verification-docs storage remove failed', docRemoveError)
+    }
   }
 
   // Anonymize payout_accounts in place (don't delete) — payout_requests.payout_account_id
@@ -99,31 +176,6 @@ export async function POST(req: Request) {
     const { error } = await admin.from(table).delete().eq('user_id', uid)
     if (error) {
       return NextResponse.json({ error: `Failed to clean up ${table}: ${error.message}` }, { status: 500 })
-    }
-  }
-
-  // Storage cleanup: avatars (list, since avatar_url is a public URL not a stored path)
-  const { data: avatarFiles, error: avatarListError } = await admin.storage.from('avatars').list(uid)
-  if (avatarListError) {
-    return NextResponse.json({ error: avatarListError.message }, { status: 500 })
-  }
-  if (avatarFiles && avatarFiles.length > 0) {
-    const { error: avatarRemoveError } = await admin.storage
-      .from('avatars')
-      .remove(avatarFiles.map((f) => `${uid}/${f.name}`))
-    if (avatarRemoveError) {
-      return NextResponse.json({ error: avatarRemoveError.message }, { status: 500 })
-    }
-  }
-
-  // Storage cleanup: verification docs (paths captured above, exact stored paths)
-  const docPaths = (verifications ?? [])
-    .flatMap((v) => [v.id_doc_path, v.selfie_path])
-    .filter((p): p is string => Boolean(p))
-  if (docPaths.length > 0) {
-    const { error: docRemoveError } = await admin.storage.from('verification-docs').remove(docPaths)
-    if (docRemoveError) {
-      return NextResponse.json({ error: docRemoveError.message }, { status: 500 })
     }
   }
 
