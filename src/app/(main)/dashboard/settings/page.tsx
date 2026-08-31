@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Camera, Save, Shield, Bell, Eye, EyeOff, HelpCircle, ChevronDown, ChevronRight, ExternalLink, MessageSquare, FileText, Loader2, Check, AlertCircle } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useProfile } from '@/hooks/useProfile'
+import { useUser } from '@/hooks/useUser'
 import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { VerificationCard } from '@/components/shared/VerificationCard'
@@ -33,6 +34,12 @@ export default function SettingsPage() {
     newBooking: true, messages: true, reminders: true, promos: false,
   })
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+
+  const { signOut } = useUser()
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     if (profile) {
@@ -116,6 +123,28 @@ export default function SettingsPage() {
     setCurrentPw('')
     setNewPw('')
     setConfirmPw('')
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: deleteConfirmText }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setDeleteError(data.error ?? 'Failed to delete account.')
+        setDeleting(false)
+        return
+      }
+      await signOut()
+    } catch {
+      setDeleteError('Failed to delete account. Please try again.')
+      setDeleting(false)
+    }
   }
 
   const initials = (fullName || email || 'U')
@@ -368,11 +397,56 @@ export default function SettingsPage() {
         <p className="text-sm text-red-600">
           Account deletion permanently removes your listings, bookings, and history and cannot be undone.
         </p>
+
+        {!deleteOpen && (
+          <button
+            onClick={() => setDeleteOpen(true)}
+            className="inline-block text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-100 px-4 py-2 rounded-xl transition-colors"
+          >
+            Delete Account
+          </button>
+        )}
+
+        {deleteOpen && (
+          <div className="border border-red-200 rounded-xl p-5 space-y-4 bg-white">
+            <p className="font-bold text-sm text-red-700">Confirm Account Deletion</p>
+            <p className="text-sm text-gray-600">
+              This cannot be undone. Type <span className="font-mono font-bold">DELETE</span> below to confirm.
+            </p>
+            <input
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="DELETE"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-red-400"
+            />
+            {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setDeleteOpen(false)
+                  setDeleteConfirmText('')
+                  setDeleteError('')
+                }}
+                className="flex-1 border border-gray-200 rounded-xl py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmText !== 'DELETE' || deleting}
+                className="flex-1 bg-red-600 text-white rounded-xl py-3 text-sm font-bold hover:bg-red-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                {deleting ? 'Deleting…' : 'Delete My Account'}
+              </button>
+            </div>
+          </div>
+        )}
+
         <a
           href="mailto:support@rentivo.ph?subject=Delete my Rentivo account"
-          className="inline-block text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-100 px-4 py-2 rounded-xl transition-colors"
+          className="block text-xs text-red-500 hover:underline"
         >
-          Contact Support to Delete Account
+          Or contact support if you run into an issue
         </a>
       </section>
     </div>
