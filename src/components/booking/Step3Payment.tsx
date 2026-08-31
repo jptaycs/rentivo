@@ -322,11 +322,15 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
       {/* Host QR notice */}
       {isHostQr && (
         <div className="bg-purple-50 rounded-2xl border border-purple-200 p-5 space-y-2">
-          <p className="text-sm font-bold text-[#111827]">{listing.host?.qr_payment_label}</p>
+          <p className="text-sm font-bold text-[#111827]">GCash/Maya QR — paid directly to the host</p>
+          {/* Deliberately generic: the host's payment label is their real name +
+              mobile number, so it's only shown once the booking exists (fetched
+              from the party-scoped /api/bookings/[id]/qr route), never to someone
+              merely browsing checkout. */}
           <p className="text-sm text-purple-800">
-            You&apos;ll pay ₱{total.toLocaleString()} directly to the host via this QR code — it&apos;ll be
-            shown on the next screen. Rentivo doesn&apos;t process or hold this payment; your host will
-            confirm they&apos;ve received it.
+            You&apos;ll pay ₱{total.toLocaleString()}{' '}directly to the host via GCash/Maya QR. Rentivo
+            doesn&apos;t process or hold this payment; your host will confirm they&apos;ve received it.
+            Your host&apos;s payment details and QR code will be shown once your booking is created.
           </p>
         </div>
       )}
@@ -426,9 +430,12 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
         </button>
       </div>
 
-      <p className="text-xs text-center text-gray-400 flex items-center justify-center gap-1">
-        <Lock className="w-3 h-3" /> Payments secured by PayMongo
-      </p>
+      {/* PayMongo is never involved in the host-QR flow — claiming it is would be false */}
+      {!isHostQr && (
+        <p className="text-xs text-center text-gray-400 flex items-center justify-center gap-1">
+          <Lock className="w-3 h-3" /> Payments secured by PayMongo
+        </p>
+      )}
     </div>
   )
 }

@@ -44,10 +44,10 @@ export interface ListingSearchParams {
   to?: string
 }
 
-export { LISTING_COLUMNS } from './listing-columns'
-import { LISTING_COLUMNS } from './listing-columns'
+export { LISTING_COLUMNS, PROFILE_COLUMNS } from './listing-columns'
+import { LISTING_COLUMNS, PROFILE_COLUMNS } from './listing-columns'
 
-const HOST_SELECT = `${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey(*)`
+const HOST_SELECT = `${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey(${PROFILE_COLUMNS})`
 
 export async function getFeaturedListings(limit = 6): Promise<Listing[]> {
   if (!isSupabaseConfigured()) return MOCK_LISTINGS.slice(0, limit)
@@ -127,7 +127,7 @@ export async function getListingReviews(listingId: string, limit = 6): Promise<R
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('reviews')
-    .select('*, reviewer:profiles!reviews_reviewer_id_fkey(*)')
+    .select(`*, reviewer:profiles!reviews_reviewer_id_fkey(${PROFILE_COLUMNS})`)
     .eq('listing_id', listingId)
     .order('created_at', { ascending: false })
     .limit(limit)
@@ -141,7 +141,7 @@ export async function searchListings(params: ListingSearchParams): Promise<Listi
 
   let q = supabase
     .from('listings')
-    .select(`${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey!inner(*)`)
+    .select(`${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey!inner(${PROFILE_COLUMNS})`)
     .eq('is_active', true)
     .eq('is_draft', false)
 

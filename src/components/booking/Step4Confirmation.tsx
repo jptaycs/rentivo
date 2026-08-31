@@ -25,13 +25,24 @@ export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) 
   const isConfirmed = booking.status === 'confirmed'
   const isAwaitingQrPayment = booking.payment_method === 'host_qr' && booking.payment_status === 'unpaid'
   const [qrUrl, setQrUrl] = useState<string | null>(null)
+  // The host's payment label (name + phone) is PII, so it isn't in the public
+  // listing payload — it comes back from the party-scoped QR route with the image.
+  const [qrLabel, setQrLabel] = useState<string | null>(null)
+  const [qrError, setQrError] = useState(false)
 
   useEffect(() => {
     if (!isAwaitingQrPayment) return
     fetch(`/api/bookings/${booking.id}/qr`)
       .then((r) => r.json())
-      .then((d) => setQrUrl(d.url ?? null))
-      .catch(() => setQrUrl(null))
+      .then((d) => {
+        if (!d?.url) {
+          setQrError(true)
+          return
+        }
+        setQrUrl(d.url)
+        setQrLabel(d.label ?? null)
+      })
+      .catch(() => setQrError(true))
   }, [isAwaitingQrPayment, booking.id])
 
   const fmt = (d: string) =>
@@ -74,17 +85,18 @@ export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) 
           {qrUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- signed URL from a private bucket, not a next/image remotePattern candidate
             <img src={qrUrl} alt="Host's payment QR code" className="w-56 h-56 mx-auto rounded-xl object-cover" />
+          ) : qrError ? (
+            <div className="w-56 h-56 mx-auto rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-sm text-red-600 px-4 text-center">
+              Couldn&apos;t load the QR code — open My Rentals to try again, or message your host.
+            </div>
           ) : (
             <div className="w-56 h-56 mx-auto rounded-xl bg-gray-100 flex items-center justify-center text-sm text-gray-400">
               Loading QR code…
             </div>
           )}
-          <p className="text-sm font-semibold text-[#111827]">
-            {listing.host?.qr_payment_label}
-          </p>
+          {qrLabel && <p className="text-sm font-semibold text-[#111827]">{qrLabel}</p>}
           <p className="text-xs text-gray-500">
-            Pay ₱{booking.total_amount.toLocaleString()} — Rentivo doesn&apos;t process or hold this
-            payment.
+            Pay ₱{booking.total_amount.toLocaleString()}{' '}— Rentivo doesn&apos;t process or hold this payment.
           </p>
         </div>
       )}

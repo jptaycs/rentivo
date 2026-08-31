@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { LISTING_COLUMNS } from '@/lib/listing-columns'
+import { LISTING_COLUMNS, PROFILE_COLUMNS } from '@/lib/listing-columns'
 import { useUser } from './useUser'
 import type { Listing } from '@/types'
 
@@ -54,7 +54,7 @@ export function useRecentlyViewed() {
 
       const { data } = await supabase
         .from('recently_viewed_listings')
-        .select(`listing:listings(${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey(*))`)
+        .select(`listing:listings(${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey(${PROFILE_COLUMNS}))`)
         .eq('user_id', user.id)
         .order('viewed_at', { ascending: false })
         .limit(MAX)

@@ -83,6 +83,10 @@ export async function POST(req: Request) {
       city: null,
       is_host: false,
       is_verified: false,
+      // Host payment QR (028): qr_payment_label is the host's real name + mobile
+      // number, qr_payment_url the storage path whose file is removed below.
+      qr_payment_url: null,
+      qr_payment_label: null,
     })
     .eq('id', uid)
   if (profileError) {
@@ -155,6 +159,26 @@ export async function POST(req: Request) {
     const { error: docRemoveError } = await admin.storage.from('verification-docs').remove(docPaths)
     if (docRemoveError) {
       console.error('[account-delete] verification-docs storage remove failed', docRemoveError)
+    }
+  }
+
+  // Storage cleanup: host payment QR codes (028). Listed rather than read from
+  // profiles.qr_payment_url, since the anonymize above already nulled that column —
+  // uploads are <uid>/<uuid>.<ext>, and useProfile.uploadQrCode writes a new
+  // uuid path each time, so the folder can legitimately hold more than one file.
+  // Non-fatal, exactly like the avatars block above: a storage hiccup must never
+  // block the auth soft-delete.
+  const { data: qrFiles, error: qrListError } = await admin.storage
+    .from('payment-qr-codes')
+    .list(uid, { limit: 1000 })
+  if (qrListError) {
+    console.error('[account-delete] payment-qr-codes storage list failed', qrListError)
+  } else if (qrFiles && qrFiles.length > 0) {
+    const { error: qrRemoveError } = await admin.storage
+      .from('payment-qr-codes')
+      .remove(qrFiles.map((f) => `${uid}/${f.name}`))
+    if (qrRemoveError) {
+      console.error('[account-delete] payment-qr-codes storage remove failed', qrRemoveError)
     }
   }
 

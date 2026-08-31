@@ -36,7 +36,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const admin = createAdminClient()
   const { data: hostProfile } = await admin
     .from('profiles')
-    .select('qr_payment_url')
+    .select('qr_payment_url, qr_payment_label')
     .eq('id', booking.host_id)
     .maybeSingle()
   if (!hostProfile?.qr_payment_url) {
@@ -50,5 +50,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Could not load the QR image.' }, { status: 500 })
   }
 
-  return NextResponse.json({ url: signed.signedUrl })
+  // The label ("GCash — Juan Dela Cruz, 09XX XXX XXXX") is host name + phone,
+  // so it's served only here, in the same party-scoped context as the QR image
+  // itself — it's deliberately excluded from PROFILE_COLUMNS (listing-columns.ts)
+  // so it can never reach a public listing/search/host-profile payload.
+  return NextResponse.json({ url: signed.signedUrl, label: hostProfile.qr_payment_label ?? null })
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { LISTING_COLUMNS, PROFILE_COLUMNS } from '@/lib/listing-columns'
 import type { Review } from '@/types'
 
 /** Reviews written about the signed-in user, by either party. */
@@ -27,7 +28,9 @@ export function useMyReviews() {
       }
       const { data } = await supabase
         .from('reviews')
-        .select('*, reviewer:profiles!reviews_reviewer_id_fkey(*), listing:listings(*)')
+        .select(
+          `*, reviewer:profiles!reviews_reviewer_id_fkey(${PROFILE_COLUMNS}), listing:listings(${LISTING_COLUMNS})`
+        )
         .eq('reviewee_id', user.id)
         .order('created_at', { ascending: false })
       setReviews((data as Review[]) ?? [])

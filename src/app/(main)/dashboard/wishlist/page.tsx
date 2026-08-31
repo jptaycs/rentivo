@@ -7,9 +7,12 @@ import { useWishlist } from '@/hooks/useWishlist'
 import { createClient } from '@/lib/supabase/client'
 import { MOCK_LISTINGS } from '@/lib/mock-data'
 import { ListingCard } from '@/components/shared/ListingCard'
+import { LISTING_COLUMNS, PROFILE_COLUMNS } from '@/lib/listing-columns'
 import type { Listing } from '@/types'
 
-const HOST_SELECT = '*, host:profiles!listings_host_id_fkey(*)'
+// Explicit column lists, never `*` — see listing-columns.ts (street_address on
+// listings, qr_payment_label on profiles must never reach a client payload).
+const HOST_SELECT = `${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey(${PROFILE_COLUMNS})`
 
 export default function WishlistPage() {
   const { ids, live } = useWishlist()
@@ -31,7 +34,7 @@ export default function WishlistPage() {
       .select(HOST_SELECT)
       .in('id', ids)
       .eq('is_active', true)
-      .then(({ data }) => setListings((data as Listing[]) ?? []))
+      .then(({ data }) => setListings((data as unknown as Listing[]) ?? []))
   }, [live, ids])
 
   const wishlisted = listings ?? []
