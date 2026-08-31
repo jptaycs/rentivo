@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Calendar, MapPin, MessageCircle, Star, Package, Loader2, Check, X, AlertCircle } from 'lucide-react'
+import { Calendar, MapPin, MessageCircle, Star, Package, Loader2, Check, X, AlertCircle, QrCode } from 'lucide-react'
 import { useMyRentals, type BookingWithRefs } from '@/hooks/useBookings'
 import { useReviewedBookings } from '@/hooks/useReviewedBookings'
 import { ReviewModal } from '@/components/shared/ReviewModal'
@@ -27,9 +27,45 @@ export default function RentalsPage() {
   const [reviewing, setReviewing] = useState<BookingWithRefs | null>(null)
   const [cancellingId, setCancellingId] = useState('')
   const [error, setError] = useState('')
+  // Host-QR payment: the renter can reopen the QR any time before it's paid —
+  // the signed URL is short-lived, so it's fetched fresh on each open rather
+  // than eagerly for every booking in the list.
+  const [qrBookingId, setQrBookingId] = useState('')
+  const [qr, setQr] = useState<{ url: string; label: string | null } | null>(null)
+  const [qrLoading, setQrLoading] = useState(false)
+  const [qrError, setQrError] = useState('')
+
+  async function toggleQr(booking: BookingWithRefs) {
+    if (qrBookingId === booking.id) {
+      setQrBookingId('')
+      return
+    }
+    setQrBookingId(booking.id)
+    setQr(null)
+    setQrError('')
+    setQrLoading(true)
+    try {
+      const res = await fetch(`/api/bookings/${booking.id}/qr`)
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.url) throw new Error(data?.error ?? 'Could not load the QR code.')
+      setQr({ url: data.url, label: data.label ?? null })
+    } catch (e) {
+      setQrError(e instanceof Error ? e.message : 'Could not load the QR code.')
+    }
+    setQrLoading(false)
+  }
 
   async function handleCancel(booking: BookingWithRefs) {
-    if (!confirm(`Cancel your booking for ${booking.listing?.title}? ${booking.payment_status === 'paid' ? 'You will be refunded in full.' : ''}`)) return
+    // A host_qr booking was paid directly to the host — Rentivo never held that
+    // money and so genuinely cannot refund it. Promising a refund here would be
+    // false, same reasoning as the cancellation email copy in src/lib/email.ts.
+    const refundNote =
+      booking.payment_status !== 'paid'
+        ? ''
+        : booking.payment_method === 'host_qr'
+          ? ' Since this booking was paid directly to the host via QR code, any refund needs to be arranged directly with them.'
+          : ' You will be refunded in full.'
+    if (!confirm(`Cancel your booking for ${booking.listing?.title}?${refundNote}`)) return
     setError('')
     setCancellingId(booking.id)
     const err = await cancel(booking.id)
@@ -115,6 +151,17 @@ export default function RentalsPage() {
                 className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#003049] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                 <MessageCircle className="w-3.5 h-3.5" /> Message Host
               </Link>
+              {item.payment_method === 'host_qr' &&
+                item.payment_status === 'unpaid' &&
+                item.status !== 'cancelled' && (
+                  <button
+                    onClick={() => toggleQr(item)}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-purple-700 border border-purple-200 hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    <QrCode className="w-3.5 h-3.5" />
+                    {qrBookingId === item.id ? 'Hide Payment QR' : 'View Payment QR'}
+                  </button>
+                )}
               {item.status === 'pending' && (
                 <button
                   onClick={() => handleCancel(item)}
@@ -139,6 +186,29 @@ export default function RentalsPage() {
                 )
               )}
             </div>
+
+            {qrBookingId === item.id && (
+              <div className="px-5 py-5 border-t border-gray-100 bg-purple-50/40 text-center space-y-2">
+                {qrLoading ? (
+                  <div className="w-48 h-48 mx-auto rounded-xl bg-gray-100 flex items-center justify-center text-gray-300">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                ) : qrError ? (
+                  <div className="w-48 h-48 mx-auto rounded-xl bg-red-50 border border-red-100 flex items-center justify-center px-4 text-xs text-red-600 text-center">
+                    {qrError}
+                  </div>
+                ) : qr ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- signed URL from a private bucket, not a next/image remotePattern candidate
+                  <img src={qr.url} alt="Host's payment QR code" className="w-48 h-48 mx-auto rounded-xl object-cover" />
+                ) : null}
+                {qr?.label && <p className="text-sm font-semibold text-[#111827]">{qr.label}</p>}
+                <p className="text-xs text-gray-500">
+                  Pay ₱{item.total_amount.toLocaleString()}{' '}
+                  directly to your host — Rentivo doesn&apos;t process or hold this payment.
+                  They&apos;ll mark it received once it arrives.
+                </p>
+              </div>
+            )}
           </div>
         ))}
       </div>

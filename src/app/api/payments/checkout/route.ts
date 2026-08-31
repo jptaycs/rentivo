@@ -54,6 +54,11 @@ export async function POST(req: Request) {
   // ── 1. Create the booking (or reuse the one from a failed attempt) ──
   let booking: Booking
   if (body.bookingId) {
+    // Never reuse a host_qr booking for a PayMongo charge: the row's
+    // payment_method would stay 'host_qr', which request_payout() excludes from
+    // payout eligibility — Rentivo would take real money it could never pay out
+    // to the host. Such a booking simply isn't found here, and falls into the
+    // existing "Booking not found or already paid." response below.
     const { data, error } = await supabase
       .from('bookings')
       .select('*')
@@ -61,6 +66,7 @@ export async function POST(req: Request) {
       .eq('renter_id', user.id)
       .eq('payment_status', 'unpaid')
       .eq('status', 'pending')
+      .neq('payment_method', 'host_qr')
       .single()
     if (error || !data) {
       return NextResponse.json({ error: 'Booking not found or already paid.' }, { status: 400 })
