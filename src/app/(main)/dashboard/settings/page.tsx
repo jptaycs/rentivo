@@ -39,8 +39,27 @@ export default function SettingsPage() {
       setFullName(profile.full_name)
       setCity(profile.city ?? '')
       setBio(profile.bio ?? '')
+      setNotifications({
+        newBooking: profile.notify_new_booking,
+        messages: profile.notify_messages,
+        reminders: profile.notify_reminders,
+        promos: profile.notify_promos,
+      })
     }
   }, [profile])
+
+  const NOTIFICATION_DB_KEYS = {
+    newBooking: 'notify_new_booking',
+    messages: 'notify_messages',
+    reminders: 'notify_reminders',
+    promos: 'notify_promos',
+  } as const
+
+  async function toggleNotification(key: keyof typeof NOTIFICATION_DB_KEYS) {
+    const next = !notifications[key]
+    setNotifications((n) => ({ ...n, [key]: next }))
+    await update({ [NOTIFICATION_DB_KEYS[key]]: next })
+  }
 
   const FAQS = [
     { q: 'How do I become a host?', a: 'Click "Become a Host" in the navbar, complete the listing wizard, and submit your gear for review. Most listings go live within 24 hours.' },
@@ -280,7 +299,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-gray-400">{desc}</p>
               </div>
               <div
-                onClick={() => setNotifications(n => ({ ...n, [key]: !n[key as keyof typeof n] }))}
+                onClick={() => toggleNotification(key as keyof typeof NOTIFICATION_DB_KEYS)}
                 className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${notifications[key as keyof typeof notifications] ? 'bg-[#003049]' : 'bg-gray-200'}`}
               >
                 <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${notifications[key as keyof typeof notifications] ? 'translate-x-5' : ''}`} />
@@ -288,7 +307,6 @@ export default function SettingsPage() {
             </div>
           ))}
         </div>
-        <p className="text-xs text-gray-400">These preferences are stored on this device for now.</p>
       </section>
 
       {/* Help Center */}

@@ -33,7 +33,14 @@ export function useProfile() {
     reload()
   }, [reload])
 
-  async function update(fields: Partial<Pick<Profile, 'full_name' | 'bio' | 'city'>>) {
+  async function update(
+    fields: Partial<
+      Pick<
+        Profile,
+        'full_name' | 'bio' | 'city' | 'notify_new_booking' | 'notify_messages' | 'notify_reminders' | 'notify_promos'
+      >
+    >
+  ) {
     if (!profile) return 'Not signed in.'
     const supabase = createClient()
     const { error } = await supabase.from('profiles').update(fields).eq('id', profile.id)

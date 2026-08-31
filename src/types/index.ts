@@ -19,6 +19,10 @@ export interface Profile {
   response_time_hours: number | null
   bio: string | null
   city: string | null
+  notify_new_booking: boolean
+  notify_messages: boolean
+  notify_reminders: boolean
+  notify_promos: boolean
   created_at: string
 }
 
