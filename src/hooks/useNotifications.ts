@@ -47,8 +47,14 @@ export function useNotifications() {
       // that would never get cleaned up — and in production, a stale
       // effect run (e.g. rapid unmount) would otherwise leak a subscription.
       if (!user || cancelled) return
+      // Topic must be unique per mount, not just per user: Navbar's bell and
+      // the /dashboard/notifications page both call this hook concurrently,
+      // and supabase-js's channel() dedupes by topic string — a shared
+      // `notifications:${user.id}` topic makes the second mount's .on() call
+      // throw "cannot add postgres_changes callbacks ... after subscribe()"
+      // because it gets handed the first mount's already-subscribed channel.
       channel = supabase
-        .channel(`notifications:${user.id}`)
+        .channel(`notifications:${user.id}:${crypto.randomUUID()}`)
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
