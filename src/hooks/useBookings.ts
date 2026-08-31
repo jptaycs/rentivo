@@ -80,5 +80,13 @@ export function useHostBookings() {
     return err
   }
 
-  return { ...base, setStatus }
+  async function confirmQrPayment(bookingId: string) {
+    const supabase = createClient()
+    const { error } = await supabase.rpc('confirm_host_qr_payment', { p_booking_id: bookingId })
+    if (error) return error.message.replace(/^.*?: /, '')
+    await base.reload()
+    return null
+  }
+
+  return { ...base, setStatus, confirmQrPayment }
 }
