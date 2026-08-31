@@ -203,7 +203,7 @@ async function loadBookingContext(bookingId: string) {
 
   const [{ data: renterProfile }, { data: hostProfile }, renterUser, hostUser] = await Promise.all([
     admin.from('profiles').select('full_name').eq('id', booking.renter_id).single(),
-    admin.from('profiles').select('full_name').eq('id', booking.host_id).single(),
+    admin.from('profiles').select('full_name, notify_new_booking').eq('id', booking.host_id).single(),
     admin.auth.admin.getUserById(booking.renter_id),
     admin.auth.admin.getUserById(booking.host_id),
   ])
@@ -218,6 +218,7 @@ async function loadBookingContext(bookingId: string) {
     hostEmail,
     renterName: renterProfile?.full_name || 'there',
     hostName: hostProfile?.full_name || 'the host',
+    hostNotifyNewBooking: hostProfile?.notify_new_booking ?? true,
   }
 }
 
@@ -225,7 +226,7 @@ async function loadBookingContext(bookingId: string) {
 export async function notifyBookingPaid(bookingId: string) {
   const ctx = await loadBookingContext(bookingId)
   if (!ctx) return
-  const { booking, renterEmail, hostEmail, renterName, hostName } = ctx
+  const { booking, renterEmail, hostEmail, renterName, hostName, hostNotifyNewBooking } = ctx
   const instant = booking.listing?.is_instant_book ?? false
   const listingTitle = booking.listing?.title ?? 'a listing'
 
@@ -237,12 +238,18 @@ export async function notifyBookingPaid(bookingId: string) {
     totalAmount: booking.total_amount,
   }
 
+  if (!hostNotifyNewBooking) {
+    console.log(`[email] skipped host new-booking email — notify_new_booking off for booking ${booking.id}`)
+  }
+
   await Promise.all([
-    send(
-      hostEmail,
-      instant ? `New Instant Booking — ${booking.booking_ref}` : `New Booking Request — ${booking.booking_ref}`,
-      hostNewBookingHtml({ ...base, otherPartyName: renterName }, instant)
-    ),
+    hostNotifyNewBooking
+      ? send(
+          hostEmail,
+          instant ? `New Instant Booking — ${booking.booking_ref}` : `New Booking Request — ${booking.booking_ref}`,
+          hostNewBookingHtml({ ...base, otherPartyName: renterName }, instant)
+        )
+      : Promise.resolve(),
     send(
       renterEmail,
       instant ? `Booking Confirmed — ${booking.booking_ref}` : `Payment Received — ${booking.booking_ref}`,
@@ -314,10 +321,15 @@ export async function notifyNewMessage(messageId: string) {
 
   const recipientId = message.sender_id === bookingRow.renter_id ? bookingRow.host_id : bookingRow.renter_id
 
-  const [{ data: senderProfile }, recipientUser] = await Promise.all([
+  const [{ data: senderProfile }, { data: recipientProfile }, recipientUser] = await Promise.all([
     admin.from('profiles').select('full_name').eq('id', message.sender_id).single(),
+    admin.from('profiles').select('notify_messages').eq('id', recipientId).single(),
     admin.auth.admin.getUserById(recipientId),
   ])
+  if (recipientProfile?.notify_messages === false) {
+    console.log(`[email] skipped new-message email — notify_messages off for recipient ${recipientId}`)
+    return
+  }
   const recipientEmail = recipientUser.data.user?.email
   if (!recipientEmail) return
 
