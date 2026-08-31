@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { ChevronLeft, Lock, Loader2, Check, Tag, X, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
-import { calcPricing } from './OrderSummary'
+import { calcPricing } from '@/lib/pricing'
 import type { Listing } from '@/types'
 
 type PaymentMethod = 'gcash' | 'maya' | 'card' | 'apple_pay' | 'google_pay'

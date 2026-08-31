@@ -5,14 +5,12 @@ import { useRouter } from 'next/navigation'
 import { Calendar, Zap, Star, Shield, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { calcPricing } from '@/lib/pricing'
 import type { Listing } from '@/types'
 
 interface BookingPanelProps {
   listing: Listing
 }
-
-const SERVICE_FEE_RATE = 0.12
-const PROTECTION_FEE_RATE = 0.05
 
 export function BookingPanel({ listing }: BookingPanelProps) {
   const router = useRouter()
@@ -48,10 +46,8 @@ export function BookingPanel({ listing }: BookingPanelProps) {
       )
     : 0
 
-  const rentalFee = listing.daily_price * days
-  const serviceFee = Math.round(rentalFee * SERVICE_FEE_RATE)
-  const protectionFee = Math.round(rentalFee * PROTECTION_FEE_RATE)
-  const total = rentalFee + serviceFee + protectionFee + listing.security_deposit
+  const { rentalFee, tier, serviceFee, protectionFee, total } = calcPricing(listing, days)
+  const effectiveRate = days > 0 ? Math.round(rentalFee / days) : listing.daily_price
 
   function handleBook() {
     if (!pickupDate || !returnDate) return
@@ -122,7 +118,14 @@ export function BookingPanel({ listing }: BookingPanelProps) {
       {days > 0 && (
         <div className="space-y-2 text-sm border-t border-gray-100 pt-4">
           <div className="flex justify-between text-gray-600">
-            <span>₱{listing.daily_price.toLocaleString()} × {days} day{days > 1 ? 's' : ''}</span>
+            <span>
+              ₱{effectiveRate.toLocaleString()} × {days} day{days > 1 ? 's' : ''}
+              {tier !== 'daily' && (
+                <span className="ml-1.5 text-xs font-medium text-[#22C55E]">
+                  {tier === 'weekly' ? 'Weekly rate applied' : 'Monthly rate applied'}
+                </span>
+              )}
+            </span>
             <span>₱{rentalFee.toLocaleString()}</span>
           </div>
           <div className="flex justify-between text-gray-600">

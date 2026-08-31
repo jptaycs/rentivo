@@ -1,9 +1,7 @@
 import Image from 'next/image'
 import { Star, Shield, BadgeCheck } from 'lucide-react'
 import type { Listing } from '@/types'
-
-const SERVICE_FEE_RATE = 0.12
-const PROTECTION_FEE_RATE = 0.05
+import { calcPricing } from '@/lib/pricing'
 
 interface OrderSummaryProps {
   listing: Listing
@@ -14,10 +12,8 @@ interface OrderSummaryProps {
 }
 
 export function OrderSummary({ listing, pickupDate, returnDate, days, isDelivery }: OrderSummaryProps) {
-  const rentalFee = listing.daily_price * days
-  const serviceFee = Math.round(rentalFee * SERVICE_FEE_RATE)
-  const protectionFee = Math.round(rentalFee * PROTECTION_FEE_RATE)
-  const total = rentalFee + serviceFee + protectionFee + listing.security_deposit
+  const { rentalFee, tier, serviceFee, protectionFee, total } = calcPricing(listing, days)
+  const effectiveRate = days > 0 ? Math.round(rentalFee / days) : listing.daily_price
 
   const fmt = (d: string) =>
     new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -81,7 +77,14 @@ export function OrderSummary({ listing, pickupDate, returnDate, days, isDelivery
       {/* Price breakdown */}
       <div className="space-y-2 text-sm">
         <div className="flex justify-between text-gray-600">
-          <span>₱{listing.daily_price.toLocaleString()} × {days} day{days > 1 ? 's' : ''}</span>
+          <span>
+            ₱{effectiveRate.toLocaleString()} × {days} day{days > 1 ? 's' : ''}
+            {tier !== 'daily' && (
+              <span className="ml-1.5 text-xs font-medium text-[#22C55E]">
+                {tier === 'weekly' ? 'Weekly rate applied' : 'Monthly rate applied'}
+              </span>
+            )}
+          </span>
           <span>₱{rentalFee.toLocaleString()}</span>
         </div>
         <div className="flex justify-between text-gray-600">
@@ -109,12 +112,4 @@ export function OrderSummary({ listing, pickupDate, returnDate, days, isDelivery
       </div>
     </div>
   )
-}
-
-export function calcPricing(listing: Listing, days: number) {
-  const rentalFee = listing.daily_price * days
-  const serviceFee = Math.round(rentalFee * SERVICE_FEE_RATE)
-  const protectionFee = Math.round(rentalFee * PROTECTION_FEE_RATE)
-  const total = rentalFee + serviceFee + protectionFee + listing.security_deposit
-  return { rentalFee, serviceFee, protectionFee, total }
 }
