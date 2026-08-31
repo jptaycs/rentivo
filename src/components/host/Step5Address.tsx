@@ -21,18 +21,11 @@ const PROVINCES = [
   'Pampanga', 'Batangas', 'Rizal', 'Quezon', 'Iloilo', 'Negros Occidental', 'Other'
 ]
 
-const PH_CITIES: Record<string, string[]> = {
-  'Metro Manila': ['Makati', 'BGC (Taguig)', 'Quezon City', 'Pasig', 'Mandaluyong', 'Marikina', 'Paranaque', 'Manila', 'Pasay', 'Las Piñas', 'Muntinlupa'],
-  'Cebu': ['Cebu City', 'Mandaue', 'Lapu-Lapu', 'Talisay'],
-  'Davao': ['Davao City', 'Tagum', 'Digos'],
-}
-
 export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressProps) {
   function set<K extends keyof AddressData>(key: K, value: AddressData[K]) {
     onChange({ ...data, [key]: value })
   }
 
-  const cities = PH_CITIES[data.province] ?? []
   const canContinue = data.city && data.province
 
   const field = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100 transition-all bg-white'
@@ -61,19 +54,12 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
       {/* City */}
       <div>
         <label className={label}>City / Municipality <span className="text-red-400">*</span></label>
-        {cities.length > 0 ? (
-          <select value={data.city} onChange={e => set('city', e.target.value)} className={field}>
-            <option value="">Select city</option>
-            {cities.map(c => <option key={c}>{c}</option>)}
-          </select>
-        ) : (
-          <input
-            value={data.city}
-            onChange={e => set('city', e.target.value)}
-            placeholder="Enter your city"
-            className={field}
-          />
-        )}
+        <input
+          value={data.city}
+          onChange={e => set('city', e.target.value)}
+          placeholder="Enter your city"
+          className={field}
+        />
       </div>
 
       {/* Street address */}
