@@ -81,8 +81,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: verificationsReadError.message }, { status: 500 })
   }
 
+  // Anonymize payout_accounts in place (don't delete) — payout_requests.payout_account_id
+  // references it with no ON DELETE clause, and payout_requests must never be touched,
+  // so deleting this row would throw an unrecoverable FK violation for any host who has
+  // ever requested a payout. account_number/account_name are NOT NULL, so scrub with a
+  // placeholder rather than nulling them.
+  const { error: payoutAccountError } = await admin
+    .from('payout_accounts')
+    .update({ account_number: 'DELETED', account_name: 'Deleted User' })
+    .eq('user_id', uid)
+  if (payoutAccountError) {
+    return NextResponse.json({ error: `Failed to clean up payout_accounts: ${payoutAccountError.message}` }, { status: 500 })
+  }
+
   // Delete sensitive/disposable rows — no counterparty depends on any of these
-  for (const table of ['payout_accounts', 'verification_requests', 'notifications', 'wishlist', 'recently_viewed_listings'] as const) {
+  for (const table of ['verification_requests', 'notifications', 'wishlist', 'recently_viewed_listings'] as const) {
     const { error } = await admin.from(table).delete().eq('user_id', uid)
     if (error) {
       return NextResponse.json({ error: `Failed to clean up ${table}: ${error.message}` }, { status: 500 })
