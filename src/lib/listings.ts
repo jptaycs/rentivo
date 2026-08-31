@@ -40,6 +40,8 @@ export interface ListingSearchParams {
   instantBook?: boolean
   verified?: boolean
   minRating?: number
+  from?: string
+  to?: string
 }
 
 // Explicit columns — never `street_address`. Hosts' exact pickup address is
@@ -158,6 +160,16 @@ export async function searchListings(params: ListingSearchParams): Promise<Listi
   if (params.instantBook) q = q.eq('is_instant_book', true)
   if (params.verified) q = q.eq('host.is_verified', true)
   if (params.minRating) q = q.gte('rating', params.minRating)
+
+  if (params.from && params.to && params.to > params.from) {
+    const { data: blocks } = await supabase
+      .from('availability_blocks')
+      .select('listing_id')
+      .gte('blocked_on', params.from)
+      .lt('blocked_on', params.to)
+    const blockedIds = [...new Set((blocks ?? []).map((b) => b.listing_id))]
+    if (blockedIds.length > 0) q = q.not('id', 'in', `(${blockedIds.join(',')})`)
+  }
 
   const { data, error } = await q.limit(60)
   if (error) throw new Error(`Failed to search listings: ${error.message}`)

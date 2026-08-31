@@ -47,6 +47,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             instantBook={params.instant_book === '1'}
             verified={params.verified === '1'}
             minRating={Number(params.min_rating ?? 0)}
+            from={params.from}
+            to={params.to}
           />
         </Suspense>
       </div>
