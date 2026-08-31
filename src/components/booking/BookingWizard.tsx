@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { AlertCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { AlertCircle, Loader2, QrCode, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { StepIndicator } from './StepIndicator'
 import { OrderSummary } from './OrderSummary'
@@ -25,9 +25,33 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
   const [booking, setBooking] = useState<Booking | null>(null)
   const [bookingId, setBookingId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [qrWaiting, setQrWaiting] = useState<{ image: string; bookingId: string } | null>(null)
 
   const goNext = () => setStep((s) => Math.min(s + 1, 3))
   const goBack = () => setStep((s) => Math.max(s - 1, 0))
+
+  // Poll while a QR Ph code is on screen — there's no redirect back to
+  // confirm payment (unlike GCash/Maya/card), the customer stays right
+  // here and scans with a separate app. The existing PayMongo webhook
+  // is what actually flips payment_status; this just watches for that.
+  useEffect(() => {
+    if (!qrWaiting) return
+    const supabase = createClient()
+    const interval = setInterval(async () => {
+      const { data } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', qrWaiting.bookingId)
+        .single()
+      if (data?.payment_status === 'paid') {
+        clearInterval(interval)
+        setQrWaiting(null)
+        setBooking(data as Booking)
+        goNext()
+      }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [qrWaiting])
 
   async function handlePaymentComplete(payload: CheckoutPayload) {
     setError('')
@@ -71,8 +95,9 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
     })
 
     let data: {
-      status?: 'paid' | 'redirect'
+      status?: 'paid' | 'redirect' | 'qr'
       url?: string
+      qrImage?: string
       booking?: Booking
       bookingId?: string
       error?: string
@@ -93,6 +118,10 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
     }
     if (data.status === 'redirect' && data.url) {
       window.location.assign(data.url)
+      return
+    }
+    if (data.status === 'qr' && data.qrImage && data.bookingId) {
+      setQrWaiting({ image: data.qrImage, bookingId: data.bookingId })
       return
     }
     setBooking(data.booking ?? null)
@@ -136,12 +165,31 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
                   {error}
                 </div>
               )}
-              <Step3Payment
-                listing={listing}
-                days={days}
-                onNext={handlePaymentComplete}
-                onBack={goBack}
-              />
+              {qrWaiting ? (
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center space-y-4">
+                  <QrCode className="w-6 h-6 text-teal-500 mx-auto" />
+                  <h2 className="text-xl font-bold text-[#111827]">Scan to pay with QR Ph</h2>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- base64 data URI from PayMongo, not a next/image remotePattern candidate */}
+                  <img src={qrWaiting.image} alt="QR Ph payment code" className="w-56 h-56 mx-auto rounded-xl" />
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Waiting for payment confirmation…
+                  </div>
+                  <button
+                    onClick={() => setQrWaiting(null)}
+                    className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-[#003049] transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" /> Cancel and choose another method
+                  </button>
+                </div>
+              ) : (
+                <Step3Payment
+                  listing={listing}
+                  days={days}
+                  onNext={handlePaymentComplete}
+                  onBack={goBack}
+                />
+              )}
             </>
           )}
           {step === 3 && booking && (

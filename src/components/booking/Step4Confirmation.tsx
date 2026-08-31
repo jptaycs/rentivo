@@ -15,6 +15,7 @@ const METHOD_LABELS: Record<string, string> = {
   gcash: 'GCash',
   maya: 'Maya',
   card: 'Credit Card',
+  qrph: 'QR Ph',
   apple_pay: 'Apple Pay',
   google_pay: 'Google Pay',
   host_qr: 'GCash/Maya QR',

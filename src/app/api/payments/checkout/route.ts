@@ -5,6 +5,7 @@ import {
   isPayMongoConfigured,
   createPaymentIntent,
   createEwalletPaymentMethod,
+  createQrPhPaymentMethod,
   attachPaymentIntent,
   paymentErrorMessage,
 } from '@/lib/paymongo'
@@ -17,7 +18,7 @@ interface CheckoutBody {
   returnDate?: string
   isDelivery?: boolean
   deliveryAddress?: string | null
-  method?: 'gcash' | 'maya' | 'card' | 'apple_pay' | 'google_pay'
+  method?: 'gcash' | 'maya' | 'card' | 'qrph' | 'apple_pay' | 'google_pay'
   phone?: string | null
   promoCode?: string | null
   /** Card payment method created in the browser with the public key */
@@ -26,7 +27,7 @@ interface CheckoutBody {
   bookingId?: string | null
 }
 
-const CHARGEABLE = { gcash: 'gcash', maya: 'paymaya', card: 'card' } as const
+const CHARGEABLE = { gcash: 'gcash', maya: 'paymaya', card: 'card', qrph: 'qrph' } as const
 
 export async function POST(req: Request) {
   const supabase = await createClient()
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
 
   if (!body.method || !(body.method in CHARGEABLE)) {
     return NextResponse.json(
-      { error: 'This payment method is not available yet. Please choose GCash, Maya, or Card.' },
+      { error: 'This payment method is not available yet. Please choose GCash, Maya, Card, or QR Ph.' },
       { status: 400 }
     )
   }
@@ -137,6 +138,11 @@ export async function POST(req: Request) {
           { status: 400 }
         )
       }
+    } else if (body.method === 'qrph') {
+      // No billing data needed — the customer scans with whichever
+      // QR Ph-participating bank/e-wallet app they already have.
+      const pm = await createQrPhPaymentMethod()
+      paymentMethodId = pm.id
     } else {
       const { data: profile } = await supabase
         .from('profiles')
@@ -168,12 +174,24 @@ export async function POST(req: Request) {
         notifyBookingPaid(booking.id).catch((e) => console.error('[email] notifyBookingPaid failed', e))
         return NextResponse.json({ status: 'paid', booking: paid })
       }
-      case 'awaiting_next_action':
+      case 'awaiting_next_action': {
+        const nextAction = attached.attributes.next_action
+        // QR Ph never redirects the browser — it returns a QR image to
+        // display inline, and the customer scans it with a separate app.
+        // Everything else (GCash/Maya wallet auth, card 3DS) redirects.
+        if (nextAction && 'code' in nextAction) {
+          return NextResponse.json({
+            status: 'qr',
+            qrImage: nextAction.code.image_url,
+            bookingId: booking.id,
+          })
+        }
         return NextResponse.json({
           status: 'redirect',
-          url: attached.attributes.next_action?.redirect.url ?? returnUrl,
+          url: nextAction && 'redirect' in nextAction ? nextAction.redirect.url : returnUrl,
           bookingId: booking.id,
         })
+      }
       case 'processing':
         return NextResponse.json({ status: 'redirect', url: returnUrl, bookingId: booking.id })
       default:

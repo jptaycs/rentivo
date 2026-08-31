@@ -7,7 +7,7 @@ import { useUser } from '@/hooks/useUser'
 import { calcPricing } from '@/lib/pricing'
 import type { Listing } from '@/types'
 
-type PaymentMethod = 'gcash' | 'maya' | 'card' | 'apple_pay' | 'google_pay' | 'host_qr'
+type PaymentMethod = 'gcash' | 'maya' | 'card' | 'qrph' | 'apple_pay' | 'google_pay' | 'host_qr'
 
 export interface CheckoutPayload {
   method: PaymentMethod
@@ -41,6 +41,7 @@ const BASE_METHODS: {
   { id: 'gcash', label: 'GCash', logo: '/logos/gcash.svg', color: 'border-blue-400' },
   { id: 'maya', label: 'Maya', logo: '/logos/maya.svg', color: 'border-green-400' },
   { id: 'card', label: 'Credit / Debit Card', logo: '/logos/card.svg', color: 'border-gray-300' },
+  { id: 'qrph', label: 'QR Ph', logo: '/logos/qrph.svg', color: 'border-teal-400' },
   { id: 'apple_pay', label: 'Apple Pay', logo: '/logos/apple-pay.svg', color: 'border-gray-900', comingSoon: true },
   { id: 'google_pay', label: 'Google Pay', logo: '/logos/google-pay.svg', color: 'border-gray-300', comingSoon: true },
 ]
@@ -137,12 +138,14 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
   const isWallet = method === 'gcash' || method === 'maya'
   const isCard = method === 'card'
   const isHostQr = method === 'host_qr'
+  const isQrph = method === 'qrph'
 
   const canPay =
     agreed &&
     ((isWallet && mobileNumber.replace(/\D/g, '').length === 11) ||
       (isCard && cardNumber.replace(/\s/g, '').length === 16 && cardExpiry && cardCvv.length >= 3 && cardName) ||
-      isHostQr)
+      isHostQr ||
+      isQrph)
 
   function formatCard(val: string) {
     return val.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
@@ -255,6 +258,17 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
           </div>
           <p className="text-xs text-gray-400">
             You&apos;ll be redirected to {method === 'gcash' ? 'GCash' : 'Maya'} to authorize the payment.
+          </p>
+        </div>
+      )}
+
+      {/* QR Ph notice */}
+      {isQrph && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-2">
+          <p className="text-sm font-bold text-[#111827]">Pay with QR Ph</p>
+          <p className="text-xs text-gray-400">
+            After you click Pay, we&apos;ll show a QR code — scan it with any QR Ph-enabled bank or e-wallet
+            app to complete the payment. Rentivo processes this payment, same as GCash, Maya, or Card.
           </p>
         </div>
       )}

@@ -24,7 +24,10 @@ export interface PaymentIntent {
     status: PayMongoIntentStatus
     amount: number
     currency: string
-    next_action: { type: string; redirect: { url: string; return_url: string } } | null
+    next_action:
+      | { type: 'redirect'; redirect: { url: string; return_url: string } }
+      | { type: string; code: { image_url: string } }
+      | null
     last_payment_error: { failed_message?: string } | Record<string, unknown> | null
     metadata: Record<string, string> | null
     /** The underlying charge(s) — refunds target a payment id (pay_...), not the intent (pi_...) */
@@ -88,7 +91,7 @@ export function createPaymentIntent(opts: {
         attributes: {
           amount: opts.amountCentavos,
           currency: 'PHP',
-          payment_method_allowed: ['card', 'gcash', 'paymaya'],
+          payment_method_allowed: ['card', 'gcash', 'paymaya', 'qrph'],
           payment_method_options: { card: { request_three_d_secure: 'any' } },
           capture_type: 'automatic',
           description: opts.description,
@@ -115,6 +118,22 @@ export function createEwalletPaymentMethod(opts: {
           type: opts.type,
           billing: { name: opts.name, email: opts.email, phone: opts.phone },
         },
+      },
+    },
+  })
+}
+
+/**
+ * QR Ph payment methods hold no billing data — the customer scans a
+ * PayMongo-generated QR code with any QR Ph-participating bank/e-wallet
+ * app, so unlike GCash/Maya there's no phone/account to attach up front.
+ */
+export function createQrPhPaymentMethod() {
+  return pmFetch<PaymentMethod>('/payment_methods', {
+    method: 'POST',
+    body: {
+      data: {
+        attributes: { type: 'qrph' },
       },
     },
   })
