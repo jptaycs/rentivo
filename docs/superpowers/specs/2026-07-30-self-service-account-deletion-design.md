@@ -1,5 +1,15 @@
 # Self-Service Account Deletion — Design
 
+> **Revised 2026-08-31**: independently re-derived through a fresh brainstorming
+> session and reached the same conclusions (anonymize, block on active
+> bookings, purge sensitive data). Re-verified every FK/cascade claim below
+> against the current schema (still accurate) and the installed
+> `@supabase/supabase-js` (`deleteUser(id, shouldSoftDelete)` confirmed
+> present). One addition: `recently_viewed_listings` (migration 026, added
+> after this spec was first written) joins the delete-rows list in step 3 —
+> same shape as `wishlist`, pure personal-preference data, no counterparty
+> depends on it.
+
 ## Problem
 
 Settings' Danger Zone currently routes account deletion to a `mailto:` link
@@ -84,6 +94,7 @@ failure is safe.
      `selfie_path` first, for storage cleanup in step 4)
    - `notifications` where `user_id = uid`
    - `wishlist` where `user_id = uid`
+   - `recently_viewed_listings` where `user_id = uid`
 4. Storage cleanup: list and remove everything under `<uid>/` in the
    `avatars` bucket, and the two paths captured from `verification_requests`
    in the `verification-docs` bucket.
@@ -92,11 +103,16 @@ failure is safe.
    counterparties retain accurate history.
 6. `supabase.auth.admin.deleteUser(uid, /* shouldSoftDelete */ true)` —
    confirmed present in the installed `@supabase/supabase-js` (`deleteUser(id,
-   shouldSoftDelete?: boolean)`). This is GoTrue's soft-delete: blocks login
-   and frees the email for reuse, without removing the `auth.users` row —
-   which matters because that row still needs to exist for `profiles.id`'s
+   shouldSoftDelete?: boolean)`, docstring: "Soft deletion allows user
+   identification from the hashed user ID but is not reversible"). This is
+   GoTrue's soft-delete: blocks login, without removing the `auth.users` row
+   — which matters because that row still needs to exist for `profiles.id`'s
    FK, and hard-deleting it would cascade-delete the very `profiles` row
-   step 1 just anonymized.
+   step 1 just anonymized. The claim that this also frees the email for
+   reuse is documented Supabase behavior but not something checked against
+   this repo directly — **verify live during implementation** (see Testing).
+   If it turns out the email stays reserved, that's a smaller follow-up
+   (email obfuscation before the soft-delete call), not a redesign.
 
 ### Step 4: Response
 
@@ -120,6 +136,28 @@ session state/cookies) and redirects to `/`.
   - Success: sign out client-side, redirect to `/`
 - "Contact Support" mailto link stays for users who are blocked or hit an
   edge case.
+
+## Testing
+
+**Never test against the real demo accounts** (`demo@demo.rentivo.ph` /
+`renter@demo.rentivo.ph`) — AGENTS.md's entire e2e-testing pattern for this
+project depends on those two accounts staying intact and re-usable across
+every future session. Deleting either one breaks that pattern for good.
+
+Instead, create a disposable throwaway account for this test specifically
+(sign up fresh via the auth REST API, same pattern as the existing e2e
+scripts), exercise the full flow against it, and verify:
+
+- The eligibility gate actually blocks when the throwaway account has a
+  pending/confirmed/active booking, and actually allows deletion once
+  that booking is cancelled/completed.
+- After deletion: the `profiles` row is anonymized as specified, sensitive
+  rows/files are gone, `bookings`/`reviews`/`messages` from a counterparty
+  are untouched and still show accurate history.
+- Whether the same email can sign up again immediately after (the
+  email-reuse claim above) — record the actual result either way.
+- The old session is fully logged out and protected routes redirect to
+  login.
 
 ## Out of scope (YAGNI)
 
