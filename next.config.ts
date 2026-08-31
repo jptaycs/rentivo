@@ -3,9 +3,14 @@ import type { NextConfig } from 'next'
 // script-src/style-src need 'unsafe-inline' for Next.js's inline RSC-hydration
 // scripts and inline styles — a strict nonce-based CSP would need per-request
 // nonces threaded through proxy.ts, out of scope for this defense-in-depth pass.
+// Dev-only 'unsafe-eval': Next's dev-mode webpack HMR wraps every module in
+// eval() (the eval-source-map devtool) — without this, no client-side JS runs
+// at all in `next dev` (forms, buttons, everything dead). Production Next.js
+// never uses eval(), so this stays out of the production policy.
+const isDev = process.env.NODE_ENV !== 'production'
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
   // images.unsplash.com: seed data; *.supabase.co: storage buckets (listing/
   // avatar/message images); *.tile.openstreetmap.org: pickup + search maps;

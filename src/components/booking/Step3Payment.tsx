@@ -349,9 +349,8 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
       </div>
 
       {/* Terms */}
-      <label className="flex items-start gap-3 cursor-pointer">
+      <label className="flex items-start gap-3 cursor-pointer" onClick={() => setAgreed((v) => !v)}>
         <div
-          onClick={() => setAgreed((v) => !v)}
           className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
             agreed ? 'bg-[#003049] border-[#003049]' : 'border-gray-300'
           }`}

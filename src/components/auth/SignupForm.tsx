@@ -211,9 +211,8 @@ export function SignupForm() {
       </div>
 
       {/* Terms */}
-      <label className="flex items-start gap-3 cursor-pointer pt-1">
+      <label className="flex items-start gap-3 cursor-pointer pt-1" onClick={() => setAgreed((v) => !v)}>
         <div
-          onClick={() => setAgreed((v) => !v)}
           className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
             agreed ? 'bg-[#003049] border-[#003049]' : 'border-gray-300'
           }`}

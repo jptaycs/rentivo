@@ -39,9 +39,14 @@ export function useNotifications() {
 
     const supabase = createClient()
     let channel: ReturnType<typeof supabase.channel> | null = null
+    let cancelled = false
 
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
+      // Guards against React's dev-mode double-effect: if cleanup already
+      // ran before this async callback resolved, skip creating a channel
+      // that would never get cleaned up — and in production, a stale
+      // effect run (e.g. rapid unmount) would otherwise leak a subscription.
+      if (!user || cancelled) return
       channel = supabase
         .channel(`notifications:${user.id}`)
         .on(
@@ -53,6 +58,7 @@ export function useNotifications() {
     })
 
     return () => {
+      cancelled = true
       if (channel) supabase.removeChannel(channel)
     }
   }, [reload])

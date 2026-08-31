@@ -129,9 +129,8 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
       )}
 
       {/* Host agreement */}
-      <label className="flex items-start gap-3 cursor-pointer">
+      <label className="flex items-start gap-3 cursor-pointer" onClick={() => set('agreed', !data.agreed)}>
         <div
-          onClick={() => set('agreed', !data.agreed)}
           className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${data.agreed ? 'bg-[#003049] border-[#003049]' : 'border-gray-300'}`}
         >
           {data.agreed && <CheckCircle2 className="w-3 h-3 text-white" />}
