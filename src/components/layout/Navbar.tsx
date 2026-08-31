@@ -35,6 +35,7 @@ export function Navbar() {
   }, [])
 
   // Close mobile menu on navigate
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- reset UI state on route change; no test suite to safely verify a rewrite (see AGENTS.md)
   useEffect(() => { setMobileOpen(false) }, [pathname])
 
   return (

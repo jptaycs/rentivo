@@ -33,6 +33,7 @@ export function useNotifications() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- standard fetch-on-mount pattern; no test suite to safely verify a rewrite (see AGENTS.md)
     reload()
     if (!isSupabaseConfigured()) return
 

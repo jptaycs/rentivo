@@ -20,6 +20,7 @@ export function BookingPanel({ listing }: BookingPanelProps) {
 
   useEffect(() => {
     if (!pickupDate || !returnDate || returnDate <= pickupDate || !isSupabaseConfigured()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset availability on invalid/incomplete date input; no test suite to safely verify a rewrite (see AGENTS.md)
       setAvailable(null)
       return
     }

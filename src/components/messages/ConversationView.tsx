@@ -44,6 +44,7 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
 
   useEffect(() => {
     activeBookingId.current = header.bookingId
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset composer state on thread change; no test suite to safely verify a rewrite (see AGENTS.md)
     setInput('')
     setError('')
     setPendingImage(null)

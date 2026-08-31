@@ -17,6 +17,7 @@ export default function WishlistPage() {
 
   useEffect(() => {
     if (!live) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- guest bailout; no test suite to safely verify a rewrite (see AGENTS.md)
       setListings(MOCK_LISTINGS.filter((l) => ids.includes(l.id)))
       return
     }

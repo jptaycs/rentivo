@@ -12,6 +12,7 @@ export function useMyReviews() {
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- unconfigured bailout; no test suite to safely verify a rewrite (see AGENTS.md)
       setLoading(false)
       return
     }

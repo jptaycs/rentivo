@@ -25,6 +25,7 @@ export function useRecentlyViewed() {
     if (live) return
     try {
       const stored = localStorage.getItem(KEY)
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- guest load-on-mount from localStorage; no test suite to safely verify a rewrite (see AGENTS.md)
       if (stored) setItems(JSON.parse(stored))
     } catch {}
   }, [live])

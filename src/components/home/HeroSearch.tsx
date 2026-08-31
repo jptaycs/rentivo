@@ -146,6 +146,7 @@ export function HeroSearch() {
   const whatInputRef = useRef<HTMLInputElement>(null)
   const whenBtnRef = useRef<HTMLButtonElement>(null)
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- standard mounted-flag pattern; no test suite to safely verify a rewrite (see AGENTS.md)
   useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {

@@ -55,6 +55,7 @@ function MessagesPageInner() {
   useEffect(() => {
     const fromQuery = searchParams.get('booking')
     if (fromQuery) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync selected thread to URL param; no test suite to safely verify a rewrite (see AGENTS.md)
       setActiveId(fromQuery)
       setMobileView('chat')
     } else if (!live && !activeId) {

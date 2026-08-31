@@ -36,6 +36,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (profile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- derive editable form fields from loaded profile; no test suite to safely verify a rewrite (see AGENTS.md)
       setFullName(profile.full_name)
       setCity(profile.city ?? '')
       setBio(profile.bio ?? '')
