@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { AlertCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import { StepIndicator } from './StepIndicator'
 import { OrderSummary } from './OrderSummary'
 import { Step1Review } from './Step1Review'
@@ -30,6 +31,26 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
 
   async function handlePaymentComplete(payload: CheckoutPayload) {
     setError('')
+
+    if (payload.method === 'host_qr') {
+      const supabase = createClient()
+      const { data, error: rpcError } = await supabase.rpc('create_booking', {
+        p_listing_id: listing.id,
+        p_pickup_date: pickupDate,
+        p_return_date: returnDate,
+        p_is_delivery: isDelivery,
+        p_delivery_address: isDelivery ? deliveryAddress : null,
+        p_payment_method: 'host_qr',
+        p_promo_code: payload.promoCode || null,
+      })
+      if (rpcError) {
+        setError(rpcError.message.replace(/^.*?: /, ''))
+        return
+      }
+      setBooking(data as Booking)
+      goNext()
+      return
+    }
 
     const res = await fetch('/api/payments/checkout', {
       method: 'POST',

@@ -7,7 +7,7 @@ import { useUser } from '@/hooks/useUser'
 import { calcPricing } from '@/lib/pricing'
 import type { Listing } from '@/types'
 
-type PaymentMethod = 'gcash' | 'maya' | 'card' | 'apple_pay' | 'google_pay'
+type PaymentMethod = 'gcash' | 'maya' | 'card' | 'apple_pay' | 'google_pay' | 'host_qr'
 
 export interface CheckoutPayload {
   method: PaymentMethod
@@ -31,7 +31,7 @@ interface AppliedPromo {
 
 const PAYMONGO_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY
 
-const METHODS: {
+const BASE_METHODS: {
   id: PaymentMethod
   label: string
   logo: string
@@ -99,6 +99,11 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
   const [promoError, setPromoError] = useState('')
   const [promoChecking, setPromoChecking] = useState(false)
 
+  const hasHostQr = Boolean(listing.host?.qr_payment_url)
+  const methods = hasHostQr
+    ? [...BASE_METHODS, { id: 'host_qr' as const, label: 'GCash/Maya QR (Direct to Host)', logo: '', color: 'border-purple-400' }]
+    : BASE_METHODS
+
   async function applyPromo() {
     const code = promoInput.trim().toUpperCase()
     if (!code) return
@@ -131,11 +136,13 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
 
   const isWallet = method === 'gcash' || method === 'maya'
   const isCard = method === 'card'
+  const isHostQr = method === 'host_qr'
 
   const canPay =
     agreed &&
     ((isWallet && mobileNumber.replace(/\D/g, '').length === 11) ||
-      (isCard && cardNumber.replace(/\s/g, '').length === 16 && cardExpiry && cardCvv.length >= 3 && cardName))
+      (isCard && cardNumber.replace(/\s/g, '').length === 16 && cardExpiry && cardCvv.length >= 3 && cardName) ||
+      isHostQr)
 
   function formatCard(val: string) {
     return val.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
@@ -186,7 +193,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
       <div>
         <p className="text-sm font-bold text-gray-700 mb-3">Payment Method</p>
         <div className="space-y-2">
-          {METHODS.map((m) => (
+          {methods.map((m) => (
             <label
               key={m.id}
               className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
@@ -312,6 +319,18 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
         </div>
       )}
 
+      {/* Host QR notice */}
+      {isHostQr && (
+        <div className="bg-purple-50 rounded-2xl border border-purple-200 p-5 space-y-2">
+          <p className="text-sm font-bold text-[#111827]">{listing.host?.qr_payment_label}</p>
+          <p className="text-sm text-purple-800">
+            You&apos;ll pay ₱{total.toLocaleString()} directly to the host via this QR code — it&apos;ll be
+            shown on the next screen. Rentivo doesn&apos;t process or hold this payment; your host will
+            confirm they&apos;ve received it.
+          </p>
+        </div>
+      )}
+
       {/* Promo code */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
         <p className="text-sm font-bold text-[#111827] flex items-center gap-2"><Tag className="w-4 h-4 text-[#FDF0D5]" /> Promo Code</p>
@@ -392,6 +411,11 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
               Processing…
+            </>
+          ) : isHostQr ? (
+            <>
+              <Lock className="w-4 h-4" />
+              Create Booking
             </>
           ) : (
             <>
