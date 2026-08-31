@@ -44,6 +44,14 @@ function button(href: string, label: string) {
   return `<a href="${href}" style="display:inline-block;margin-top:20px;background:#003049;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 24px;border-radius:12px;">${label}</a>`
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 async function send(to: string, subject: string, html: string) {
   if (!isEmailConfigured()) {
     console.log(`[email] RESEND_API_KEY not set — skipped "${subject}" to ${to}`)
@@ -150,6 +158,23 @@ function hostCancelledByRenterHtml(ctx: EmailContext, refunded: boolean) {
        ${refunded ? 'The renter has been refunded in full.' : 'The renter\'s refund is being processed.'}
      </p>
      ${button(`${APP_URL}/dashboard/calendar`, 'View Calendar')}`
+  )
+}
+
+function newMessageHtml(ctx: { senderName: string; listingTitle: string; preview: string; bookingId: string }) {
+  const senderName = escapeHtml(ctx.senderName)
+  const listingTitle = escapeHtml(ctx.listingTitle)
+  const preview = escapeHtml(ctx.preview)
+  return layout(
+    `New message from ${senderName}`,
+    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">New Message 💬</h1>
+     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
+       <strong>${senderName}</strong> sent you a message about <strong>${listingTitle}</strong>.
+     </p>
+     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;font-style:italic;">
+       "${preview}"
+     </p>
+     ${button(`${APP_URL}/dashboard/messages?booking=${escapeHtml(ctx.bookingId)}`, 'Reply')}`
   )
 }
 
@@ -263,4 +288,49 @@ export async function notifyBookingResponded(
   } else {
     await send(renterEmail, `Booking Declined — ${booking.booking_ref}`, renterDeclinedHtml(forRenter, refunded))
   }
+}
+
+/** Call after a message is inserted, to email whichever party didn't send it. */
+export async function notifyNewMessage(messageId: string) {
+  const admin = createAdminClient()
+  const { data: message } = await admin
+    .from('messages')
+    .select('booking_id, sender_id, content, image_url')
+    .eq('id', messageId)
+    .maybeSingle()
+  if (!message) return
+
+  const { data: booking } = await admin
+    .from('bookings')
+    .select('renter_id, host_id, listing:listings(title)')
+    .eq('id', message.booking_id)
+    .maybeSingle()
+  const bookingRow = booking as unknown as {
+    renter_id: string
+    host_id: string
+    listing: { title: string } | null
+  } | null
+  if (!bookingRow) return
+
+  const recipientId = message.sender_id === bookingRow.renter_id ? bookingRow.host_id : bookingRow.renter_id
+
+  const [{ data: senderProfile }, recipientUser] = await Promise.all([
+    admin.from('profiles').select('full_name').eq('id', message.sender_id).single(),
+    admin.auth.admin.getUserById(recipientId),
+  ])
+  const recipientEmail = recipientUser.data.user?.email
+  if (!recipientEmail) return
+
+  const preview = message.content ? message.content.slice(0, 140) : '📷 Sent a photo'
+
+  await send(
+    recipientEmail,
+    `New message from ${senderProfile?.full_name || 'a Rentivo user'}`,
+    newMessageHtml({
+      senderName: senderProfile?.full_name || 'A Rentivo user',
+      listingTitle: bookingRow.listing?.title ?? 'a listing',
+      preview,
+      bookingId: message.booking_id,
+    })
+  )
 }

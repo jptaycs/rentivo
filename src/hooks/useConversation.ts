@@ -136,6 +136,11 @@ export function useConversation(bookingId: string | null) {
       .single()
     if (!error && data) {
       setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]))
+      fetch('/api/messages/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId: data.id }),
+      }).catch(() => {})
     }
     return error?.message ?? null
   }
