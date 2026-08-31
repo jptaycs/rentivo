@@ -19,6 +19,7 @@ const METHOD_LABELS: Record<string, string> = {
   apple_pay: 'Apple Pay',
   google_pay: 'Google Pay',
   host_qr: 'GCash/Maya QR',
+  test_skip: 'Skipped (Testing)',
 }
 
 export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) {

@@ -18,7 +18,7 @@ interface CheckoutBody {
   returnDate?: string
   isDelivery?: boolean
   deliveryAddress?: string | null
-  method?: 'gcash' | 'maya' | 'card' | 'qrph' | 'apple_pay' | 'google_pay'
+  method?: 'gcash' | 'maya' | 'card' | 'qrph' | 'apple_pay' | 'google_pay' | 'test_skip'
   phone?: string | null
   promoCode?: string | null
   /** Card payment method created in the browser with the public key */
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
   }
 
-  if (!body.method || !(body.method in CHARGEABLE)) {
+  if (!body.method || (!(body.method in CHARGEABLE) && body.method !== 'test_skip')) {
     return NextResponse.json(
       { error: 'This payment method is not available yet. Please choose GCash, Maya, Card, or QR Ph.' },
       { status: 400 }
@@ -93,6 +93,29 @@ export async function POST(req: Request) {
       )
     }
     booking = data as Booking
+  }
+
+  // ── 1.5. Test-skip: mark paid immediately, no real charge, no PayMongo ──
+  // Available everywhere — dev and production — while Rentivo is in its
+  // pre-launch testing phase, so a booking never needs a real payment to
+  // exercise the rest of the flow. Deliberately its own payment_method
+  // value (not reused from an existing method) so it's honest in the data
+  // and excluded from request_payout() eligibility (033) — a host must
+  // never be able to draw a real payout against zero real money.
+  if (body.method === 'test_skip') {
+    try {
+      const admin = createAdminClient()
+      const { data: paid, error } = await admin.rpc('mark_booking_paid', {
+        p_booking_id: booking.id,
+        p_paymongo_ref: 'pi_test_skip',
+      })
+      if (error) throw new Error(error.message)
+      notifyBookingPaid(booking.id).catch((e) => console.error('[email] notifyBookingPaid failed', e))
+      return NextResponse.json({ status: 'paid', testSkip: true, booking: paid })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Test-skip payment failed.'
+      return NextResponse.json({ error: message, bookingId: booking.id }, { status: 500 })
+    }
   }
 
   // ── 2. No PayMongo keys → simulated payment (development only) ──

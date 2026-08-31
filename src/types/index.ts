@@ -70,7 +70,7 @@ export interface Booking {
   status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
   is_delivery: boolean
   delivery_address: string | null
-  payment_method: 'gcash' | 'maya' | 'card' | 'qrph' | 'apple_pay' | 'google_pay' | 'host_qr' | null
+  payment_method: 'gcash' | 'maya' | 'card' | 'qrph' | 'apple_pay' | 'google_pay' | 'host_qr' | 'test_skip' | null
   payment_status: 'unpaid' | 'paid' | 'refunded'
   paymongo_ref: string | null
   refund_ref: string | null
