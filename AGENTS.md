@@ -50,7 +50,7 @@ Rentivo.html             bundled prototype — canonical visual reference
 
 `.env.local` (gitignored) holds all keys; commented placeholders document each one.
 
-**Deployed to Vercel (2026-07-19): production at `https://rentivo-taupe.vercel.app`**, project `appnado/rentivo`, CLI linked (`vercel deploy --prod --yes`). All env vars below are set in Vercel production (`NEXT_PUBLIC_APP_URL` points at the prod domain there). Still test-mode PayMongo keys — no real money.
+**Deployed to Vercel (2026-07-19): production at `https://rentivo.live`** (custom domain added 2026-08-31; `https://rentivo-taupe.vercel.app` still works and resolves to the same deployment), project `appnado/rentivo`, CLI linked (`vercel deploy --prod --yes`). All env vars below are set in Vercel production (`NEXT_PUBLIC_APP_URL` points at `https://rentivo.live`). Live PayMongo keys — real money.
 
 | Variable | Purpose |
 |----------|---------|
@@ -58,8 +58,8 @@ Rentivo.html             bundled prototype — canonical visual reference
 | `SUPABASE_SECRET_KEY` | Service-role writes (payment confirmation) — **set, server-only** |
 | `PAYMONGO_SECRET_KEY` / `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY` | Real PayMongo charges — **live keys set in Vercel production (2026-07-29)**; local `.env.local` intentionally stays on test-mode keys so local dev never triggers a real charge |
 | `PAYMONGO_WEBHOOK_SECRET` | Webhook signature verification — **live webhook set in Vercel production only** (`hook_MWhim6Q86M9GHLLA9XjwpYS3` → `/api/webhooks/paymongo`, event `payment.paid`, registered 2026-07-29 via PayMongo's webhooks API with the live secret key). The earlier test-mode webhook (`hook_qe4ks5Yx3EFF9JXjTb7j8Jjn`) is left registered and still used locally — test/live webhooks are separate namespaces in PayMongo and don't interfere. Unset locally, where `/book/complete` covers it |
-| `RESEND_API_KEY` | Transactional emails — **set**, verified working, but sandbox sender can only reach the account owner's own inbox until a domain is verified at resend.com/domains |
-| `EMAIL_FROM` | Optional override, defaults to the Resend sandbox sender |
+| `RESEND_API_KEY` | Transactional emails — **set**, verified working. `rentivo.live` is verified with Resend (DNS: DKIM + SPF via MX/TXT on `send.rentivo.live`), so sending is no longer sandboxed to the account owner's inbox — verified live with two real sends (to the account owner and to a different recipient), both succeeded |
+| `EMAIL_FROM` | Set to `Rentivo <noreply@rentivo.live>` in Vercel production |
 | `NEXT_PUBLIC_APP_URL` | Redirect return URLs (`http://localhost:3000` in dev) |
 
 - `npm run dev` / `npm run build` / `npm run lint`
@@ -129,13 +129,11 @@ Rentivo.html             bundled prototype — canonical visual reference
 
 **Payments — production hardening**
 - [x] Switch to live PayMongo keys (2026-07-29) — production now processes real money (card/GCash/Maya); local dev deliberately stays on test keys. Not yet verified with an actual real-money charge (that's a deliberate one-off the account owner should do, not something to automate) — the underlying checkout/webhook code path was already verified end-to-end in test mode
-- [x] Deploy (Vercel) — live at `https://rentivo-taupe.vercel.app`, PayMongo webhook registered + `PAYMONGO_WEBHOOK_SECRET` set in Vercel
+- [x] Deploy (Vercel) — live at `https://rentivo.live` (custom domain, see below), PayMongo webhook registered + `PAYMONGO_WEBHOOK_SECRET` set in Vercel
 - [x] Added `https://rentivo-taupe.vercel.app/auth/callback` to Supabase's redirect allow-list (2026-07-19) — prod OAuth/email redirects now work
 - [x] Google OAuth consent screen published (2026-07-19) — In production, External: any Google account can sign in. Basic scopes only, so no Google verification required (users may see an "unverified app" note; optional to clear via verification later).
 - [x] Supabase auth URL config finalized via Management API (2026-07-19): Site URL → `https://rentivo-taupe.vercel.app`; allow-list now covers `/auth/callback` and `/reset-password` on both localhost and prod (the `/reset-password` entry was missing, which silently broke prod password-reset emails). Note: the Supabase CLI's stored token works against `api.supabase.com/v1/projects/<ref>/config/auth` for this kind of dashboard-only change.
-
-**Email — reaches only your own inbox until this is done**
-- [ ] Verify a domain at resend.com/domains and point `EMAIL_FROM` at it — real users (and the demo accounts) get a 403 from Resend's sandbox sender until then
+- [x] Custom domain + verified email sending (2026-08-31): bought `rentivo.live` (Namecheap). Added to Vercel (`vercel domains add`, A records `@`/`www` → `76.76.21.21`) and to Resend (DKIM TXT + SPF MX/TXT on `send.rentivo.live`), both confirmed via API polling — Resend domain status `verified`. Updated Vercel prod env (`NEXT_PUBLIC_APP_URL=https://rentivo.live`, `EMAIL_FROM=Rentivo <noreply@rentivo.live>`) and redeployed. Updated Supabase Site URL to `https://rentivo.live` and added `/auth/callback` + `/reset-password` there too (done via the dashboard — CLI's auth token lives in the macOS keychain, which is off-limits to read directly, so this one needed a manual dashboard step rather than the Management API route used for the `rentivo-taupe.vercel.app` entries above). Verified live: `rentivo.live` and `www.rentivo.live` both serve the app (Vercel confirms `"ok": true`), demo-account login still works, and two real Resend sends succeeded — one to the account owner, one to a different recipient — confirming the sandbox 403 restriction is fully lifted, not just for the owner's own inbox.
 
 **Deferred — needs a product decision, not just wiring**
 - [ ] Self-service account deletion (Settings currently routes to "contact support" instead of a destructive self-serve delete, since it needs a service-role cascade across listings/bookings/reviews)
