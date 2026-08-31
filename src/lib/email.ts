@@ -93,6 +93,23 @@ function hostNewBookingHtml(ctx: EmailContext, instant: boolean) {
   )
 }
 
+function hostQrBookingRequestedHtml(ctx: EmailContext) {
+  return layout(
+    `New booking request for ${ctx.listingTitle} — awaiting QR payment`,
+    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">New Booking Request</h1>
+     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
+       <strong>${ctx.otherPartyName}</strong> wants to rent your <strong>${ctx.listingTitle}</strong>, paying you directly via your GCash/Maya QR code.
+     </p>
+     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
+       ${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}<br>
+       Booking ref: ${ctx.bookingRef}<br>
+       Amount due: ${fmtPeso(ctx.totalAmount)} (Rentivo does not process this payment)
+     </p>
+     <p style="margin:0;color:#4b5563;font-size:14px;">Once you've received the payment, mark it received in your dashboard.</p>
+     ${button(`${APP_URL}/dashboard/bookings`, 'Review Booking')}`
+  )
+}
+
 function renterConfirmedHtml(ctx: EmailContext) {
   return layout(
     `Your booking ${ctx.bookingRef} is confirmed`,
@@ -266,6 +283,38 @@ export async function notifyBookingPaid(bookingId: string) {
         : renterPendingHtml({ ...base, otherPartyName: hostName })
     ),
   ])
+}
+
+/**
+ * Call right after a host_qr booking is created (pending/unpaid) — the one
+ * moment in this payment path analogous to what notifyBookingPaid covers
+ * for PayMongo methods, except payment hasn't happened yet: the host needs
+ * to know a booking exists and is waiting on their own QR-payment
+ * confirmation. The renter gets no email here — Step4Confirmation already
+ * shows them the QR immediately, in-app, at the moment they need it.
+ */
+export async function notifyHostQrBookingRequested(bookingId: string) {
+  const ctx = await loadBookingContext(bookingId)
+  if (!ctx) return
+  const { booking, hostEmail, renterName, hostNotifyNewBooking } = ctx
+
+  if (!hostNotifyNewBooking) {
+    console.log(`[email] skipped host QR-booking-requested email — notify_new_booking off for booking ${booking.id}`)
+    return
+  }
+
+  await send(
+    hostEmail,
+    `New Booking Request — ${booking.booking_ref}`,
+    hostQrBookingRequestedHtml({
+      bookingRef: booking.booking_ref,
+      listingTitle: booking.listing?.title ?? 'a listing',
+      pickupDate: booking.pickup_date,
+      returnDate: booking.return_date,
+      totalAmount: booking.total_amount,
+      otherPartyName: renterName,
+    })
+  )
 }
 
 /**

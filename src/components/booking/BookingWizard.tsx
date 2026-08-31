@@ -47,7 +47,11 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
         setError(rpcError.message.replace(/^.*?: /, ''))
         return
       }
-      setBooking(data as Booking)
+      const created = data as Booking
+      setBooking(created)
+      fetch(`/api/bookings/${created.id}/notify-qr-requested`, { method: 'POST' }).catch((e) =>
+        console.error('[email] notify-qr-requested failed', e)
+      )
       goNext()
       return
     }
