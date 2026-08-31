@@ -113,7 +113,7 @@ export default function ListingsPage() {
                       <Eye className="w-3 h-3" /> {listing.view_count} views
                     </span>
                     {listing.is_instant_book && (
-                      <span className="flex items-center gap-1 text-xs text-[#FDF0D5] font-medium">
+                      <span className="flex items-center gap-1 text-xs text-[#003049] font-medium">
                         <Zap className="w-3 h-3" /> Instant Book
                       </span>
                     )}

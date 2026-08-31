@@ -60,13 +60,13 @@ export default function OverviewPage() {
     ? [
         { label: 'Total Earnings', value: `₱${paid.reduce((sum, b) => sum + b.rental_fee, 0).toLocaleString()}`, icon: DollarSign, color: 'bg-green-50 text-green-600' },
         { label: 'Active Listings', value: String(activeListings), icon: Package, color: 'bg-blue-50 text-[#003049]' },
-        { label: 'Bookings This Month', value: String(bookingsThisMonth), icon: CalendarDays, color: 'bg-orange-50 text-[#FDF0D5]' },
+        { label: 'Bookings This Month', value: String(bookingsThisMonth), icon: CalendarDays, color: 'bg-orange-50 text-orange-500' },
         { label: 'Average Rating', value: profile?.host_rating != null ? profile.host_rating.toFixed(2) : '—', icon: Star, color: 'bg-amber-50 text-amber-500' },
       ]
     : [
         { label: 'Total Earnings', value: '₱128,400', icon: DollarSign, color: 'bg-green-50 text-green-600' },
         { label: 'Active Listings', value: '4', icon: Package, color: 'bg-blue-50 text-[#003049]' },
-        { label: 'Bookings This Month', value: '18', icon: CalendarDays, color: 'bg-orange-50 text-[#FDF0D5]' },
+        { label: 'Bookings This Month', value: '18', icon: CalendarDays, color: 'bg-orange-50 text-orange-500' },
         { label: 'Average Rating', value: '4.97', icon: Star, color: 'bg-amber-50 text-amber-500' },
       ]
 
@@ -175,7 +175,7 @@ export default function OverviewPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {[
           { label: 'Update availability', href: '/dashboard/calendar', icon: CalendarDays },
-          { label: 'View all reviews', href: '/dashboard/reviews', icon: Star },
+          { label: 'View all reviews', href: '/dashboard/reviews?view=host', icon: Star },
           { label: 'Payout settings', href: '/dashboard/payouts', icon: DollarSign },
         ].map(({ label, href, icon: Icon }) => (
           <Link key={label} href={href}

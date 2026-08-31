@@ -9,28 +9,29 @@ import {
   ShoppingBag, Heart, Receipt, Bell, LogOut,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { useUser, initials } from '@/hooks/useUser'
 
 const HOST_NAV = [
   { label: 'Overview', href: '/dashboard/overview', icon: LayoutDashboard },
   { label: 'My Listings', href: '/dashboard/listings', icon: Package },
   { label: 'Bookings', href: '/dashboard/bookings', icon: CalendarDays },
   { label: 'Calendar', href: '/dashboard/calendar', icon: CalendarDays },
-  { label: 'Messages', href: '/dashboard/messages', icon: MessageCircle, badge: 3 },
+  { label: 'Messages', href: '/dashboard/messages?view=host', icon: MessageCircle, badge: 3 },
   { label: 'Earnings', href: '/dashboard/earnings', icon: DollarSign },
-  { label: 'Reviews', href: '/dashboard/reviews', icon: Star },
+  { label: 'Reviews', href: '/dashboard/reviews?view=host', icon: Star },
   { label: 'Analytics', href: '/dashboard/analytics', icon: BarChart2 },
   { label: 'Payout Settings', href: '/dashboard/payouts', icon: CreditCard },
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { label: 'Settings', href: '/dashboard/settings?view=host', icon: Settings },
 ]
 
 const RENTER_NAV = [
   { label: 'My Rentals', href: '/dashboard/rentals', icon: ShoppingBag },
-  { label: 'Messages', href: '/dashboard/messages', icon: MessageCircle, badge: 1 },
+  { label: 'Messages', href: '/dashboard/messages?view=renter', icon: MessageCircle, badge: 1 },
   { label: 'Wishlist', href: '/dashboard/wishlist', icon: Heart },
   { label: 'Receipts', href: '/dashboard/receipts', icon: Receipt },
-  { label: 'Reviews', href: '/dashboard/reviews', icon: Star },
+  { label: 'Reviews', href: '/dashboard/reviews?view=renter', icon: Star },
   { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { label: 'Settings', href: '/dashboard/settings?view=renter', icon: Settings },
 ]
 
 interface DashboardSidebarProps {
@@ -41,6 +42,7 @@ interface DashboardSidebarProps {
 export function DashboardSidebar({ isHost = true, onClose }: DashboardSidebarProps) {
   const pathname = usePathname()
   const nav = isHost ? HOST_NAV : RENTER_NAV
+  const { user, signOut } = useUser()
 
   return (
     <aside className="flex flex-col h-full bg-white border-r border-gray-100">
@@ -78,7 +80,8 @@ export function DashboardSidebar({ isHost = true, onClose }: DashboardSidebarPro
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
         {nav.map(({ label, href, icon: Icon, badge }) => {
-          const active = pathname === href || pathname.startsWith(href + '/')
+          const hrefPath = href.split('?')[0]
+          const active = pathname === hrefPath || pathname.startsWith(hrefPath + '/')
           return (
             <Link
               key={href}
@@ -106,14 +109,16 @@ export function DashboardSidebar({ isHost = true, onClose }: DashboardSidebarPro
       <div className="px-4 py-4 border-t border-gray-100">
         <div className="flex items-center gap-3">
           <Avatar className="w-8 h-8 shrink-0">
-            <AvatarImage src="" />
-            <AvatarFallback className="bg-[#003049] text-white text-xs font-bold">JP</AvatarFallback>
+            <AvatarImage src={user?.avatarUrl ?? ''} />
+            <AvatarFallback className="bg-[#003049] text-white text-xs font-bold">
+              {initials(user?.name ?? 'U')}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-[#111827] truncate">Juan P. Taylor</p>
-            <p className="text-[11px] text-gray-400 truncate">jptayco1109@gmail.com</p>
+            <p className="text-xs font-semibold text-[#111827] truncate">{user?.name ?? 'Loading…'}</p>
+            <p className="text-[11px] text-gray-400 truncate">{user?.email ?? ''}</p>
           </div>
-          <button className="text-gray-400 hover:text-red-500 transition-colors shrink-0">
+          <button onClick={signOut} className="text-gray-400 hover:text-red-500 transition-colors shrink-0">
             <LogOut className="w-4 h-4" />
           </button>
         </div>

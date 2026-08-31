@@ -60,7 +60,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
                 </span>
               )}
               {listing.is_instant_book && (
-                <span className="flex items-center gap-1 text-[#FDF0D5] text-sm font-medium">
+                <span className="flex items-center gap-1 text-[#003049] text-sm font-medium">
                   <Zap className="w-4 h-4" /> Instant Book
                 </span>
               )}

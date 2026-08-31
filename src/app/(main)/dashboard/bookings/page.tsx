@@ -135,7 +135,7 @@ export default function BookingsPage() {
 
             {/* Actions */}
             <div className="flex items-center gap-2 px-5 py-3 border-t border-gray-100 bg-gray-50/50">
-              <Link href={`/dashboard/messages?booking=${b.id}`}
+              <Link href={`/dashboard/messages?view=host&booking=${b.id}`}
                 className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#003049] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                 <MessageCircle className="w-3.5 h-3.5" /> Message
               </Link>

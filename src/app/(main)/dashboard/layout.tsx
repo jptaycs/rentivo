@@ -1,19 +1,40 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { Menu } from 'lucide-react'
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+interface SidebarsProps {
+  sidebarOpen: boolean
+  onCloseMobile: () => void
+}
+
+// Isolated in its own component so useSearchParams() (which opts a page out
+// of static rendering unless wrapped in Suspense) doesn't force that on the
+// whole dashboard layout — only this part needs it.
+function DashboardSidebars({ sidebarOpen, onCloseMobile }: SidebarsProps) {
   const pathname = usePathname()
-  const isRenterSection = pathname.startsWith('/dashboard/rentals') ||
-    pathname.startsWith('/dashboard/wishlist') ||
-    pathname.startsWith('/dashboard/receipts')
+  const searchParams = useSearchParams()
+  // Messages/Reviews/Notifications/Settings are shared between host and
+  // renter dashboards — the path alone can't tell which sidebar to show,
+  // so every link into them (sidebar nav, "Message Host"/"Message"
+  // buttons, "View all reviews") carries an explicit ?view= param. Falls
+  // back to the path-prefix check for the renter-only routes below when
+  // no param is present (e.g. a bookmark), and defaults to host otherwise
+  // — matching this app's original behavior for any link this doesn't
+  // yet cover.
+  const view = searchParams.get('view')
+  const isRenterSection =
+    view === 'renter' ||
+    (view !== 'host' &&
+      (pathname.startsWith('/dashboard/rentals') ||
+        pathname.startsWith('/dashboard/wishlist') ||
+        pathname.startsWith('/dashboard/receipts') ||
+        pathname.startsWith('/dashboard/notifications')))
 
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-[#F8FAFC]">
+    <>
       {/* Desktop sidebar */}
       <div className="hidden md:flex w-60 shrink-0 flex-col">
         <DashboardSidebar isHost={!isRenterSection} />
@@ -22,12 +43,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Mobile sidebar drawer */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 md:hidden flex">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
+          <div className="absolute inset-0 bg-black/40" onClick={onCloseMobile} />
           <div className="relative w-64 h-full flex flex-col">
-            <DashboardSidebar isHost={!isRenterSection} onClose={() => setSidebarOpen(false)} />
+            <DashboardSidebar isHost={!isRenterSection} onClose={onCloseMobile} />
           </div>
         </div>
       )}
+    </>
+  )
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  return (
+    <div className="flex h-[calc(100vh-64px)] bg-[#F8FAFC]">
+      <Suspense fallback={<div className="hidden md:flex w-60 shrink-0 border-r border-gray-100 bg-white" />}>
+        <DashboardSidebars sidebarOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
+      </Suspense>
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">

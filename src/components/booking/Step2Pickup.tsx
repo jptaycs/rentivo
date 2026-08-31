@@ -85,7 +85,7 @@ export function Step2Pickup({
               Delivery
             </p>
             <p className="text-xs text-gray-500 mt-1">Host delivers to your location</p>
-            <p className="text-xs font-semibold text-[#FDF0D5] mt-2">Fee may apply</p>
+            <p className="text-xs font-semibold text-amber-600 mt-2">Fee may apply</p>
           </div>
         </button>
       </div>

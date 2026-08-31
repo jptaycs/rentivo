@@ -98,7 +98,7 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center shrink-0">
-              <Zap className="w-5 h-5 text-[#FDF0D5]" />
+              <Zap className="w-5 h-5 text-orange-500" />
             </div>
             <div>
               <p className="font-bold text-[#111827]">Instant Book</p>
