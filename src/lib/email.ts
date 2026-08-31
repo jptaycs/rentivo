@@ -125,13 +125,18 @@ function renterPendingHtml(ctx: EmailContext) {
   )
 }
 
-function refundLine(totalAmount: number, refunded: boolean) {
+function refundLine(totalAmount: number, refunded: boolean, isHostQr: boolean) {
+  if (isHostQr) {
+    return refunded
+      ? `This booking was paid directly to the host via QR code, so Rentivo can’t process a refund automatically — please arrange the ${fmtPeso(totalAmount)} refund directly with your host.`
+      : `You have not been charged further by Rentivo. Since this booking was paid directly to the host via QR code, any refund of ${fmtPeso(totalAmount)} needs to be arranged directly with them.`
+  }
   return refunded
     ? `A refund of ${fmtPeso(totalAmount)} has been processed back to your original payment method — it usually takes 5–10 business days to reflect, depending on your bank or e-wallet.`
     : `You have not been charged further. Our team will follow up to process a refund of ${fmtPeso(totalAmount)} to your original payment method.`
 }
 
-function renterDeclinedHtml(ctx: EmailContext, refunded: boolean) {
+function renterDeclinedHtml(ctx: EmailContext, refunded: boolean, isHostQr: boolean) {
   return layout(
     `Your booking ${ctx.bookingRef} was declined`,
     `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">Booking Declined</h1>
@@ -140,13 +145,13 @@ function renterDeclinedHtml(ctx: EmailContext, refunded: boolean) {
        (${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}, ref ${ctx.bookingRef}).
      </p>
      <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
-       ${refundLine(ctx.totalAmount, refunded)}
+       ${refundLine(ctx.totalAmount, refunded, isHostQr)}
      </p>
      ${button(`${APP_URL}/search`, 'Browse Other Equipment')}`
   )
 }
 
-function hostCancelledByRenterHtml(ctx: EmailContext, refunded: boolean) {
+function hostCancelledByRenterHtml(ctx: EmailContext, refunded: boolean, isHostQr: boolean) {
   return layout(
     `Booking ${ctx.bookingRef} was cancelled by the renter`,
     `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">Booking Cancelled</h1>
@@ -155,7 +160,9 @@ function hostCancelledByRenterHtml(ctx: EmailContext, refunded: boolean) {
        (${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}, ref ${ctx.bookingRef}). The dates are open again.
      </p>
      <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
-       ${refunded ? 'The renter has been refunded in full.' : 'The renter\'s refund is being processed.'}
+       ${isHostQr
+         ? 'This booking was paid directly to you via QR code, so no payment ever passed through Rentivo — please refund the renter directly if you’ve already received payment.'
+         : refunded ? 'The renter has been refunded in full.' : 'The renter\'s refund is being processed.'}
      </p>
      ${button(`${APP_URL}/dashboard/calendar`, 'View Calendar')}`
   )
@@ -186,6 +193,7 @@ interface BookingRow {
   pickup_date: string
   return_date: string
   total_amount: number
+  payment_method: string | null
   listing: { title: string; is_instant_book: boolean } | null
 }
 
@@ -194,7 +202,7 @@ async function loadBookingContext(bookingId: string) {
   const { data } = await admin
     .from('bookings')
     .select(
-      'id, booking_ref, renter_id, host_id, pickup_date, return_date, total_amount, listing:listings(title, is_instant_book)'
+      'id, booking_ref, renter_id, host_id, pickup_date, return_date, total_amount, payment_method, listing:listings(title, is_instant_book)'
     )
     .eq('id', bookingId)
     .maybeSingle()
@@ -274,6 +282,7 @@ export async function notifyBookingResponded(
   const ctx = await loadBookingContext(bookingId)
   if (!ctx) return
   const { booking, renterEmail, hostEmail, renterName, hostName } = ctx
+  const isHostQr = booking.payment_method === 'host_qr'
 
   const forRenter = {
     bookingRef: booking.booking_ref,
@@ -291,9 +300,9 @@ export async function notifyBookingResponded(
 
   if (cancelledBy === 'renter') {
     const forHost = { ...forRenter, otherPartyName: renterName }
-    await send(hostEmail, `Booking Cancelled — ${booking.booking_ref}`, hostCancelledByRenterHtml(forHost, refunded))
+    await send(hostEmail, `Booking Cancelled — ${booking.booking_ref}`, hostCancelledByRenterHtml(forHost, refunded, isHostQr))
   } else {
-    await send(renterEmail, `Booking Declined — ${booking.booking_ref}`, renterDeclinedHtml(forRenter, refunded))
+    await send(renterEmail, `Booking Declined — ${booking.booking_ref}`, renterDeclinedHtml(forRenter, refunded, isHostQr))
   }
 }
 
