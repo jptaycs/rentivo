@@ -44,11 +44,8 @@ export interface ListingSearchParams {
   to?: string
 }
 
-// Explicit columns — never `street_address`. Hosts' exact pickup address is
-// only revealed after a booking is confirmed (see AGENTS.md privacy model);
-// selecting `*` here would leak it into every listing page's RSC payload.
-export const LISTING_COLUMNS =
-  'id, host_id, category, brand, model, title, description, condition, daily_price, weekly_price, monthly_price, security_deposit, city, province, is_instant_book, is_active, rating, review_count, view_count, images, accessories, created_at'
+export { LISTING_COLUMNS } from './listing-columns'
+import { LISTING_COLUMNS } from './listing-columns'
 
 const HOST_SELECT = `${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey(*)`
 
