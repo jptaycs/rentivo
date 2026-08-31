@@ -50,7 +50,7 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
         <label className={label}>Province / Region <span className="text-red-400">*</span></label>
         <select
           value={data.province}
-          onChange={e => { set('province', e.target.value); set('city', '') }}
+          onChange={e => onChange({ ...data, province: e.target.value, city: '' })}
           className={field}
         >
           <option value="">Select province</option>
