@@ -42,6 +42,7 @@ export interface Listing {
   weekly_price: number | null
   monthly_price: number | null
   security_deposit: number
+  delivery_fee: number | null
   city: string
   province: string
   is_instant_book: boolean
@@ -68,6 +69,7 @@ export interface Booking {
   security_deposit: number
   service_fee: number
   protection_fee: number
+  delivery_fee: number
   total_amount: number
   status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
   is_delivery: boolean

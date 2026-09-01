@@ -17,6 +17,7 @@ function mockBundleAsListing(b: (typeof MOCK_BUNDLES)[number]): Listing {
     weekly_price: null,
     monthly_price: null,
     security_deposit: 0,
+    delivery_fee: null,
     city: 'Manila',
     province: 'Metro Manila',
     is_instant_book: true,

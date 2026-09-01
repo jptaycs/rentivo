@@ -23,6 +23,8 @@ export function Step2Pickup({
   onBack,
 }: Step2PickupProps) {
   const canContinue = !isDelivery || deliveryAddress.trim().length > 5
+  const offersDelivery = listing.delivery_fee !== null
+  const deliveryFee = listing.delivery_fee ?? 0
 
   return (
     <div className="space-y-6">
@@ -64,7 +66,8 @@ export function Step2Pickup({
         {/* Delivery */}
         <button
           onClick={() => onDeliveryChange(true)}
-          className={`relative flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all text-left ${
+          disabled={!offersDelivery}
+          className={`relative flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed ${
             isDelivery
               ? 'border-[#003049] bg-blue-50/50'
               : 'border-gray-200 bg-white hover:border-blue-200'
@@ -84,8 +87,14 @@ export function Step2Pickup({
             <p className={`font-bold ${isDelivery ? 'text-[#003049]' : 'text-[#111827]'}`}>
               Delivery
             </p>
-            <p className="text-xs text-gray-500 mt-1">Host delivers to your location</p>
-            <p className="text-xs font-semibold text-amber-600 mt-2">Fee may apply</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {offersDelivery ? 'Host delivers to your location' : 'Not offered by this host'}
+            </p>
+            {offersDelivery && (
+              <p className={`text-xs font-semibold mt-2 ${deliveryFee > 0 ? 'text-[#003049]' : 'text-[#22C55E]'}`}>
+                {deliveryFee > 0 ? `₱${deliveryFee.toLocaleString()}` : 'Free'}
+              </p>
+            )}
           </div>
         </button>
       </div>
@@ -120,7 +129,9 @@ export function Step2Pickup({
             className="w-full text-sm text-gray-800 placeholder-gray-400 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100 resize-none"
           />
           <p className="text-xs text-gray-400">
-            Delivery fee will be arranged directly with the host via messages.
+            {deliveryFee > 0
+              ? `A ₱${deliveryFee.toLocaleString()} delivery fee is included in your total.`
+              : 'This host delivers for free.'}
           </p>
         </div>
       )}

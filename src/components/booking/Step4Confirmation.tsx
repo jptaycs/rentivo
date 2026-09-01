@@ -186,6 +186,12 @@ export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) 
               <span>₱{booking.protection_fee.toLocaleString()}</span>
             </div>
           )}
+          {booking.delivery_fee > 0 && (
+            <div className="flex justify-between text-gray-600">
+              <span>Delivery fee</span>
+              <span>₱{booking.delivery_fee.toLocaleString()}</span>
+            </div>
+          )}
           <div className="flex justify-between text-gray-600">
             <span>Security deposit</span>
             <span>₱{booking.security_deposit.toLocaleString()}</span>

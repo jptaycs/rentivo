@@ -7,6 +7,7 @@ interface PricingData {
   weeklyPrice: string
   monthlyPrice: string
   securityDeposit: string
+  deliveryFee: string
 }
 
 interface Step3PricingProps {
@@ -138,6 +139,26 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
         <div className="flex items-start gap-2 mt-2 text-xs text-gray-400">
           <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
           Held during the rental and refunded upon safe return. Recommended: 3–5× the daily rate.
+        </div>
+      </div>
+
+      {/* Delivery fee */}
+      <div>
+        <label className={label}>Delivery Fee</label>
+        <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 bg-white">
+          <span className="px-4 text-gray-400 font-semibold text-sm border-r border-gray-200 py-3">₱</span>
+          <input
+            value={data.deliveryFee}
+            onChange={e => set('deliveryFee', e.target.value)}
+            inputMode="numeric"
+            placeholder="Leave blank if you don't deliver"
+            className="flex-1 px-4 py-3 text-sm text-gray-800 outline-none bg-transparent"
+          />
+        </div>
+        <div className="flex items-start gap-2 mt-2 text-xs text-gray-400">
+          <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          Leave this blank if you only do pickup — renters won&apos;t see a delivery option.
+          Enter <strong>0</strong> to offer free delivery. This is added to the renter&apos;s total and paid to you in full.
         </div>
       </div>
 

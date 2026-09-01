@@ -40,6 +40,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
   const [weeklyPrice, setWeeklyPrice] = useState('')
   const [monthlyPrice, setMonthlyPrice] = useState('')
   const [deposit, setDeposit] = useState('')
+  const [deliveryFee, setDeliveryFee] = useState('')
   const [isInstantBook, setIsInstantBook] = useState(false)
   const [isActive, setIsActive] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -79,6 +80,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
     setWeeklyPrice(data.weekly_price != null ? String(data.weekly_price) : '')
     setMonthlyPrice(data.monthly_price != null ? String(data.monthly_price) : '')
     setDeposit(String(data.security_deposit ?? ''))
+    setDeliveryFee(data.delivery_fee != null ? String(data.delivery_fee) : '')
     setIsInstantBook(data.is_instant_book ?? false)
     setIsActive(data.is_active ?? true)
     setLoading(false)
@@ -108,6 +110,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
         weekly_price: weeklyPrice ? Number(weeklyPrice) : null,
         monthly_price: monthlyPrice ? Number(monthlyPrice) : null,
         security_deposit: Number(deposit || 0),
+        delivery_fee: deliveryFee === '' ? null : Number(deliveryFee),
         is_instant_book: isInstantBook,
       })
       .eq('id', id)
@@ -319,6 +322,22 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
               You earn <strong className="text-[#22C55E]">₱{Math.round(Number(dailyPrice) * (1 - SERVICE_FEE_RATE)).toLocaleString()}</strong> per day after the {Math.round(SERVICE_FEE_RATE * 100)}% Rentivo service fee.
             </div>
           )}
+
+          <div>
+            <label className={label}>Delivery Fee <span className="font-normal text-gray-400 normal-case">(optional)</span></label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">₱</span>
+              <input
+                type="number" value={deliveryFee} onChange={e => setDeliveryFee(e.target.value)}
+                placeholder="Leave blank if you don't deliver"
+                className={`${field} pl-8`}
+              />
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">
+              Leave this blank if you only do pickup — renters won&apos;t see a delivery option.
+              Enter 0 to offer free delivery. This is added to the renter&apos;s total and paid to you in full.
+            </p>
+          </div>
         </section>
 
         {/* Instant Book */}

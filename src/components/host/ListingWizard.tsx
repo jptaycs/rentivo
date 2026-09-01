@@ -15,7 +15,7 @@ import { Step6Verify, type VerifyData } from './Step6Verify'
 interface WizardState {
   photos: WizardPhoto[]
   details: { category: string; brand: string; model: string; serialNumber: string; condition: string; description: string; accessories: string[] }
-  pricing: { dailyPrice: string; weeklyPrice: string; monthlyPrice: string; securityDeposit: string }
+  pricing: { dailyPrice: string; weeklyPrice: string; monthlyPrice: string; securityDeposit: string; deliveryFee: string }
   blockedDates: string[]
   address: { streetAddress: string; city: string; province: string; isInstantBook: boolean }
   verify: VerifyData
@@ -24,7 +24,7 @@ interface WizardState {
 const INITIAL: WizardState = {
   photos: [],
   details: { category: '', brand: '', model: '', serialNumber: '', condition: '', description: '', accessories: [] },
-  pricing: { dailyPrice: '', weeklyPrice: '', monthlyPrice: '', securityDeposit: '' },
+  pricing: { dailyPrice: '', weeklyPrice: '', monthlyPrice: '', securityDeposit: '', deliveryFee: '' },
   blockedDates: [],
   address: { streetAddress: '', city: '', province: '', isInstantBook: false },
   verify: { idFile: null, selfieFile: null, agreed: false },
@@ -122,6 +122,7 @@ export function ListingWizard() {
         weekly_price: pricing.weeklyPrice ? Number(pricing.weeklyPrice) : null,
         monthly_price: pricing.monthlyPrice ? Number(pricing.monthlyPrice) : null,
         security_deposit: Number(pricing.securityDeposit || 0),
+        delivery_fee: pricing.deliveryFee === '' ? null : Number(pricing.deliveryFee),
         city: address.city,
         province: address.province,
         street_address: address.streetAddress || null,

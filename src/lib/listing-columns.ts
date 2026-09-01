@@ -4,7 +4,7 @@
 // Split into its own client-safe module (no next/headers import chain) so
 // client components/hooks can reuse the exact same column list.
 export const LISTING_COLUMNS =
-  'id, host_id, category, brand, model, title, description, condition, daily_price, weekly_price, monthly_price, security_deposit, city, province, is_instant_book, is_active, is_draft, rating, review_count, view_count, images, accessories, created_at'
+  'id, host_id, category, brand, model, title, description, condition, daily_price, weekly_price, monthly_price, security_deposit, delivery_fee, city, province, is_instant_book, is_active, is_draft, rating, review_count, view_count, images, accessories, created_at'
 
 // Explicit columns for any `profiles` row joined into a *publicly readable*
 // payload (listing cards, listing detail, search, host profiles, review

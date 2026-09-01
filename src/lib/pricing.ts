@@ -5,6 +5,7 @@ export interface PricedListing {
   weekly_price: number | null
   monthly_price: number | null
   security_deposit: number
+  delivery_fee: number | null
 }
 
 export type RentalTier = 'daily' | 'weekly' | 'monthly'
@@ -24,9 +25,15 @@ export function calcRentalFee(listing: PricedListing, days: number): { rentalFee
   return { rentalFee: listing.daily_price * days, tier: 'daily' }
 }
 
-export function calcPricing(listing: PricedListing, days: number) {
+/**
+ * Mirrors create_booking (038). The delivery fee is charged only when the
+ * renter picks delivery, and the service fee is NOT charged on it — it is a
+ * pass-through to the host.
+ */
+export function calcPricing(listing: PricedListing, days: number, isDelivery = false) {
   const { rentalFee, tier } = calcRentalFee(listing, days)
   const serviceFee = Math.round(rentalFee * SERVICE_FEE_RATE)
-  const total = rentalFee + serviceFee + listing.security_deposit
-  return { rentalFee, tier, serviceFee, total }
+  const deliveryFee = isDelivery ? (listing.delivery_fee ?? 0) : 0
+  const total = rentalFee + serviceFee + deliveryFee + listing.security_deposit
+  return { rentalFee, tier, serviceFee, deliveryFee, total }
 }

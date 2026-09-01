@@ -19,6 +19,7 @@ export interface CheckoutPayload {
 interface Step3PaymentProps {
   listing: Listing
   days: number
+  isDelivery: boolean
   onNext: (payload: CheckoutPayload) => Promise<void>
   onBack: () => void
 }
@@ -89,7 +90,7 @@ async function createCardPaymentMethod(card: {
   return json.data.id as string
 }
 
-export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProps) {
+export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step3PaymentProps) {
   const { user } = useUser()
   const [method, setMethod] = useState<PaymentMethod>('gcash')
   const [mobileNumber, setMobileNumber] = useState('')
@@ -133,7 +134,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
     setPromoError('')
   }
 
-  const { rentalFee, total: baseTotal } = calcPricing(listing, days)
+  const { rentalFee, total: baseTotal } = calcPricing(listing, days, isDelivery)
   // Discount applies to the rental fee only — never the refundable deposit
   const discount = promo
     ? Math.min(rentalFee, Math.round((rentalFee * (promo.pct ?? 0)) / 100) + (promo.flat ?? 0))

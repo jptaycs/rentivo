@@ -251,6 +251,7 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
                 <Step3Payment
                   listing={listing}
                   days={days}
+                  isDelivery={isDelivery}
                   onNext={handlePaymentComplete}
                   onBack={goBack}
                 />

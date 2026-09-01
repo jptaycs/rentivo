@@ -29,14 +29,16 @@ export default function EarningsPage() {
   const paid = bookings.filter((b) => b.payment_status === 'paid')
   const pendingPayout = bookings.filter((b) => b.status === 'confirmed' || b.status === 'active')
 
-  const totalEarned = live ? paid.reduce((s, b) => s + b.rental_fee, 0) : 154600
-  const pending = live ? pendingPayout.reduce((s, b) => s + b.rental_fee, 0) : 7515
+  // request_payout() pays hosts rental_fee + delivery_fee (038) — mirror that
+  // here so the dashboard figures match what a payout actually settles.
+  const totalEarned = live ? paid.reduce((s, b) => s + b.rental_fee + b.delivery_fee, 0) : 154600
+  const pending = live ? pendingPayout.reduce((s, b) => s + b.rental_fee + b.delivery_fee, 0) : 7515
 
   const now = new Date()
   const thisMonth = live
     ? paid
         .filter((b) => b.paid_at && new Date(b.paid_at).getMonth() === now.getMonth() && new Date(b.paid_at).getFullYear() === now.getFullYear())
-        .reduce((s, b) => s + b.rental_fee, 0)
+        .reduce((s, b) => s + b.rental_fee + b.delivery_fee, 0)
     : 35400
 
   // Last 7 months of paid rental income, oldest first
@@ -48,7 +50,7 @@ export default function EarningsPage() {
     month: label,
     amount: paid
       .filter((b) => b.paid_at && new Date(b.paid_at).getFullYear() === year && new Date(b.paid_at).getMonth() === month)
-      .reduce((s, b) => s + b.rental_fee, 0),
+      .reduce((s, b) => s + b.rental_fee + b.delivery_fee, 0),
   }))
   const monthly = live ? liveMonthly : MOCK_MONTHLY
   const max = Math.max(...monthly.map((m) => m.amount), 1)
@@ -63,7 +65,7 @@ export default function EarningsPage() {
       date: t.paid_at ?? t.created_at,
       renter: t.renter?.full_name ?? '',
       equipment: t.listing?.title ?? '',
-      amount: t.rental_fee,
+      amount: t.rental_fee + t.delivery_fee,
       status: t.status,
     }))
     const blob = new Blob([toCsv(rows)], { type: 'text/csv' })
@@ -166,7 +168,7 @@ export default function EarningsPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-[#111827]">₱{t.rental_fee.toLocaleString()}</p>
+                      <p className="text-sm font-bold text-[#111827]">₱{(t.rental_fee + t.delivery_fee).toLocaleString()}</p>
                       <span className="text-xs font-semibold text-[#22C55E]">Paid</span>
                     </div>
                   </div>
