@@ -1,0 +1,113 @@
+-- ============================================================
+-- 040_revoke_table_level_writes.sql
+--
+-- Closes two live, independently proven privilege holes on `bookings`
+-- and `profiles`. Both were pre-existing, both were reproduced against
+-- the hosted database with nothing but the public anon key and a real
+-- signed-in demo session.
+--
+-- ── HOLE A: booking amounts were client-mutable ─────────────
+-- Signed in as the demo renter, a legitimate booking was created via
+-- `create_booking` (total_amount ₱2,490), then:
+--     PATCH /rest/v1/bookings?id=eq.<own booking>  {"total_amount": 1}
+-- returned 200 and the stored value actually became 1.
+-- That completes into a real loss because
+-- `src/app/api/payments/checkout/route.ts` prices the PayMongo intent as
+-- `booking.total_amount * 100`, read back from the stored row — so a
+-- renter could book at the correct price, edit the price down, and pay
+-- ₱1 on live keys. `create_booking`'s server-side pricing was being
+-- computed correctly and then simply overwritten afterwards.
+--
+-- ── HOLE B: profiles.is_verified was self-writable ──────────
+-- The same session could PATCH its own row's `is_verified` and the value
+-- changed. That makes migration 037's verification gate decorative: a
+-- host can self-verify, then self-publish (037's `block_self_publish()`
+-- trigger guards `is_draft`, not `is_verified`), and wear the "Verified
+-- Host" badge with no admin ever reviewing an ID. `host_rating`,
+-- `host_review_count` and `response_time_hours` were self-writable the
+-- same way, which lets a host forge their own rating and review count
+-- everywhere those render (listing cards, search, host profiles).
+--
+-- ── Root cause (same for both) ──────────────────────────────
+-- This project has a documented blanket bootstrap grant: `anon` and
+-- `authenticated` hold broad table-level INSERT/UPDATE/DELETE on
+-- essentially every `public` table, independent of what any migration
+-- explicitly grants (see migrations 016/017 and the ⚠️ note in
+-- AGENTS.md's Security model section).
+--
+-- On top of that, 004's `grant update (...)` statements — and the later
+-- additive column grants in 010/025/028 — never `revoke` the table-level
+-- UPDATE first. In Postgres a table-level UPDATE privilege satisfies a
+-- write to ANY column, so a column-level grant list is meaningless while
+-- the table-level grant is still held: it only ever adds, never narrows.
+-- 004's own header comment ("bookings: amounts + payment fields are
+-- insert-once") was therefore describing an intent the database never
+-- actually enforced.
+--
+-- `004_security_hardening.sql:127` already does this correctly for
+-- `reviews`:
+--     revoke update on public.reviews from authenticated, anon;
+--     grant update (rating, comment) on public.reviews to authenticated;
+-- This migration applies exactly that pattern to `bookings` and
+-- `profiles`. (Revoking table-level UPDATE also drops any column-level
+-- UPDATE grants, which is why the revoke must come first and the full
+-- allowed column list must be re-granted after it.)
+--
+-- ── Why the column lists are exactly these ──────────────────
+-- Every real write site in the app was enumerated before choosing them.
+--
+-- bookings (status, host_notes, renter_notes) — 004's original intent,
+-- unchanged. `status` is load-bearing: `POST /api/bookings/[id]/respond`
+-- performs the host accept/decline and renter cancel with the USER's
+-- cookie session (`createClient` from `@/lib/supabase/server`), not the
+-- admin client, so it needs the grant. Who may make which transition is
+-- still decided by RLS plus the `enforce_booking_transition` trigger —
+-- this grant does not widen that. Every amount, payment and identity
+-- column (rental_fee, service_fee, security_deposit, protection_fee,
+-- delivery_fee, discount, total_amount, payment_status, payment_method,
+-- paymongo_ref, paid_at, refund_ref, listing_id, renter_id, host_id,
+-- pickup_date, return_date) becomes writable only by `create_booking`,
+-- `mark_booking_paid`, `mark_booking_refunded` and
+-- `confirm_host_qr_payment` — all `security definer`, all running as the
+-- function owner, all therefore unaffected by this revoke.
+--
+-- profiles (11 columns) — the complete set the app legitimately writes:
+--   full_name, bio, city, notify_new_booking, notify_messages,
+--   notify_reminders, notify_promos ......... useProfile.ts `update()`
+--   avatar_url .............................. useProfile.ts `uploadAvatar()`
+--   qr_payment_url, qr_payment_label ........ useProfile.ts `uploadQrCode()`
+--                                             / `removeQrCode()`
+--   is_host ................................. ListingWizard.tsx:165
+-- Everything else — is_verified, host_rating, host_review_count,
+-- response_time_hours, id, email, created_at, and any future
+-- non-user-editable column — is now server/RPC-only. `is_verified` moves
+-- exclusively behind `review_verification_request()` (015/018), and the
+-- rating columns behind the review triggers; both are `security definer`
+-- and unaffected. The account-deletion route and every admin route use
+-- the service-role client, which this migration does not touch.
+--
+-- ── Third change: anon INSERT on bookings ───────────────────
+-- Migration 039 revoked the stale direct-insert grant that 038 had
+-- resurrected, but only from `authenticated`. `anon` was proven to still
+-- hold it: an anon POST to /rest/v1/bookings is rejected by RLS ("new row
+-- violates row-level security policy"), not by a privilege check, which
+-- means the grant is still there. Not exploitable — the `bookings: renter
+-- insert` policy requires `auth.uid() = renter_id`, which `anon` can
+-- never satisfy — but 016 set the precedent of clearing a stale grant
+-- from both roles together, and RLS default-deny should not be the only
+-- thing standing between an anonymous caller and a money table.
+-- ============================================================
+
+-- ── bookings ────────────────────────────────────────────────
+revoke update on public.bookings from authenticated, anon;
+grant update (status, host_notes, renter_notes) on public.bookings to authenticated;
+
+-- ── profiles ────────────────────────────────────────────────
+revoke update on public.profiles from authenticated, anon;
+grant update (full_name, avatar_url, is_host, bio, city,
+              qr_payment_url, qr_payment_label,
+              notify_new_booking, notify_messages, notify_reminders, notify_promos)
+  on public.profiles to authenticated;
+
+-- ── stale anon insert grant on bookings (see 039) ───────────
+revoke insert on public.bookings from anon;
