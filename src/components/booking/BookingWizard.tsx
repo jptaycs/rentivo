@@ -26,6 +26,8 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
   const [bookingId, setBookingId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [qrWaiting, setQrWaiting] = useState<{ image: string; bookingId: string } | null>(null)
+  const [verifying, setVerifying] = useState(false)
+  const [verifyNote, setVerifyNote] = useState('')
 
   const goNext = () => setStep((s) => Math.min(s + 1, 3))
   const goBack = () => setStep((s) => Math.max(s - 1, 0))
@@ -52,6 +54,49 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
     }, 3000)
     return () => clearInterval(interval)
   }, [qrWaiting])
+
+  /**
+   * Asks PayMongo directly whether this booking's intent has been paid,
+   * rather than waiting on the webhook the poll above is watching for.
+   * The route is idempotent, so an impatient renter tapping it repeatedly
+   * is harmless.
+   */
+  async function handleVerifyPayment() {
+    if (!qrWaiting) return
+    setVerifying(true)
+    setVerifyNote('')
+    try {
+      const res = await fetch(`/api/bookings/${qrWaiting.bookingId}/verify-payment`, {
+        method: 'POST',
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setVerifyNote(data.error ?? 'Could not check the payment. Please try again.')
+        return
+      }
+      if (data.status === 'paid') {
+        const supabase = createClient()
+        const { data: booked } = await supabase
+          .from('bookings')
+          .select('*')
+          .eq('id', qrWaiting.bookingId)
+          .single()
+        setQrWaiting(null)
+        if (booked) setBooking(booked as Booking)
+        goNext()
+        return
+      }
+      setVerifyNote(
+        data.status === 'processing'
+          ? "Your payment is still processing — we'll confirm it here automatically."
+          : "We haven't received this payment yet. If you've just paid, give it a few seconds and check again."
+      )
+    } catch {
+      setVerifyNote('Network error — please try again.')
+    } finally {
+      setVerifying(false)
+    }
+  }
 
   async function handlePaymentComplete(payload: CheckoutPayload) {
     setError('')
@@ -175,6 +220,26 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Waiting for payment confirmation…
                   </div>
+
+                  {/* Manual fallback: confirmation normally arrives via the
+                      PayMongo webhook, which the poll above watches for. QR Ph
+                      has no redirect-back pass to fall back on, so if that
+                      webhook is delayed or missed a renter who really paid
+                      would otherwise be stuck here indefinitely. */}
+                  <div className="border-t border-gray-100 pt-4 space-y-2">
+                    <p className="text-xs text-gray-400">
+                      Already paid but still waiting? Confirmation can take a moment.
+                    </p>
+                    <button
+                      onClick={handleVerifyPayment}
+                      disabled={verifying}
+                      className="w-full border border-[#003049] text-[#003049] hover:bg-[#F8FAFC] disabled:opacity-50 font-bold text-sm py-2.5 rounded-xl transition-colors"
+                    >
+                      {verifying ? 'Checking…' : "I've paid — check again"}
+                    </button>
+                    {verifyNote && <p className="text-xs text-gray-500">{verifyNote}</p>}
+                  </div>
+
                   <button
                     onClick={() => setQrWaiting(null)}
                     className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-[#003049] transition-colors"
