@@ -7,7 +7,7 @@ import { useUser } from '@/hooks/useUser'
 import { calcPricing } from '@/lib/pricing'
 import type { Listing } from '@/types'
 
-type PaymentMethod = 'gcash' | 'maya' | 'card' | 'qrph' | 'apple_pay' | 'google_pay' | 'host_qr' | 'test_skip'
+type PaymentMethod = 'gcash' | 'maya' | 'card' | 'qrph' | 'apple_pay' | 'google_pay' | 'host_qr'
 
 export interface CheckoutPayload {
   method: PaymentMethod
@@ -37,7 +37,6 @@ const BASE_METHODS: {
   logo: string
   color: string
   comingSoon?: boolean
-  testBadge?: boolean
 }[] = [
   { id: 'gcash', label: 'GCash', logo: '/logos/gcash.svg', color: 'border-blue-400' },
   { id: 'maya', label: 'Maya', logo: '/logos/maya.svg', color: 'border-green-400' },
@@ -45,9 +44,11 @@ const BASE_METHODS: {
   { id: 'qrph', label: 'QR Ph', logo: '/logos/qrph.svg', color: 'border-teal-400' },
   { id: 'apple_pay', label: 'Apple Pay', logo: '/logos/apple-pay.svg', color: 'border-gray-900', comingSoon: true },
   { id: 'google_pay', label: 'Google Pay', logo: '/logos/google-pay.svg', color: 'border-gray-300', comingSoon: true },
-  // Rentivo is pre-launch — this creates a booking as paid with zero real
-  // charge, site-wide. Remove before accepting real customers.
-  { id: 'test_skip', label: 'Skip Payment', logo: '', color: 'border-amber-400', testBadge: true },
+  // NOTE: the pre-launch 'test_skip' ("Skip Payment") tile was removed at
+  // launch — it marked a booking paid with no real charge, which would let any
+  // signed-in user take equipment for free. The enum value and its payout
+  // exclusion (032/033) deliberately remain so the bookings created while it
+  // existed still render and stay ineligible for payout.
 ]
 
 /** Card data goes straight to PayMongo with the public key — never to our server. */
@@ -143,15 +144,13 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
   const isCard = method === 'card'
   const isHostQr = method === 'host_qr'
   const isQrph = method === 'qrph'
-  const isTestSkip = method === 'test_skip'
 
   const canPay =
     agreed &&
     ((isWallet && mobileNumber.replace(/\D/g, '').length === 11) ||
       (isCard && cardNumber.replace(/\s/g, '').length === 16 && cardExpiry && cardCvv.length >= 3 && cardName) ||
       isHostQr ||
-      isQrph ||
-      isTestSkip)
+      isQrph)
 
   function formatCard(val: string) {
     return val.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim()
@@ -240,11 +239,6 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
                   Coming soon
                 </span>
               )}
-              {m.testBadge && (
-                <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100 rounded-full px-2.5 py-1">
-                  Testing — no charge
-                </span>
-              )}
             </label>
           ))}
         </div>
@@ -280,17 +274,6 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
           <p className="text-xs text-gray-400">
             After you click Pay, we&apos;ll show a QR code — scan it with any QR Ph-enabled bank or e-wallet
             app to complete the payment. Rentivo processes this payment, same as GCash, Maya, or Card.
-          </p>
-        </div>
-      )}
-
-      {/* Test-skip notice */}
-      {isTestSkip && (
-        <div className="bg-amber-50 rounded-2xl border border-amber-200 p-5 space-y-2">
-          <p className="text-sm font-bold text-amber-800">No real payment will be charged</p>
-          <p className="text-xs text-amber-700">
-            Rentivo is in testing — this instantly marks the booking as paid with no real charge to any
-            card, GCash, Maya, or QR Ph account. Use this to test the rest of the booking flow.
           </p>
         </div>
       )}
@@ -457,11 +440,6 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
               <Lock className="w-4 h-4" />
               Create Booking
             </>
-          ) : isTestSkip ? (
-            <>
-              <Lock className="w-4 h-4" />
-              Skip Payment &amp; Book
-            </>
           ) : (
             <>
               <Lock className="w-4 h-4" />
@@ -472,7 +450,7 @@ export function Step3Payment({ listing, days, onNext, onBack }: Step3PaymentProp
       </div>
 
       {/* PayMongo is never involved in the host-QR flow — claiming it is would be false */}
-      {!isHostQr && !isTestSkip && (
+      {!isHostQr && (
         <p className="text-xs text-center text-gray-400 flex items-center justify-center gap-1">
           <Lock className="w-3 h-3" /> Payments secured by PayMongo
         </p>
