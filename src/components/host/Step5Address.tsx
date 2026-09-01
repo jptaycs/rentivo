@@ -1,6 +1,7 @@
 'use client'
 
 import { ChevronLeft, ChevronRight, MapPin, Zap } from 'lucide-react'
+import { PH_PROVINCES } from '@/lib/ph-locations'
 
 interface AddressData {
   streetAddress: string
@@ -15,11 +16,6 @@ interface Step5AddressProps {
   onNext: () => void
   onBack: () => void
 }
-
-const PROVINCES = [
-  'Metro Manila', 'Cebu', 'Davao', 'Bulacan', 'Laguna', 'Cavite',
-  'Pampanga', 'Batangas', 'Rizal', 'Quezon', 'Iloilo', 'Negros Occidental', 'Other'
-]
 
 export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressProps) {
   function set<K extends keyof AddressData>(key: K, value: AddressData[K]) {
@@ -47,7 +43,7 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
           className={field}
         >
           <option value="">Select province</option>
-          {PROVINCES.map(p => <option key={p}>{p}</option>)}
+          {PH_PROVINCES.map(p => <option key={p}>{p}</option>)}
         </select>
       </div>
 
