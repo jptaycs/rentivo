@@ -46,6 +46,7 @@ export interface Listing {
   province: string
   is_instant_book: boolean
   is_active: boolean
+  is_draft: boolean
   rating: number | null
   review_count: number
   view_count: number

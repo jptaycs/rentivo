@@ -45,6 +45,7 @@ export function ListingWizard() {
   const listingIdRef = useRef<string | null>(null)
   const uploadedImagesRef = useRef<Map<File, string>>(new Map())
   const [warning, setWarning] = useState('')
+  const [hostVerified, setHostVerified] = useState(true)
 
   const next = () => setStep(s => Math.min(s + 1, 6))
   const back = () => setStep(s => Math.max(s - 1, 1))
@@ -62,6 +63,13 @@ export function ListingWizard() {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('You must be signed in to create a listing.')
+
+      const { data: hostProfile } = await supabase
+        .from('profiles')
+        .select('is_verified')
+        .eq('id', user.id)
+        .single()
+      setHostVerified(Boolean(hostProfile?.is_verified))
 
       // Catch bad files before any write, so a bucket rejection can't strand
       // the submit halfway through.
@@ -205,9 +213,13 @@ export function ListingWizard() {
           <CheckCircle2 className="w-10 h-10 text-[#22C55E]" />
         </div>
         <div>
-          <h2 className="text-3xl font-bold text-[#111827]">Listing submitted!</h2>
+          <h2 className="text-3xl font-bold text-[#111827]">
+            {hostVerified ? 'Your listing is live!' : 'Listing submitted!'}
+          </h2>
           <p className="text-gray-500 mt-2 leading-relaxed max-w-md mx-auto">
-            Your listing is under review. We&apos;ll verify your details and activate it within <strong>24 hours</strong>. You&apos;ll get an email once it&apos;s live.
+            {hostVerified
+              ? <>Your listing is now visible to renters. You can edit or pause it anytime from <strong>My Listings</strong>.</>
+              : <>Your listing is saved but stays <strong>hidden</strong> until an admin approves your ID. It goes live automatically the moment that happens.</>}
           </p>
         </div>
 
@@ -220,12 +232,20 @@ export function ListingWizard() {
 
         <div className="bg-[#F8FAFC] rounded-2xl border border-gray-100 p-6 max-w-sm mx-auto space-y-3 text-left">
           <p className="text-sm font-bold text-[#111827] mb-3">What happens next?</p>
-          {[
-            'Rentivo reviews your identity documents',
-            'Your listing goes live within 24 hours',
-            'Renters can find and book your gear',
-            'You get paid within 2 days of return',
-          ].map((s, i) => (
+          {(hostVerified
+            ? [
+                'Your listing is live and searchable now',
+                'Renters can find and book your gear',
+                'You approve or decline each booking request',
+                'You get paid within 2 days of return',
+              ]
+            : [
+                'An admin reviews your ID documents',
+                'Your listing goes live as soon as it’s approved',
+                'Renters can then find and book your gear',
+                'You get paid within 2 days of return',
+              ]
+          ).map((s, i) => (
             <div key={i} className="flex gap-3 text-sm text-gray-600">
               <span className="w-5 h-5 rounded-full bg-[#003049] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
               {s}
@@ -234,10 +254,12 @@ export function ListingWizard() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link href={`/listings/${listingId}`}
-            className="flex items-center justify-center gap-2 border border-[#003049] text-[#003049] font-bold py-3 px-6 rounded-xl text-sm hover:bg-blue-50 transition-colors">
-            <Eye className="w-4 h-4" /> Preview Listing
-          </Link>
+          {hostVerified && (
+            <Link href={`/listings/${listingId}`}
+              className="flex items-center justify-center gap-2 border border-[#003049] text-[#003049] font-bold py-3 px-6 rounded-xl text-sm hover:bg-blue-50 transition-colors">
+              <Eye className="w-4 h-4" /> Preview Listing
+            </Link>
+          )}
           <Link href="/dashboard/listings"
             className="flex items-center justify-center bg-[#003049] text-white font-bold py-3 px-6 rounded-xl text-sm hover:bg-[#002438] transition-colors">
             Go to My Listings

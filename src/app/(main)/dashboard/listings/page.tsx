@@ -33,6 +33,7 @@ export default function ListingsPage() {
   }
 
   const activeCount = listings.filter((l) => l.is_active).length
+  const pendingCount = listings.filter((l) => l.is_draft).length
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">
@@ -68,6 +69,14 @@ export default function ListingsPage() {
           <Link href="/host/new" className="text-sm text-[#003049] hover:underline mt-2 inline-block">Create your first listing →</Link>
         </div>
       ) : (
+        <>
+          {pendingCount > 0 && (
+            <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm mb-6">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              {pendingCount === 1 ? 'One listing is' : `${pendingCount} listings are`} waiting on ID verification.
+              They go live automatically once an admin approves your ID.
+            </div>
+          )}
         <div className="space-y-3">
           {listings.map((listing) => (
             <div key={listing.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
@@ -93,12 +102,19 @@ export default function ListingsPage() {
                       <h3 className="font-bold text-[#111827] text-sm leading-snug truncate">{listing.title}</h3>
                       <p className="text-xs text-gray-500 mt-0.5">{listing.city}, {listing.province}</p>
                     </div>
-                    <span className={`shrink-0 flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                      listing.is_active ? 'bg-green-50 text-[#22C55E]' : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${listing.is_active ? 'bg-[#22C55E]' : 'bg-gray-400'}`} />
-                      {listing.is_active ? 'Active' : 'Paused'}
-                    </span>
+                    {listing.is_draft ? (
+                      <span className="shrink-0 flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        Pending review
+                      </span>
+                    ) : (
+                      <span className={`shrink-0 flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                        listing.is_active ? 'bg-green-50 text-[#22C55E]' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${listing.is_active ? 'bg-[#22C55E]' : 'bg-gray-400'}`} />
+                        {listing.is_active ? 'Active' : 'Paused'}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 mt-3">
@@ -169,6 +185,7 @@ export default function ListingsPage() {
             </div>
           ))}
         </div>
+        </>
       )}
     </div>
   )

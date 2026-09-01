@@ -21,6 +21,7 @@ function mockBundleAsListing(b: (typeof MOCK_BUNDLES)[number]): Listing {
     province: 'Metro Manila',
     is_instant_book: true,
     is_active: true,
+    is_draft: false,
     rating: null,
     review_count: 0,
     view_count: 0,
