@@ -40,9 +40,21 @@ export async function updateSession(request: NextRequest) {
 
   // /admin is allowlist-only. Convenience layer — requireAdminPage()/
   // requireAdminApi() re-check server-side; this is never the sole gate.
-  const isAdminPath = path === '/admin' || path.startsWith('/admin/')
-  if (isAdminPath && user && !isAdminEmail(user.email)) {
+  const isAdminPagePath = path === '/admin' || path.startsWith('/admin/')
+  if (isAdminPagePath && user && !isAdminEmail(user.email)) {
     return new NextResponse('Not Found', { status: 404 })
+  }
+
+  // /api/admin/* has no login-redirect fallback (unlike the page paths
+  // above, via PROTECTED_PREFIXES) and every route here is POST-only —
+  // without this check, a GET (or any non-POST verb) to one of these
+  // routes would reach Next's own router and get a 405, which (unlike a
+  // real 404) confirms the route exists to an unauthenticated prober.
+  // Gate on any non-admin-authenticated state directly, before Next's
+  // router can distinguish "wrong method" from "doesn't exist."
+  const isAdminApiPath = path.startsWith('/api/admin/')
+  if (isAdminApiPath && (!user || !isAdminEmail(user.email))) {
+    return NextResponse.json({ error: 'Not found.' }, { status: 404 })
   }
 
   return supabaseResponse
