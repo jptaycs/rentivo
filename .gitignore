@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Playwright MCP verification artifacts
 .playwright-mcp/
+
+# Subagent-driven-development scratch (ledgers, briefs, review packages)
+.superpowers/
