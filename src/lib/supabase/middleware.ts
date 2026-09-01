@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { isAdminEmail } from '@/lib/admin-emails'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -37,7 +38,14 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // /admin is allowlist-only. Convenience layer — requireAdminPage()/
+  // requireAdminApi() re-check server-side; this is never the sole gate.
+  const isAdminPath = path === '/admin' || path.startsWith('/admin/')
+  if (isAdminPath && user && !isAdminEmail(user.email)) {
+    return new NextResponse('Not Found', { status: 404 })
+  }
+
   return supabaseResponse
 }
 
-const PROTECTED_PREFIXES = ['/dashboard', '/host', '/book', '/messages']
+const PROTECTED_PREFIXES = ['/dashboard', '/host', '/book', '/messages', '/admin']
