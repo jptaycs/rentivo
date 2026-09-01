@@ -404,3 +404,110 @@ export async function notifyNewMessage(messageId: string) {
     })
   )
 }
+
+// ── Admin-decision outcome emails ─────────────────────────────
+// Unconditional (no notification-preference gate) — these are
+// decision receipts, same rationale as the renter payment email.
+
+function adminDecisionHtml(opts: {
+  heading: string
+  bodyHtml: string
+  ctaPath: string
+  ctaLabel: string
+}) {
+  return layout(
+    opts.heading,
+    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">${opts.heading}</h1>
+     ${opts.bodyHtml}
+     ${button(`${APP_URL}${opts.ctaPath}`, opts.ctaLabel)}`
+  )
+}
+
+async function emailForUser(userId: string): Promise<string | null> {
+  const admin = createAdminClient()
+  const { data } = await admin.auth.admin.getUserById(userId)
+  return data.user?.email ?? null
+}
+
+const notesBlock = (notes: string | null) =>
+  notes
+    ? `<p style="margin:16px 0 0;color:#4b5563;font-size:14px;line-height:1.6;">Reviewer notes: ${escapeHtml(notes)}</p>`
+    : ''
+
+export async function notifyVerificationReviewed(
+  userId: string,
+  approved: boolean,
+  notes: string | null
+) {
+  const to = await emailForUser(userId)
+  if (!to) return
+  await send(
+    to,
+    approved ? 'Your identity is verified ✅' : 'Your identity verification needs another look',
+    adminDecisionHtml({
+      heading: approved ? 'Identity Verified ✅' : 'Verification Not Approved',
+      bodyHtml: approved
+        ? `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">Your identity documents were approved — your account now shows the Verified badge.</p>`
+        : `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">We couldn't approve your identity documents this time. You can resubmit from Settings.</p>${notesBlock(notes)}`,
+      ctaPath: '/dashboard/settings',
+      ctaLabel: approved ? 'View Your Profile Settings' : 'Resubmit Documents',
+    })
+  )
+}
+
+export async function notifyPayoutAccountReviewed(
+  hostId: string,
+  approved: boolean,
+  notes: string | null
+) {
+  const to = await emailForUser(hostId)
+  if (!to) return
+  await send(
+    to,
+    approved ? 'Your payout account is verified' : 'Your payout account was not approved',
+    adminDecisionHtml({
+      heading: approved ? 'Payout Account Verified ✅' : 'Payout Account Not Approved',
+      bodyHtml: approved
+        ? `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">Your payout account was verified — you can now request payouts for your completed bookings.</p>`
+        : `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">We couldn't verify your payout account. Please update it and it will be re-reviewed.</p>${notesBlock(notes)}`,
+      ctaPath: '/dashboard/payouts',
+      ctaLabel: 'Go to Payouts',
+    })
+  )
+}
+
+export async function notifyPayoutPaid(hostId: string, amount: number, reference: string | null) {
+  const to = await emailForUser(hostId)
+  if (!to) return
+  await send(
+    to,
+    `Your payout of ${fmtPeso(amount)} has been sent`,
+    adminDecisionHtml({
+      heading: 'Payout Sent 💸',
+      bodyHtml: `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">
+          Your payout of <strong>${fmtPeso(amount)}</strong> has been sent to your payout account.
+          ${reference ? `<br>Reference: ${escapeHtml(reference)}` : ''}
+        </p>`,
+      ctaPath: '/dashboard/payouts',
+      ctaLabel: 'View Payout History',
+    })
+  )
+}
+
+export async function notifyPayoutFailed(hostId: string, amount: number, notes: string | null) {
+  const to = await emailForUser(hostId)
+  if (!to) return
+  await send(
+    to,
+    `Your payout of ${fmtPeso(amount)} could not be completed`,
+    adminDecisionHtml({
+      heading: 'Payout Failed',
+      bodyHtml: `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">
+          Your payout of <strong>${fmtPeso(amount)}</strong> couldn't be completed. The bookings it covered
+          are eligible again — please check your payout account details and request again.
+        </p>${notesBlock(notes)}`,
+      ctaPath: '/dashboard/payouts',
+      ctaLabel: 'Go to Payouts',
+    })
+  )
+}
