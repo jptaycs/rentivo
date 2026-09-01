@@ -7,6 +7,7 @@ import { Star, X } from 'lucide-react'
 const CATEGORIES = [
   { value: 'mirrorless', label: 'Mirrorless Cameras' },
   { value: 'dslr', label: 'DSLR Cameras' },
+  { value: 'digital', label: 'Digital Cameras' },
   { value: 'cinema', label: 'Cinema Cameras' },
   { value: 'smartphone', label: 'Smartphones' },
   { value: 'lens', label: 'Lenses' },

@@ -12,6 +12,7 @@ import { SERVICE_FEE_RATE } from '@/lib/pricing'
 const CATEGORIES = [
   { value: 'mirrorless', label: 'Mirrorless Camera' },
   { value: 'dslr', label: 'DSLR Camera' },
+  { value: 'digital', label: 'Digital Camera' },
   { value: 'cinema', label: 'Cinema Camera' },
   { value: 'smartphone', label: 'Smartphone' },
   { value: 'lens', label: 'Camera Lens' },

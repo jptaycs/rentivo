@@ -210,7 +210,7 @@ Inter (or system-ui). Bold oversized headlines, generous line height, minimal in
 
 ### Equipment Categories (scope boundary — do not add others)
 
-1. Mirrorless Cameras · 2. DSLR Cameras · 3. Cinema Cameras · 4. Smartphones · 5. Camera Lenses · 6. Creator Bundles
+1. Mirrorless Cameras · 2. DSLR Cameras · 3. Digital Cameras · 4. Cinema Cameras · 5. Smartphones · 6. Camera Lenses · 7. Creator Bundles
 
 ### Key UI Contracts
 

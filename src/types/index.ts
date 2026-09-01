@@ -1,6 +1,7 @@
 export type EquipmentCategory =
   | 'mirrorless'
   | 'dslr'
+  | 'digital'
   | 'cinema'
   | 'smartphone'
   | 'lens'
