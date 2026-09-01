@@ -30,7 +30,10 @@ export default function EarningsPage() {
   const pendingPayout = bookings.filter((b) => b.status === 'confirmed' || b.status === 'active')
 
   // request_payout() pays hosts rental_fee + delivery_fee (038) — mirror that
-  // here so the dashboard figures match what a payout actually settles.
+  // arithmetic here. Note this is NOT exact for every booking: request_payout()
+  // excludes host_qr and test_skip bookings entirely (the host was paid
+  // directly, or never charged), while this page still counts them, so the
+  // dashboard total can overstate what a real payout run actually settles.
   const totalEarned = live ? paid.reduce((s, b) => s + b.rental_fee + b.delivery_fee, 0) : 154600
   const pending = live ? pendingPayout.reduce((s, b) => s + b.rental_fee + b.delivery_fee, 0) : 7515
 

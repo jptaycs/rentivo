@@ -24,6 +24,12 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
   const [deliveryAddress, setDeliveryAddress] = useState('')
   const [booking, setBooking] = useState<Booking | null>(null)
   const [bookingId, setBookingId] = useState<string | null>(null)
+  // The unpaid booking is only safe to reuse for a retry of the SAME
+  // delivery choice it was priced under — reusing it after switching
+  // pickup↔delivery would charge the OLD total and never persist the new
+  // is_delivery/delivery_address. Track what it was created for, so changing
+  // the choice drops it and forces checkout to create a freshly priced one.
+  const [bookingIdDelivery, setBookingIdDelivery] = useState<boolean | null>(null)
   const [error, setError] = useState('')
   const [qrWaiting, setQrWaiting] = useState<{ image: string; bookingId: string } | null>(null)
   const [verifying, setVerifying] = useState(false)
@@ -31,6 +37,20 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
 
   const goNext = () => setStep((s) => Math.min(s + 1, 3))
   const goBack = () => setStep((s) => Math.max(s - 1, 0))
+
+  // A previously created unpaid booking is only safe for checkout to reuse
+  // when it was priced under the SAME pickup/delivery choice. Switching
+  // choices after a failed/abandoned attempt must not silently charge the
+  // old total against the new one — drop the stale bookingId so checkout is
+  // forced to create (and correctly price) a fresh booking. Retrying with
+  // the SAME choice still reuses it, so that path never creates a duplicate.
+  function handleDeliveryChange(next: boolean) {
+    if (bookingId !== null && bookingIdDelivery !== null && bookingIdDelivery !== next) {
+      setBookingId(null)
+      setBookingIdDelivery(null)
+    }
+    setIsDelivery(next)
+  }
 
   // Poll while a QR Ph code is on screen — there's no redirect back to
   // confirm payment (unlike GCash/Maya/card), the customer stays right
@@ -154,8 +174,13 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
       return
     }
 
-    // Keep the unpaid booking so a retry doesn't create a duplicate
-    if (data.bookingId) setBookingId(data.bookingId)
+    // Keep the unpaid booking so a retry doesn't create a duplicate — but
+    // only for the delivery choice it was priced under (see
+    // handleDeliveryChange, which drops this if that choice changes).
+    if (data.bookingId) {
+      setBookingId(data.bookingId)
+      setBookingIdDelivery(isDelivery)
+    }
 
     if (!res.ok) {
       setError(data.error ?? 'Payment failed. Please try again.')
@@ -196,7 +221,7 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
               listing={listing}
               isDelivery={isDelivery}
               deliveryAddress={deliveryAddress}
-              onDeliveryChange={setIsDelivery}
+              onDeliveryChange={handleDeliveryChange}
               onAddressChange={setDeliveryAddress}
               onNext={goNext}
               onBack={goBack}

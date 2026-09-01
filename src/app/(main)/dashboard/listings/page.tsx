@@ -32,7 +32,7 @@ export default function ListingsPage() {
     setActingOn('')
   }
 
-  const activeCount = listings.filter((l) => l.is_active).length
+  const activeCount = listings.filter((l) => l.is_active && !l.is_draft).length
   const pendingCount = listings.filter((l) => l.is_draft).length
 
   return (
