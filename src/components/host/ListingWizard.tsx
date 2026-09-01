@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { CheckCircle2, Eye, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -38,11 +38,24 @@ export function ListingWizard() {
   const [error, setError] = useState('')
   const [listingId, setListingId] = useState('')
 
+  // Submit is resumable: a failure after the listing row exists must never
+  // re-upload photos or insert a second listing. Refs (not state) so a retry
+  // in the same mount always sees the latest values.
+  const submittingRef = useRef(false)
+  const listingIdRef = useRef<string | null>(null)
+  const uploadedImagesRef = useRef<Map<File, string>>(new Map())
+  const [warning, setWarning] = useState('')
+
   const next = () => setStep(s => Math.min(s + 1, 6))
   const back = () => setStep(s => Math.max(s - 1, 1))
 
   async function handleSubmit() {
+    // setLoading is async, so two rapid clicks can both pass `disabled={loading}`
+    // before React re-renders. The ref closes that window synchronously.
+    if (submittingRef.current) return
+    submittingRef.current = true
     setError('')
+    setWarning('')
     setLoading(true)
 
     try {
@@ -50,85 +63,137 @@ export function ListingWizard() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('You must be signed in to create a listing.')
 
+      // Catch bad files before any write, so a bucket rejection can't strand
+      // the submit halfway through.
+      const MAX_BYTES = 10 * 1024 * 1024
+      const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
+      const toCheck: { file: File; what: string }[] = [
+        ...state.photos.map(p => ({ file: p.file, what: 'photo' })),
+        ...(state.verify.idFile ? [{ file: state.verify.idFile, what: 'ID document' }] : []),
+        ...(state.verify.selfieFile ? [{ file: state.verify.selfieFile, what: 'selfie' }] : []),
+      ]
+      for (const { file, what } of toCheck) {
+        if (!allowed.includes(file.type)) {
+          throw new Error(`Your ${what} "${file.name}" is a ${file.type || 'unknown'} file. Use JPG, PNG, WebP, or AVIF.`)
+        }
+        if (file.size > MAX_BYTES) {
+          throw new Error(`Your ${what} "${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is 10 MB.`)
+        }
+      }
+
       // Upload photos to the listing-images bucket (policy requires <uid>/ prefix)
       const imageUrls: string[] = []
       for (const { file } of state.photos) {
+        // Already uploaded on an earlier attempt — reuse it rather than
+        // orphaning a second copy in the bucket.
+        const existing = uploadedImagesRef.current.get(file)
+        if (existing) { imageUrls.push(existing); continue }
+
         const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
         const path = `${user.id}/${crypto.randomUUID()}.${ext}`
         const { error: uploadError } = await supabase.storage
           .from('listing-images')
           .upload(path, file, { contentType: file.type })
         if (uploadError) throw new Error(`Photo upload failed: ${uploadError.message}`)
-        imageUrls.push(supabase.storage.from('listing-images').getPublicUrl(path).data.publicUrl)
+        const url = supabase.storage.from('listing-images').getPublicUrl(path).data.publicUrl
+        uploadedImagesRef.current.set(file, url)
+        imageUrls.push(url)
       }
 
       const { details, pricing, address } = state
-      const { data: listing, error: insertError } = await supabase
-        .from('listings')
-        .insert({
-          host_id: user.id,
-          category: details.category,
-          brand: details.brand,
-          model: details.model,
-          title: `${details.brand} ${details.model}`.trim(),
-          description: details.description,
-          condition: details.condition,
-          serial_number: details.serialNumber || null,
-          daily_price: Number(pricing.dailyPrice),
-          weekly_price: pricing.weeklyPrice ? Number(pricing.weeklyPrice) : null,
-          monthly_price: pricing.monthlyPrice ? Number(pricing.monthlyPrice) : null,
-          security_deposit: Number(pricing.securityDeposit || 0),
-          city: address.city,
-          province: address.province,
-          street_address: address.streetAddress || null,
-          is_instant_book: address.isInstantBook,
-          images: imageUrls,
-          accessories: details.accessories,
-        })
-        .select('id')
-        .single()
-      if (insertError) throw new Error(`Could not create listing: ${insertError.message}`)
+      const fields = {
+        host_id: user.id,
+        category: details.category,
+        brand: details.brand,
+        model: details.model,
+        title: `${details.brand} ${details.model}`.trim(),
+        description: details.description,
+        condition: details.condition,
+        serial_number: details.serialNumber || null,
+        daily_price: Number(pricing.dailyPrice),
+        weekly_price: pricing.weeklyPrice ? Number(pricing.weeklyPrice) : null,
+        monthly_price: pricing.monthlyPrice ? Number(pricing.monthlyPrice) : null,
+        security_deposit: Number(pricing.securityDeposit || 0),
+        city: address.city,
+        province: address.province,
+        street_address: address.streetAddress || null,
+        is_instant_book: address.isInstantBook,
+        images: imageUrls,
+        accessories: details.accessories,
+      }
+
+      // The pivot: once a listing row exists for this submit, every retry
+      // updates it. This is what makes a duplicate structurally impossible.
+      if (listingIdRef.current) {
+        const { error: updateError } = await supabase
+          .from('listings')
+          .update(fields)
+          .eq('id', listingIdRef.current)
+        if (updateError) throw new Error(`Could not update listing: ${updateError.message}`)
+      } else {
+        const { data: created, error: insertError } = await supabase
+          .from('listings')
+          .insert(fields)
+          .select('id')
+          .single()
+        if (insertError) throw new Error(`Could not create listing: ${insertError.message}`)
+        listingIdRef.current = created.id
+      }
+      const newListingId = listingIdRef.current as string
+
+      // From here the listing row exists. A failure below must NOT send the
+      // host back to a retry — that is exactly what produced duplicate
+      // listings in production. Collect warnings and finish successfully.
+      const warnings: string[] = []
 
       if (state.blockedDates.length > 0) {
         const { error: blockError } = await supabase.from('availability_blocks').insert(
-          state.blockedDates.map(d => ({ listing_id: listing.id, blocked_on: d, reason: 'personal' }))
+          state.blockedDates.map(d => ({ listing_id: newListingId, blocked_on: d, reason: 'personal' }))
         )
-        if (blockError) throw new Error(`Could not save blocked dates: ${blockError.message}`)
+        if (blockError) warnings.push('Your blocked dates could not be saved — set them again from the Calendar page.')
       }
 
-      await supabase.from('profiles').update({ is_host: true }).eq('id', user.id)
+      const { error: hostFlagError } = await supabase.from('profiles').update({ is_host: true }).eq('id', user.id)
+      if (hostFlagError) warnings.push('Your host profile flag could not be updated. Contact support if your dashboard looks wrong.')
 
       // Identity verification — only if the host actually picked new files
       // (already-verified hosts, or ones with a submission already pending, skip this)
       if (state.verify.idFile && state.verify.selfieFile) {
-        const idExt = state.verify.idFile.name.split('.').pop()?.toLowerCase() || 'jpg'
-        const selfieExt = state.verify.selfieFile.name.split('.').pop()?.toLowerCase() || 'jpg'
-        const idPath = `${user.id}/id-${Date.now()}.${idExt}`
-        const selfiePath = `${user.id}/selfie-${Date.now()}.${selfieExt}`
+        try {
+          const idExt = state.verify.idFile.name.split('.').pop()?.toLowerCase() || 'jpg'
+          const selfieExt = state.verify.selfieFile.name.split('.').pop()?.toLowerCase() || 'jpg'
+          const idPath = `${user.id}/id-${Date.now()}.${idExt}`
+          const selfiePath = `${user.id}/selfie-${Date.now()}.${selfieExt}`
 
-        const { error: idUploadError } = await supabase.storage
-          .from('verification-docs')
-          .upload(idPath, state.verify.idFile, { contentType: state.verify.idFile.type })
-        if (idUploadError) throw new Error(`ID upload failed: ${idUploadError.message}`)
+          const { error: idUploadError } = await supabase.storage
+            .from('verification-docs')
+            .upload(idPath, state.verify.idFile, { contentType: state.verify.idFile.type })
+          if (idUploadError) throw new Error(idUploadError.message)
 
-        const { error: selfieUploadError } = await supabase.storage
-          .from('verification-docs')
-          .upload(selfiePath, state.verify.selfieFile, { contentType: state.verify.selfieFile.type })
-        if (selfieUploadError) throw new Error(`Selfie upload failed: ${selfieUploadError.message}`)
+          const { error: selfieUploadError } = await supabase.storage
+            .from('verification-docs')
+            .upload(selfiePath, state.verify.selfieFile, { contentType: state.verify.selfieFile.type })
+          if (selfieUploadError) throw new Error(selfieUploadError.message)
 
-        const { error: verifyInsertError } = await supabase.from('verification_requests').insert({
-          user_id: user.id,
-          id_doc_path: idPath,
-          selfie_path: selfiePath,
-        })
-        if (verifyInsertError) throw new Error(`Could not submit verification: ${verifyInsertError.message}`)
+          const { error: verifyInsertError } = await supabase.from('verification_requests').insert({
+            user_id: user.id,
+            id_doc_path: idPath,
+            selfie_path: selfiePath,
+          })
+          if (verifyInsertError) throw new Error(verifyInsertError.message)
+        } catch (verifyErr) {
+          const detail = verifyErr instanceof Error ? verifyErr.message : 'unknown error'
+          warnings.push(`Your listing was created, but the ID verification upload failed (${detail}). Retry it from Settings — your listing stays hidden until your ID is approved.`)
+        }
       }
 
-      setListingId(listing.id)
+      setWarning(warnings.join(' '))
+      setListingId(newListingId)
       setDone(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     } finally {
+      submittingRef.current = false
       setLoading(false)
     }
   }
@@ -145,6 +210,13 @@ export function ListingWizard() {
             Your listing is under review. We&apos;ll verify your details and activate it within <strong>24 hours</strong>. You&apos;ll get an email once it&apos;s live.
           </p>
         </div>
+
+        {warning && (
+          <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm max-w-md mx-auto text-left">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            {warning}
+          </div>
+        )}
 
         <div className="bg-[#F8FAFC] rounded-2xl border border-gray-100 p-6 max-w-sm mx-auto space-y-3 text-left">
           <p className="text-sm font-bold text-[#111827] mb-3">What happens next?</p>
