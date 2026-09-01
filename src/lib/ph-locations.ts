@@ -171,10 +171,16 @@ const PROVINCE_COORDS: Record<string, { lat: number; lng: number }> = {
   'nueva vizcaya': { lat: 16.35, lng: 121.13 },
   'occidental mindoro': { lat: 13, lng: 120.9167 },
   'oriental mindoro': { lat: 13.2, lng: 121.2 },
-  'palawan': { lat: 11.0799, lng: 120.9373 },
+  'palawan': { lat: 9.8778, lng: 118.6765 }, // mainland-island centroid, not the province polygon centroid — that one lands ~282km offshore in the Sulu Sea because Palawan's administrative territory includes the Kalayaan (Spratly) islands, which drags a polygon centroid out to sea
   'pampanga': { lat: 15.052, lng: 120.6445 },
   'pangasinan': { lat: 15.9167, lng: 120.3333 },
-  'quezon': { lat: 14.6511, lng: 121.0486 },
+  // NOTE: Quezon PROVINCE, not Quezon CITY (Metro Manila) — the two share a
+  // name and a naive Nominatim query for "Quezon, Philippines" resolves to
+  // the city (14.6511, 121.0486), ~91km from the province's own Tayabas/
+  // Lucena. Regenerating this table must re-disambiguate with something
+  // like "Quezon, Calabarzon, Philippines" and reverse-geocode-verify the
+  // result lands inside the province, not the city.
+  'quezon': { lat: 13.9, lng: 122.0 },
   'quirino': { lat: 16.2833, lng: 121.5833 },
   'rizal': { lat: 14.65, lng: 121.25 },
   'romblon': { lat: 12.5, lng: 122.2 },
@@ -191,6 +197,11 @@ const PROVINCE_COORDS: Record<string, { lat: number; lng: number }> = {
   'tarlac': { lat: 15.4937, lng: 120.4964 },
   'tawi-tawi': { lat: 5.2057, lng: 120.0265 },
   'zambales': { lat: 15.23, lng: 120.12 },
+  // Verified on land (reverse-geocodes to a real road in Lawaan, Tampilisan,
+  // Zamboanga del Norte) despite the round-looking numbers and the 99km
+  // distance from Dipolog — the province is large/elongated and its
+  // administrative polygon centroid genuinely sits inland, well south of
+  // the coastal city. Not an error; left as-is.
   'zamboanga del norte': { lat: 8, lng: 122.6667 },
   'zamboanga del sur': { lat: 7.9043, lng: 123.3194 },
   'zamboanga sibugay': { lat: 7.7877, lng: 122.5744 },
@@ -199,14 +210,16 @@ const PROVINCE_COORDS: Record<string, { lat: number; lng: number }> = {
 // ~145 chartered cities, keyed lowercase and "city"-stripped (matching
 // normalize() below). A handful of city names repeat across provinces
 // (San Fernando in La Union/Pampanga, San Carlos in Pangasinan/Negros
-// Occidental, Talisay in Cebu/Negros Occidental) — the more populous city
-// keeps the plain key and the other gets a province-qualified key so both
-// keep their own real coordinates rather than one silently overwriting the
-// other; the qualified form still resolves correctly through the
-// province-scoped fallback below when free text like "Talisay City,
-// Negros Occidental" is typed. Two short aliases ('samal', 'muñoz') are
-// added alongside their full official-name keys so the common short form
-// still resolves directly.
+// Occidental, Talisay in Cebu/Negros Occidental) — each plain key here
+// holds the more populous city's coordinates; the other city's real
+// coordinates live in CITY_COORDS_PROVINCE_OVERRIDE below, keyed by
+// province, and getCityCoordinates() always resolves a name against the
+// SELECTED PROVINCE's own cities before ever touching this flat table (see
+// that function's comment), so which city a bare "Talisay" et al. resolves
+// to depends on the province dropdown, not on which one happens to be
+// listed here. Two short aliases ('samal', 'muñoz') are added alongside
+// their full official-name keys so the common short form still resolves
+// directly.
 const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   'caloocan': { lat: 14.6513, lng: 120.9724 }, // Caloocan (Metro Manila)
   'las piñas': { lat: 14.4809, lng: 120.9818 }, // Las Piñas (Metro Manila)
@@ -281,7 +294,6 @@ const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   'ilagan': { lat: 17.1486, lng: 121.8886 }, // Ilagan (Isabela)
   'santiago': { lat: 16.6916, lng: 121.5479 }, // Santiago (Isabela)
   'tabuk': { lat: 17.4112, lng: 121.4414 }, // Tabuk (Kalinga)
-  'san fernando la union': { lat: 16.6048, lng: 120.303 }, // San Fernando City, La Union (La Union)
   'biñan': { lat: 14.3388, lng: 121.0842 }, // Biñan (Laguna)
   'cabuyao': { lat: 14.2801, lng: 121.1235 }, // Cabuyao (Laguna)
   'calamba': { lat: 14.206, lng: 121.1556 }, // Calamba (Laguna)
@@ -309,10 +321,8 @@ const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   'kabankalan': { lat: 9.9889, lng: 122.8135 }, // Kabankalan (Negros Occidental)
   'la carlota': { lat: 10.4269, lng: 122.9208 }, // La Carlota (Negros Occidental)
   'sagay': { lat: 10.8961, lng: 123.4155 }, // Sagay (Negros Occidental)
-  'san carlos negros occidental': { lat: 10.486, lng: 123.419 }, // San Carlos City, Negros Occidental (Negros Occidental)
   'silay': { lat: 10.7994, lng: 122.9756 }, // Silay (Negros Occidental)
   'sipalay': { lat: 9.7491, lng: 122.4041 }, // Sipalay (Negros Occidental)
-  'talisay negros occidental': { lat: 10.7373, lng: 122.9673 }, // Talisay City, Negros Occidental (Negros Occidental)
   'victorias': { lat: 10.9013, lng: 123.0715 }, // Victorias (Negros Occidental)
   'bais': { lat: 9.5915, lng: 123.1214 }, // Bais (Negros Oriental)
   'bayawan': { lat: 9.3662, lng: 122.8048 }, // Bayawan (Negros Oriental)
@@ -357,7 +367,25 @@ const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
   'muñoz': { lat: 15.7135, lng: 120.9039 }, // Science City of Muñoz (alias) (Nueva Ecija)
 }
 
-/** Cities grouped by province, for the province-scoped fallback below. */
+/**
+ * Coordinates for the less-populous city of each name that repeats across
+ * provinces, keyed by `'<provinceKey>|<cityKey>'`. CITY_COORDS above holds
+ * only one entry per name (the more populous city); getCityCoordinates()
+ * checks here first whenever it has matched a city within a specific
+ * selected province, so e.g. province "Negros Occidental" + city "Talisay"
+ * correctly returns Negros Occidental's Talisay rather than Cebu's (the one
+ * CITY_COORDS['talisay'] holds).
+ */
+const CITY_COORDS_PROVINCE_OVERRIDE: Record<string, { lat: number; lng: number }> = {
+  'negros occidental|talisay': { lat: 10.7373, lng: 122.9673 }, // Talisay City, Negros Occidental
+  'negros occidental|san carlos': { lat: 10.486, lng: 123.419 }, // San Carlos City, Negros Occidental
+  'la union|san fernando': { lat: 16.6048, lng: 120.303 }, // San Fernando City, La Union
+}
+
+/** Cities grouped by province, for the province-scoped resolution in
+ *  getCityCoordinates() below. Plain, unqualified keys — a city that also
+ *  appears in CITY_COORDS_PROVINCE_OVERRIDE for its province resolves via
+ *  that override rather than the flat CITY_COORDS entry. */
 const CITIES_BY_PROVINCE: Record<string, string[]> = {
   'metro manila': ['caloocan', 'las piñas', 'makati', 'malabon', 'mandaluyong', 'manila', 'marikina', 'muntinlupa', 'navotas', 'parañaque', 'pasay', 'pasig', 'quezon', 'san juan', 'taguig', 'valenzuela'],
   'agusan del norte': ['butuan', 'cabadbaran'],
@@ -385,7 +413,7 @@ const CITIES_BY_PROVINCE: Record<string, string[]> = {
   'iloilo': ['iloilo', 'passi'],
   'isabela': ['cauayan', 'ilagan', 'santiago'],
   'kalinga': ['tabuk'],
-  'la union': ['san fernando la union'],
+  'la union': ['san fernando'],
   'laguna': ['biñan', 'cabuyao', 'calamba', 'san pablo', 'san pedro', 'santa rosa'],
   'lanao del norte': ['iligan'],
   'lanao del sur': ['marawi'],
@@ -394,7 +422,7 @@ const CITIES_BY_PROVINCE: Record<string, string[]> = {
   'masbate': ['masbate'],
   'misamis occidental': ['oroquieta', 'ozamiz', 'tangub'],
   'misamis oriental': ['cagayan de oro', 'el salvador', 'gingoog'],
-  'negros occidental': ['bacolod', 'bago', 'cadiz', 'escalante', 'himamaylan', 'kabankalan', 'la carlota', 'sagay', 'san carlos negros occidental', 'silay', 'sipalay', 'talisay negros occidental', 'victorias'],
+  'negros occidental': ['bacolod', 'bago', 'cadiz', 'escalante', 'himamaylan', 'kabankalan', 'la carlota', 'sagay', 'san carlos', 'silay', 'sipalay', 'talisay', 'victorias'],
   'negros oriental': ['bais', 'bayawan', 'canlaon', 'dumaguete', 'guihulngan', 'tanjay'],
   'nueva ecija': ['cabanatuan', 'gapan', 'science of muñoz', 'palayan', 'san jose', 'muñoz'],
   'oriental mindoro': ['calapan'],
@@ -427,26 +455,57 @@ function normalize(s: string): string {
     .trim()
 }
 
+function cityCoordsFor(cityKey: string, provinceKey: string) {
+  return CITY_COORDS_PROVINCE_OVERRIDE[`${provinceKey}|${cityKey}`] ?? CITY_COORDS[cityKey]
+}
+
 /**
- * Resolution order: exact city → a known city of the selected province
- * appearing in the free-text input → province center → Manila.
- * Always returns a pin; never throws.
+ * Resolution order — PROVINCE-SCOPED FIRST, deliberately:
+ *   1. Exact match among the selected province's own cities.
+ *   2. Longest substring match among the selected province's own cities
+ *      (handles free text like "NAGA CITY CAMARINES SUR").
+ *   3. Flat city lookup across ALL cities (fallback for a legacy/unknown
+ *      province value, e.g. old rows saved with province "Other").
+ *   4. Province center.
+ *   5. Manila.
+ *
+ * An earlier version tried the flat lookup (now step 3) first. That's
+ * backwards: province is a required dropdown field, so it is *always*
+ * known and is strictly better evidence than a bare city string — but
+ * flat-first meant a host who selected the LESS populous province of a
+ * name that repeats (Talisay: Cebu/Negros Occidental; San Fernando:
+ * Pampanga/La Union; San Carlos: Pangasinan/Negros Occidental) and typed
+ * just the bare city name got the OTHER province's — sometimes a different
+ * island entirely — coordinates, because the flat map matched before the
+ * selected province was ever consulted. Checking the selected province's
+ * own city list first fixes that while still letting a host who picked the
+ * wrong or legacy province, but typed a real unique city name, resolve via
+ * step 3. Always returns a pin; never throws.
  */
 export function getCityCoordinates(city: string, province: string) {
   const cityKey = normalize(city)
   const provinceKey = normalize(province)
 
-  if (CITY_COORDS[cityKey]) return CITY_COORDS[cityKey]
-
-  // Hosts type free text like "NAGA CITY CAMARINES SUR" — look for any city
-  // of the selected province inside it. Longest match first, so "san jose
-  // del monte" beats "san jose".
-  const candidates = (CITIES_BY_PROVINCE[provinceKey] ?? [])
+  // Longest names first, so "san jose del monte" beats "san jose" and an
+  // exact match is naturally tried before a shorter candidate could
+  // substring-match part of a longer one.
+  const ownCities = (CITIES_BY_PROVINCE[provinceKey] ?? [])
     .slice()
     .sort((a, b) => b.length - a.length)
-  for (const candidate of candidates) {
-    if (cityKey.includes(candidate)) return CITY_COORDS[candidate]
+
+  // 1. Exact match among the selected province's own cities.
+  for (const candidate of ownCities) {
+    if (candidate === cityKey) return cityCoordsFor(candidate, provinceKey)
   }
 
+  // 2. Longest substring match among the selected province's own cities.
+  for (const candidate of ownCities) {
+    if (cityKey.includes(candidate)) return cityCoordsFor(candidate, provinceKey)
+  }
+
+  // 3. Flat lookup — wrong or legacy province, but a real unique city name.
+  if (CITY_COORDS[cityKey]) return CITY_COORDS[cityKey]
+
+  // 4. Province center, 5. Manila.
   return PROVINCE_COORDS[provinceKey] ?? PROVINCE_COORDS['metro manila']
 }
