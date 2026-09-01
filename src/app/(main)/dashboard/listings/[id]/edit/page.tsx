@@ -1,44 +1,185 @@
 'use client'
 
-import { useState, use } from 'react'
+import { useCallback, useEffect, useState, use } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, Save, Loader2, CheckCircle2 } from 'lucide-react'
-import { MOCK_LISTINGS } from '@/lib/mock-data'
+import { useRouter } from 'next/navigation'
+import { ChevronLeft, Save, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { SERVICE_FEE_RATE } from '@/lib/pricing'
 
-const CATEGORIES = ['Mirrorless Camera', 'DSLR Camera', 'Cinema Camera', 'Smartphone', 'Camera Lens', 'Creator Bundle']
+// Values must match the listings table's equipment_category / listing_condition
+// enums (001_initial_schema.sql) — same options the host wizard's Step2Details uses.
+const CATEGORIES = [
+  { value: 'mirrorless', label: 'Mirrorless Camera' },
+  { value: 'dslr', label: 'DSLR Camera' },
+  { value: 'cinema', label: 'Cinema Camera' },
+  { value: 'smartphone', label: 'Smartphone' },
+  { value: 'lens', label: 'Camera Lens' },
+  { value: 'bundle', label: 'Creator Bundle' },
+]
+
 const CONDITIONS = [
-  { id: 'new', label: 'Like New', desc: 'Pristine condition, barely used' },
-  { id: 'excellent', label: 'Excellent', desc: 'Light use, no visible wear' },
-  { id: 'good', label: 'Good', desc: 'Normal wear, fully functional' },
-  { id: 'fair', label: 'Fair', desc: 'Visible wear but works perfectly' },
+  { value: 'mint', label: 'Mint', desc: 'Like new, no signs of use' },
+  { value: 'excellent', label: 'Excellent', desc: 'Light use, perfect function' },
+  { value: 'good', label: 'Good', desc: 'Normal wear, fully functional' },
+  { value: 'fair', label: 'Fair', desc: 'Visible wear, works well' },
 ]
 
 export default function EditListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const listing = MOCK_LISTINGS.find(l => l.id === id) ?? MOCK_LISTINGS[0]
+  const router = useRouter()
 
-  const [title, setTitle] = useState(listing.title)
-  const [description, setDescription] = useState(listing.description ?? 'Professional-grade equipment in excellent condition. All accessories included.')
-  const [category, setCategory] = useState<string>(listing.category)
-  const [condition, setCondition] = useState<string>('excellent')
-  const [dailyPrice, setDailyPrice] = useState(String(listing.daily_price))
-  const [weeklyPrice, setWeeklyPrice] = useState(String(Math.round(listing.daily_price * 6)))
-  const [monthlyPrice, setMonthlyPrice] = useState(String(Math.round(listing.daily_price * 20)))
-  const [deposit, setDeposit] = useState(String(listing.security_deposit))
-  const [isInstantBook, setIsInstantBook] = useState(listing.is_instant_book ?? false)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [category, setCategory] = useState('')
+  const [condition, setCondition] = useState('')
+  const [dailyPrice, setDailyPrice] = useState('')
+  const [weeklyPrice, setWeeklyPrice] = useState('')
+  const [monthlyPrice, setMonthlyPrice] = useState('')
+  const [deposit, setDeposit] = useState('')
+  const [isInstantBook, setIsInstantBook] = useState(false)
+  const [isActive, setIsActive] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(async () => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      setNotFound(true)
+      setLoading(false)
+      return
+    }
+    // Scoped to host_id as well as id: RLS governs this too, but an explicit
+    // filter makes "someone else's listing" a clean not-found rather than an
+    // empty-looking form.
+    const { data, error: loadError } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('id', id)
+      .eq('host_id', user.id)
+      .maybeSingle()
+    if (loadError || !data) {
+      setNotFound(true)
+      setLoading(false)
+      return
+    }
+    setTitle(data.title ?? '')
+    setDescription(data.description ?? '')
+    setCategory(data.category ?? '')
+    setCondition(data.condition ?? '')
+    setDailyPrice(String(data.daily_price ?? ''))
+    setWeeklyPrice(data.weekly_price != null ? String(data.weekly_price) : '')
+    setMonthlyPrice(data.monthly_price != null ? String(data.monthly_price) : '')
+    setDeposit(String(data.security_deposit ?? ''))
+    setIsInstantBook(data.is_instant_book ?? false)
+    setIsActive(data.is_active ?? true)
+    setLoading(false)
+  }, [id])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- standard fetch-on-mount pattern used across this codebase's data hooks (see AGENTS.md)
+    load()
+  }, [load])
 
   async function handleSave() {
+    setError('')
+    if (!title.trim()) return setError('Title is required.')
+    if (Number(dailyPrice) < 100) return setError('Daily rate must be at least ₱100.')
+    if (Number(deposit) < 0) return setError('Security deposit cannot be negative.')
+
     setSaving(true)
-    await new Promise(r => setTimeout(r, 1200))
+    const supabase = createClient()
+    const { error: saveError } = await supabase
+      .from('listings')
+      .update({
+        title: title.trim(),
+        description: description.trim(),
+        category,
+        condition,
+        daily_price: Number(dailyPrice),
+        weekly_price: weeklyPrice ? Number(weeklyPrice) : null,
+        monthly_price: monthlyPrice ? Number(monthlyPrice) : null,
+        security_deposit: Number(deposit || 0),
+        is_instant_book: isInstantBook,
+      })
+      .eq('id', id)
     setSaving(false)
+
+    if (saveError) {
+      setError(saveError.message)
+      return
+    }
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
 
+  async function togglePaused() {
+    setError('')
+    setBusy(true)
+    const supabase = createClient()
+    const { error: pauseError } = await supabase
+      .from('listings')
+      .update({ is_active: !isActive })
+      .eq('id', id)
+    setBusy(false)
+    if (pauseError) {
+      setError(pauseError.message)
+      return
+    }
+    setIsActive(v => !v)
+  }
+
+  async function handleDelete() {
+    if (!confirm('Permanently delete this listing? This cannot be undone.')) return
+    setError('')
+    setBusy(true)
+    const supabase = createClient()
+    const { error: deleteError } = await supabase.from('listings').delete().eq('id', id)
+    setBusy(false)
+    if (deleteError) {
+      setError(deleteError.message)
+      return
+    }
+    router.push('/dashboard/listings')
+  }
+
   const field = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100 transition-all bg-white'
   const label = 'block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5'
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+      </div>
+    )
+  }
+
+  if (notFound) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-6">
+        <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center max-w-sm">
+          <AlertCircle className="w-8 h-8 text-gray-300 mx-auto mb-3" />
+          <p className="font-bold text-[#111827]">Listing not found</p>
+          <p className="text-sm text-gray-500 mt-1">
+            It may have been deleted, or it isn&apos;t one of your listings.
+          </p>
+          <Link
+            href="/dashboard/listings"
+            className="inline-block mt-5 bg-[#003049] text-white font-bold text-sm px-5 py-2.5 rounded-xl"
+          >
+            Back to My Listings
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -51,7 +192,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
             </Link>
             <div>
               <p className="font-bold text-[#111827] text-sm">Edit Listing</p>
-              <p className="text-xs text-gray-400 truncate max-w-[200px]">{listing.title}</p>
+              <p className="text-xs text-gray-400 truncate max-w-[200px]">{title}</p>
             </div>
           </div>
           <button
@@ -68,6 +209,19 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
 
+        {error && (
+          <div className="flex items-start gap-2.5 bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+            {error}
+          </div>
+        )}
+
+        {!isActive && (
+          <div className="bg-orange-50 border border-orange-100 text-orange-800 rounded-xl px-4 py-3 text-sm">
+            This listing is paused — it&apos;s hidden from search until you activate it again.
+          </div>
+        )}
+
         {/* Details */}
         <section className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
           <p className="font-bold text-[#111827]">Equipment Details</p>
@@ -80,7 +234,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
           <div>
             <label className={label}>Category</label>
             <select value={category} onChange={e => setCategory(e.target.value)} className={field}>
-              {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+              {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
           </div>
 
@@ -89,11 +243,11 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
             <div className="grid grid-cols-2 gap-2">
               {CONDITIONS.map(c => (
                 <button
-                  key={c.id}
-                  onClick={() => setCondition(c.id)}
-                  className={`text-left p-3 rounded-xl border-2 transition-all ${condition === c.id ? 'border-[#003049] bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                  key={c.value}
+                  onClick={() => setCondition(c.value)}
+                  className={`text-left p-3 rounded-xl border-2 transition-all ${condition === c.value ? 'border-[#003049] bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
                 >
-                  <p className={`text-sm font-bold ${condition === c.id ? 'text-[#003049]' : 'text-[#111827]'}`}>{c.label}</p>
+                  <p className={`text-sm font-bold ${condition === c.value ? 'text-[#003049]' : 'text-[#111827]'}`}>{c.label}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{c.desc}</p>
                 </button>
               ))}
@@ -161,7 +315,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
 
           {dailyPrice && (
             <div className="bg-[#F8FAFC] rounded-xl p-4 text-sm text-gray-600 border border-gray-100">
-              You earn <strong className="text-[#22C55E]">₱{Math.round(Number(dailyPrice) * 0.95).toLocaleString()}</strong> per day after the 5% Rentivo service fee.
+              You earn <strong className="text-[#22C55E]">₱{Math.round(Number(dailyPrice) * (1 - SERVICE_FEE_RATE)).toLocaleString()}</strong> per day after the {Math.round(SERVICE_FEE_RATE * 100)}% Rentivo service fee.
             </div>
           )}
         </section>
@@ -175,7 +329,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
             </div>
             <div
               onClick={() => setIsInstantBook(v => !v)}
-              className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer shrink-0 mt-1 ${isInstantBook ? 'bg-[#FDF0D5]' : 'bg-gray-200'}`}
+              className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer shrink-0 mt-1 ${isInstantBook ? 'bg-[#003049]' : 'bg-gray-200'}`}
             >
               <span className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${isInstantBook ? 'translate-x-6' : ''}`} />
             </div>
@@ -187,11 +341,19 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
           <p className="font-bold text-red-600 mb-3 text-sm">Danger Zone</p>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-[#111827]">Pause this listing</p>
-              <p className="text-xs text-gray-400 mt-0.5">Hides it from search while keeping booking history</p>
+              <p className="text-sm font-medium text-[#111827]">{isActive ? 'Pause this listing' : 'Activate this listing'}</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {isActive
+                  ? 'Hides it from search while keeping booking history'
+                  : 'Makes it visible in search again'}
+              </p>
             </div>
-            <button className="text-sm font-bold text-orange-600 border border-orange-200 px-4 py-2 rounded-xl hover:bg-orange-50 transition-colors">
-              Pause Listing
+            <button
+              onClick={togglePaused}
+              disabled={busy}
+              className="text-sm font-bold text-orange-600 border border-orange-200 px-4 py-2 rounded-xl hover:bg-orange-50 transition-colors disabled:opacity-50"
+            >
+              {isActive ? 'Pause Listing' : 'Activate Listing'}
             </button>
           </div>
           <div className="border-t border-gray-100 mt-4 pt-4 flex items-center justify-between">
@@ -199,7 +361,11 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
               <p className="text-sm font-medium text-[#111827]">Delete listing</p>
               <p className="text-xs text-gray-400 mt-0.5">Permanently removes this listing and all its data</p>
             </div>
-            <button className="text-sm font-bold text-red-600 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-50 transition-colors">
+            <button
+              onClick={handleDelete}
+              disabled={busy}
+              className="text-sm font-bold text-red-600 border border-red-200 px-4 py-2 rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
               Delete
             </button>
           </div>
