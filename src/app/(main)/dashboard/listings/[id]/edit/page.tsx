@@ -161,7 +161,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
 
           {dailyPrice && (
             <div className="bg-[#F8FAFC] rounded-xl p-4 text-sm text-gray-600 border border-gray-100">
-              You earn <strong className="text-[#22C55E]">₱{Math.round(Number(dailyPrice) * 0.88).toLocaleString()}</strong> per day after the 12% Rentivo service fee.
+              You earn <strong className="text-[#22C55E]">₱{Math.round(Number(dailyPrice) * 0.95).toLocaleString()}</strong> per day after the 5% Rentivo service fee.
             </div>
           )}
         </section>

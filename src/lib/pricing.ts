@@ -1,5 +1,4 @@
-export const SERVICE_FEE_RATE = 0.12
-export const PROTECTION_FEE_RATE = 0.05
+export const SERVICE_FEE_RATE = 0.05
 
 export interface PricedListing {
   daily_price: number
@@ -28,7 +27,6 @@ export function calcRentalFee(listing: PricedListing, days: number): { rentalFee
 export function calcPricing(listing: PricedListing, days: number) {
   const { rentalFee, tier } = calcRentalFee(listing, days)
   const serviceFee = Math.round(rentalFee * SERVICE_FEE_RATE)
-  const protectionFee = Math.round(rentalFee * PROTECTION_FEE_RATE)
-  const total = rentalFee + serviceFee + protectionFee + listing.security_deposit
-  return { rentalFee, tier, serviceFee, protectionFee, total }
+  const total = rentalFee + serviceFee + listing.security_deposit
+  return { rentalFee, tier, serviceFee, total }
 }

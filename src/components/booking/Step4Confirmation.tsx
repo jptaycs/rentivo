@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
-import { CheckCircle2, Download, MessageCircle, Calendar, MapPin, Shield, Clock } from 'lucide-react'
+import { CheckCircle2, Download, MessageCircle, Calendar, MapPin, Clock } from 'lucide-react'
 import type { Listing, Booking } from '@/types'
 
 interface Step4ConfirmationProps {
@@ -180,10 +180,12 @@ export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) 
             <span>Service fee</span>
             <span>₱{booking.service_fee.toLocaleString()}</span>
           </div>
-          <div className="flex justify-between text-gray-600">
-            <span>Protection fee</span>
-            <span>₱{booking.protection_fee.toLocaleString()}</span>
-          </div>
+          {booking.protection_fee > 0 && (
+            <div className="flex justify-between text-gray-600">
+              <span>Protection fee</span>
+              <span>₱{booking.protection_fee.toLocaleString()}</span>
+            </div>
+          )}
           <div className="flex justify-between text-gray-600">
             <span>Security deposit</span>
             <span>₱{booking.security_deposit.toLocaleString()}</span>
@@ -201,14 +203,6 @@ export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) 
             {(booking.payment_method && METHOD_LABELS[booking.payment_method]) ?? '—'}
           </span>
         </div>
-      </div>
-
-      {/* Protection badge */}
-      <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-100 rounded-xl text-sm text-green-800">
-        <Shield className="w-5 h-5 text-[#22C55E] shrink-0" />
-        <p>
-          Your rental is covered by Rentivo&apos;s <strong>Equipment Protection Plan</strong>. In case of damage or loss, contact support within 24 hours of your return date.
-        </p>
       </div>
 
       {/* Next steps */}

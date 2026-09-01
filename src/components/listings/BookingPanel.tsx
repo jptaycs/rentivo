@@ -47,7 +47,7 @@ export function BookingPanel({ listing }: BookingPanelProps) {
       )
     : 0
 
-  const { rentalFee, tier, serviceFee, protectionFee, total } = calcPricing(listing, days)
+  const { rentalFee, tier, serviceFee, total } = calcPricing(listing, days)
   const effectiveRate = days > 0 ? Math.round(rentalFee / days) : listing.daily_price
 
   function handleBook() {
@@ -134,10 +134,6 @@ export function BookingPanel({ listing }: BookingPanelProps) {
             <span>₱{serviceFee.toLocaleString()}</span>
           </div>
           <div className="flex justify-between text-gray-600">
-            <span>Protection fee</span>
-            <span>₱{protectionFee.toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between text-gray-600">
             <span>Security deposit <span className="text-xs">(refundable)</span></span>
             <span>₱{listing.security_deposit.toLocaleString()}</span>
           </div>
@@ -168,7 +164,7 @@ export function BookingPanel({ listing }: BookingPanelProps) {
       {/* Trust note */}
       <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
         <Shield className="w-3.5 h-3.5 text-[#22C55E]" />
-        Equipment protection included
+        Secure payments included
       </div>
     </div>
   )

@@ -28,10 +28,9 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
   const weeklySavings  = daily > 0 && weekly > 0  ? Math.round(((daily * 7  - weekly)  / (daily * 7))  * 100) : 0
   const monthlySavings = daily > 0 && monthly > 0 ? Math.round(((daily * 30 - monthly) / (daily * 30)) * 100) : 0
 
-  const serviceFee    = Math.round(daily * 0.12)
-  const protectionFee = Math.round(daily * 0.05)
-  const renterPays    = daily + serviceFee + protectionFee
-  const hostReceives  = Math.round(daily * 0.88)
+  const serviceFee    = Math.round(daily * 0.05)
+  const renterPays    = daily + serviceFee
+  const hostReceives  = Math.round(daily * 0.95)
 
   const canContinue = daily >= 100 && Number(data.securityDeposit) >= 0
 
@@ -73,7 +72,7 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
               <span>₱{daily.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-gray-600">
-              <span>Rentivo service fee (12%)</span>
+              <span>Rentivo service fee (5%)</span>
               <span className="text-red-400">-₱{serviceFee.toLocaleString()}</span>
             </div>
             <div className="flex justify-between font-bold text-[#22C55E] border-t border-gray-200 pt-2 mt-1">
@@ -82,7 +81,7 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
             </div>
           </div>
           <p className="text-xs text-gray-400 mt-3">
-            Renters pay ₱{renterPays.toLocaleString()}/day (includes service + protection fees).
+            Renters pay ₱{renterPays.toLocaleString()}/day (includes service fee).
           </p>
         </div>
       )}

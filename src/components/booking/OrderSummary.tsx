@@ -12,7 +12,7 @@ interface OrderSummaryProps {
 }
 
 export function OrderSummary({ listing, pickupDate, returnDate, days, isDelivery }: OrderSummaryProps) {
-  const { rentalFee, tier, serviceFee, protectionFee, total } = calcPricing(listing, days)
+  const { rentalFee, tier, serviceFee, total } = calcPricing(listing, days)
   const effectiveRate = days > 0 ? Math.round(rentalFee / days) : listing.daily_price
 
   const fmt = (d: string) =>
@@ -88,12 +88,8 @@ export function OrderSummary({ listing, pickupDate, returnDate, days, isDelivery
           <span>₱{rentalFee.toLocaleString()}</span>
         </div>
         <div className="flex justify-between text-gray-600">
-          <span>Service fee (12%)</span>
+          <span>Service fee (5%)</span>
           <span>₱{serviceFee.toLocaleString()}</span>
-        </div>
-        <div className="flex justify-between text-gray-600">
-          <span>Protection fee (5%)</span>
-          <span>₱{protectionFee.toLocaleString()}</span>
         </div>
         <div className="flex justify-between text-gray-600">
           <span>Security deposit <span className="text-xs">(refundable)</span></span>
@@ -108,7 +104,7 @@ export function OrderSummary({ listing, pickupDate, returnDate, days, isDelivery
       {/* Trust note */}
       <div className="flex items-center gap-2 text-xs text-gray-400 border-t border-gray-100 pt-4">
         <Shield className="w-4 h-4 text-[#22C55E] shrink-0" />
-        Equipment protection & secure payments included
+        Secure payments included
       </div>
     </div>
   )
