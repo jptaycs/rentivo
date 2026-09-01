@@ -32,12 +32,21 @@ interface AppliedPromo {
 
 const PAYMONGO_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY
 
+// PayMongo activates payment methods per-merchant after KYB review. Methods
+// listed here render as unavailable rather than failing at attach time.
+// Clearing the env var re-enables them with no code deploy.
+const DISABLED_METHODS = (process.env.NEXT_PUBLIC_DISABLED_PAYMENT_METHODS ?? '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+
 const BASE_METHODS: {
   id: PaymentMethod
   label: string
   logo: string
   color: string
   comingSoon?: boolean
+  unavailable?: boolean
 }[] = [
   { id: 'gcash', label: 'GCash', logo: '/logos/gcash.svg', color: 'border-blue-400' },
   { id: 'maya', label: 'Maya', logo: '/logos/maya.svg', color: 'border-green-400' },
@@ -92,7 +101,9 @@ async function createCardPaymentMethod(card: {
 
 export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step3PaymentProps) {
   const { user } = useUser()
-  const [method, setMethod] = useState<PaymentMethod>('gcash')
+  const [method, setMethod] = useState<PaymentMethod>(
+    () => (['gcash', 'maya', 'card', 'qrph'] as const).find((m) => !DISABLED_METHODS.includes(m)) ?? 'qrph'
+  )
   const [mobileNumber, setMobileNumber] = useState('')
   const [cardNumber, setCardNumber] = useState('')
   const [cardExpiry, setCardExpiry] = useState('')
@@ -107,9 +118,10 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
   const [promoChecking, setPromoChecking] = useState(false)
 
   const hasHostQr = Boolean(listing.host?.qr_payment_url)
-  const methods = hasHostQr
-    ? [...BASE_METHODS, { id: 'host_qr' as const, label: 'GCash/Maya QR (Direct to Host)', logo: '', color: 'border-purple-400' }]
+  const methods = (hasHostQr
+    ? [...BASE_METHODS, { id: 'host_qr' as const, label: 'GCash/Maya QR (Direct to Host)', logo: '', color: 'border-purple-400', comingSoon: false, unavailable: false }]
     : BASE_METHODS
+  ).map((m) => (DISABLED_METHODS.includes(m.id) ? { ...m, comingSoon: true, unavailable: true } : m))
 
   async function applyPromo() {
     const code = promoInput.trim().toUpperCase()
@@ -237,7 +249,7 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
               <span className="font-medium text-[#111827] text-sm">{m.label}</span>
               {m.comingSoon && (
                 <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-gray-400 bg-gray-100 rounded-full px-2.5 py-1">
-                  Coming soon
+                  {m.unavailable ? 'Unavailable' : 'Coming soon'}
                 </span>
               )}
             </label>
@@ -380,7 +392,7 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
               <button
                 onClick={applyPromo}
                 disabled={!promoInput.trim() || promoChecking}
-                className="px-4 py-2.5 bg-[#FDF0D5] hover:bg-orange-600 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold text-sm rounded-xl transition-colors"
+                className="px-4 py-2.5 bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold text-sm rounded-xl transition-colors"
               >
                 {promoChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
               </button>
