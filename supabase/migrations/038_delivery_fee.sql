@@ -23,13 +23,19 @@ alter table public.bookings
 comment on column public.listings.delivery_fee is
   'Flat delivery fee in PHP. NULL = host does not offer delivery; 0 = free delivery.';
 
--- 004 grants insert on bookings column-by-column; a column missing from
--- that list is silently unwritable.
-grant insert (
-  listing_id, renter_id, host_id, pickup_date, return_date,
-  rental_fee, security_deposit, service_fee, protection_fee, delivery_fee,
-  total_amount, is_delivery, delivery_address, payment_method, renter_notes
-) on public.bookings to authenticated;
+-- NO insert grant is issued for the new bookings.delivery_fee column, and none
+-- is needed. 004 did grant insert on bookings column-by-column, but 007
+-- deliberately took it all away again — `revoke insert on public.bookings from
+-- authenticated;` ("Amounts must come from the RPC — no more direct inserts"),
+-- which in Postgres also drops the column-level grants 004 had issued. So 004's
+-- list has been dead since 007 and must NOT be resurrected here: the
+-- `bookings: renter insert` RLS policy (004) validates only renter_id/host_id
+-- and that the listing is active — it checks no amount at all, so a renter
+-- holding direct INSERT could set their own rental_fee/service_fee/
+-- security_deposit/total_amount and book at any price they liked.
+-- create_booking is `security definer`, so it inserts as the function owner and
+-- is entirely unaffected by what `authenticated` may or may not write. The RPC
+-- stays the only path to a booking row, which is the whole point of 007.
 
 -- ── create_booking ───────────────────────────────────────────
 -- Body copied verbatim from 035, with four changes, all marked "038:".
@@ -176,9 +182,11 @@ end;
 $$;
 
 -- ── request_payout ───────────────────────────────────────────
--- Body copied verbatim from 033. The eligible CTE summed rental_fee alone
--- in three places; the renter pays the delivery fee to the host through
--- Rentivo, so leaving it out would make the host absorb every delivery.
+-- Body copied verbatim from 033. The eligible CTE referred to rental_fee alone
+-- on four lines (the CTE projection, the sum() in the request insert, that
+-- insert's having, and the payout_items amount); the renter pays the delivery
+-- fee to the host through Rentivo, so leaving it out of any one of them would
+-- make the host absorb every delivery.
 create or replace function public.request_payout()
 returns public.payout_requests
 language plpgsql security definer set search_path = public

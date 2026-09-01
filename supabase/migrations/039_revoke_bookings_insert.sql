@@ -1,0 +1,31 @@
+-- ============================================================
+-- 039_revoke_bookings_insert.sql
+-- Repairs any database on which 038 already ran.
+--
+-- 038 re-issued 004's column-level `grant insert (...) on public.bookings to
+-- authenticated`, not realising 007 had deliberately revoked it:
+--   -- Amounts must come from the RPC — no more direct inserts
+--   revoke insert on public.bookings from authenticated;
+-- (Revoking table-level INSERT in Postgres also drops the column-level grants,
+-- so 004's list had been dead ever since — 038 resurrected it.)
+--
+-- That was a live security hole, not a cosmetic one. The `bookings: renter
+-- insert` RLS policy (004) checks only renter_id, host_id and that the listing
+-- is active; it validates NO amount. Every NOT NULL column without a default
+-- was in the granted list, so a renter could POST /rest/v1/bookings directly
+-- and set their own rental_fee, service_fee, security_deposit and
+-- total_amount — bypassing create_booking's server-side pricing entirely and
+-- then paying that self-chosen total through /api/payments/checkout, which
+-- prices the PayMongo intent from the stored total_amount. On live keys that
+-- is a real, per-booking loss.
+--
+-- 038 itself has been corrected so a fresh database replaying the migrations
+-- never opens the hole; this migration exists because Supabase tracks
+-- migrations by version and will not re-run an already-applied one.
+--
+-- create_booking is `security definer` and inserts as the function owner, so
+-- it is unaffected by this revoke — it remains the only path to a booking row,
+-- which is exactly what 007 intended.
+-- ============================================================
+
+revoke insert on public.bookings from authenticated;
