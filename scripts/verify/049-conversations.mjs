@@ -1,4 +1,4 @@
-import { admin, asUser, signIn, check } from './env.mjs'
+import { admin, asUser, signIn, check, done } from './env.mjs'
 
 const RENTER = 'renter@demo.rentivo.ph'
 const PASSWORD = 'DemoRentivo1'
@@ -37,4 +37,4 @@ check('authenticated direct INSERT is rejected', ins.status !== 201, `status ${i
 // `rpc/exec_sql` endpoint that does not exist in this project; removed.)
 console.log('(index shape is asserted by the backfill in Task 2, which fails loudly if unconditional)')
 
-process.exit(0)
+done()

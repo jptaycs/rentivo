@@ -1,4 +1,4 @@
-import { admin, asUser, check, signIn } from './env.mjs'
+import { admin, asUser, check, done, signIn } from './env.mjs'
 
 const msgs = (await admin('messages?select=id,booking_id,conversation_id')).body
 check('messages table is readable', Array.isArray(msgs), JSON.stringify(msgs)?.slice(0, 120))
@@ -21,12 +21,23 @@ check('conversation_id matches the original booking_id', wrong.length === 0, `${
 const renterToken = await signIn('renter@demo.rentivo.ph', 'DemoRentivo1')
 const renterId = 'a0000000-0000-4000-8000-0000000000fe'
 
-// Find a booking this renter participates in, and its conversation.
-const bookingsForRenter = (await admin(`bookings?select=id&renter_id=eq.${renterId}&limit=1`)).body
+// Deterministic pick — the oldest booking this renter participates in —
+// rather than a bare `limit=1`, which is not guaranteed stable across runs
+// and could land on a different (possibly real-user) conversation each time.
+const bookingsForRenter = (await admin(
+  `bookings?select=id&renter_id=eq.${renterId}&order=created_at.asc&limit=1`
+)).body
 const probeBookingId = bookingsForRenter?.[0]?.id
 check('found a booking for the old-shape insert probe', !!probeBookingId, probeBookingId ?? 'none found')
 
-const expectedConvo = (await admin(`conversations?select=id&booking_id=eq.${probeBookingId}`)).body?.[0]
+const expectedConvo = (await admin(
+  `conversations?select=id,last_message_at&booking_id=eq.${probeBookingId}`
+)).body?.[0]
+
+// Snapshot last_message_at before the probe mutates it (touch_conversation_last_message
+// fires AFTER INSERT on the real conversation row) so it can be restored below,
+// regardless of what this thread's true value was before this run.
+const originalLastMessageAt = expectedConvo?.last_message_at
 
 const oldShapeInsert = await asUser(renterToken, 'messages', {
   method: 'POST',
@@ -48,9 +59,24 @@ check('old-shape insert conversation_id matches the conversation for that bookin
   !!expectedConvo && insertedRow?.conversation_id === expectedConvo.id,
   `got ${insertedRow?.conversation_id}, expected ${expectedConvo?.id}`)
 
-// Clean up the probe row so this script is repeatable and leaves no trace.
+// Clean up the probe row so this script is repeatable and leaves no trace,
+// then restore the real conversation's last_message_at — the probe's AFTER
+// INSERT trigger bumped it on a real thread, and deleting the message alone
+// does not undo that.
 if (insertedRow?.id) {
   await admin(`messages?id=eq.${insertedRow.id}`, { method: 'DELETE' })
 }
+if (expectedConvo?.id && originalLastMessageAt !== undefined) {
+  await admin(`conversations?id=eq.${expectedConvo.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ last_message_at: originalLastMessageAt }),
+  })
+  const restored = (await admin(
+    `conversations?select=last_message_at&id=eq.${expectedConvo.id}`
+  )).body?.[0]
+  check('probe conversation last_message_at restored to its pre-probe value',
+    restored?.last_message_at === originalLastMessageAt,
+    `now ${restored?.last_message_at}, expected ${originalLastMessageAt}`)
+}
 
-process.exit(0)
+done()

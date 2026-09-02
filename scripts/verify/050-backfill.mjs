@@ -1,4 +1,4 @@
-import { admin, check, } from './env.mjs'
+import { admin, check, done } from './env.mjs'
 
 const bookings = (await admin('bookings?select=id,listing_id,renter_id,host_id')).body
 const convos   = (await admin('conversations?select=id,booking_id,listing_id,renter_id,host_id')).body
@@ -25,4 +25,4 @@ for (const b of bookings) {
 const repeats = [...pairs.values()].filter(n => n > 1).length
 check('repeat-rental pairs each kept their own conversation', repeats > 0, `${repeats} repeated pairs present in data`)
 
-process.exit(0)
+done()
