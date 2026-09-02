@@ -121,12 +121,25 @@ try {
   check('cannot inquire on an inactive listing', inactive.status >= 400, `status ${inactive.status} ${inactive.body.slice(0, 120)}`)
 
   // 6. Refused: a listing whose host is suspended. Throwaway probe host + listing only.
+  //
+  // Fix round 1 (IMPORTANT 1): the original version of this check never
+  // exercised the suspension guard at all. It PATCHed `is_host: true` on the
+  // probe host but never `is_verified: true`, so migration 037's
+  // force_draft_when_unverified() (a BEFORE INSERT trigger on listings, no
+  // service-role exemption) silently forced the probe listing to
+  // is_draft = true regardless of what was inserted. create_inquiry then
+  // refused at the DRAFT branch, not the suspension branch — and both raise
+  // the byte-identical string 'This listing is not available.', so the 400
+  // observed was indistinguishable from a real suspension refusal. Fixed by
+  // verifying the probe host BEFORE inserting its listing, and by adding a
+  // CONTROL assertion (inquiry succeeds while the host is active) so the
+  // later refusal is actually attributable to suspension.
   const probeHostEmail = `probe-suspended-host-${stamp}@example.com`
   const probeHostId = await createProbeUser(probeHostEmail, 'ProbePassword1!')
   cleanup.profileIds.push(probeHostId)
   await admin(`profiles?id=eq.${probeHostId}`, {
     method: 'PATCH',
-    body: JSON.stringify({ is_host: true, full_name: 'Probe Suspended Host' }),
+    body: JSON.stringify({ is_host: true, is_verified: true, full_name: 'Probe Suspended Host' }),
   })
   const suspendedListing = (await admin('listings', {
     method: 'POST',
@@ -142,6 +155,17 @@ try {
     }),
   })).body[0]
   cleanup.listingIds.push(suspendedListing.id)
+  // Confirm this probe listing is really live (not silently drafted) before
+  // trusting the refusal below.
+  const suspendedListingRow = (await admin(`listings?select=id,is_draft,is_active&id=eq.${suspendedListing.id}`)).body[0]
+  check('probe listing for the suspension check is really live (control)',
+    suspendedListingRow.is_draft === false && suspendedListingRow.is_active === true, JSON.stringify(suspendedListingRow))
+
+  // CONTROL: the inquiry succeeds while the host is active.
+  const beforeSuspend = await rpc(renterTok, 'create_inquiry', { p_listing_id: suspendedListing.id, p_content: 'hi (control, host active)' })
+  check('control: can inquire on this listing while its host is active', beforeSuspend.status === 200, `status ${beforeSuspend.status} ${beforeSuspend.body.slice(0, 120)}`)
+  if (beforeSuspend.status === 200) cleanup.conversationIds.push(JSON.parse(beforeSuspend.body))
+
   await admin(`profiles?id=eq.${probeHostId}`, {
     method: 'PATCH',
     body: JSON.stringify({ suspended_at: new Date().toISOString() }),
@@ -150,6 +174,16 @@ try {
   check('cannot inquire on a listing whose host is suspended', suspended.status >= 400, `status ${suspended.status} ${suspended.body.slice(0, 120)}`)
   // Clear suspension immediately so nothing lingers even if a later check throws.
   await admin(`profiles?id=eq.${probeHostId}`, { method: 'PATCH', body: JSON.stringify({ suspended_at: null }) })
+
+  // IMPORTANT 2 (fix round 1): assert the grant boundary itself. Nothing
+  // before this called create_inquiry with the bare anon key, so neither
+  // `revoke execute ... from public, anon` nor the `v_uid is null` branch had
+  // ever actually run — this is the exact regression class migration 039
+  // fixed in this repo (a later migration silently re-granting something a
+  // previous one deliberately revoked).
+  const anonCall = await rpc(ANON, 'create_inquiry', { p_listing_id: live.id, p_content: 'hi' })
+  check('anon key cannot call create_inquiry at all (grant + auth.uid() null both enforced)',
+    anonCall.status >= 400, `status ${anonCall.status} ${anonCall.body.slice(0, 160)}`)
 
   // 7. Refused: the 24h cap (10). Use a throwaway renter + 10 throwaway
   // listings so the partial unique index (one open inquiry per listing+renter)
@@ -223,6 +257,18 @@ try {
   // 9. A second booking of the same listing by the same renter creates a
   // SECOND conversation (repeat-rental case) and does not violate the
   // partial unique index.
+  //
+  // MINOR 3 / this IS the fallback-branch test: check 8 already consumed the
+  // only open inquiry for this (listing, renter) pair — the partial unique
+  // index (conversations_open_inquiry_key) guarantees at most one such row
+  // exists — so this second create_booking's UPDATE inside
+  // attach_conversation_to_booking() matches ZERO rows, v_convo_id is NULL,
+  // and only the fallback INSERT branch can produce the row asserted below.
+  // Its coverage being invisible (only id/booking_id were checked) is what
+  // led a prior version of this report to incorrectly call that branch
+  // "untested" — asserting the identity fields here makes the coverage
+  // explicit and catches a swapped renter/host, which the narrower assertion
+  // would have missed.
   const pickup2 = new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10)
   const ret2 = new Date(Date.now() + 63 * 86400000).toISOString().slice(0, 10)
   const bookRes2 = await rpc(renterTok, 'create_booking', {
@@ -239,10 +285,63 @@ try {
   const bookedRow2 = JSON.parse(bookRes2.body)
   cleanup.bookingIds.push(bookedRow2.id)
 
-  const convosForBooking2 = (await admin(`conversations?select=id,booking_id&booking_id=eq.${bookedRow2.id}`)).body
-  check('the second booking got its own, distinct conversation', convosForBooking2.length === 1 && convosForBooking2[0].id !== attachConvoId,
+  const convosForBooking2 = (await admin(`conversations?select=id,booking_id,listing_id,renter_id,host_id&booking_id=eq.${bookedRow2.id}`)).body
+  const fallbackConvo = convosForBooking2[0]
+  check('the second booking got its own, distinct conversation', convosForBooking2.length === 1 && fallbackConvo.id !== attachConvoId,
     JSON.stringify(convosForBooking2))
-  if (convosForBooking2[0]) cleanup.conversationIds.push(convosForBooking2[0].id)
+  check('the fallback conversation\'s identity fields match the booking exactly (renter/host not swapped)',
+    !!fallbackConvo &&
+    fallbackConvo.listing_id === bookedRow2.listing_id &&
+    fallbackConvo.renter_id === bookedRow2.renter_id &&
+    fallbackConvo.host_id === bookedRow2.host_id,
+    `convo ${JSON.stringify(fallbackConvo)} vs booking listing=${bookedRow2.listing_id} renter=${bookedRow2.renter_id} host=${bookedRow2.host_id}`)
+  if (fallbackConvo) cleanup.conversationIds.push(fallbackConvo.id)
+
+  // 10. MINOR 4: empty/whitespace content is refused.
+  const emptyContent = await rpc(renterTok, 'create_inquiry', { p_listing_id: live.id, p_content: '   ' })
+  check('cannot inquire with empty/whitespace content', emptyContent.status >= 400, `status ${emptyContent.status} ${emptyContent.body.slice(0, 120)}`)
+
+  // 11. MINOR 4: an unknown listing id is refused.
+  const unknown = await rpc(renterTok, 'create_inquiry', { p_listing_id: '00000000-0000-0000-0000-000000000000', p_content: 'hi' })
+  check('cannot inquire on an unknown listing id', unknown.status >= 400, `status ${unknown.status} ${unknown.body.slice(0, 120)}`)
+
+  // 12. RULING B: the CALLER's own suspension is guarded too, not just the
+  // listing's host. Uses a fresh throwaway renter (not the cap-test renter
+  // from check 7, which has already used its 24h quota) so the CONTROL
+  // assertion below (inquiry succeeds while active) isn't confounded by the
+  // cap. is_host_suspended(v_uid) is reused for this despite its name — it
+  // only ever tests `profiles.suspended_at is not null`, so it's valid for
+  // any user id — see the comment in 056_inquiry_hardening.sql.
+  const probeSuspendedRenterEmail = `probe-suspended-renter-${stamp}@example.com`
+  const probeSuspendedRenterId = await createProbeUser(probeSuspendedRenterEmail, 'ProbePassword1!')
+  cleanup.profileIds.push(probeSuspendedRenterId)
+  const probeSuspendedRenterTok = await signIn(probeSuspendedRenterEmail, 'ProbePassword1!')
+
+  const rulingBListing = (await admin('listings', {
+    method: 'POST',
+    body: JSON.stringify({
+      host_id: hostProfile.id,
+      title: `Probe RulingB Listing ${stamp}`,
+      brand: 'Probe', model: 'B', category: 'mirrorless',
+      description: 'probe', condition: 'good',
+      daily_price: 100, security_deposit: 0,
+      city: 'Manila', province: 'Metro Manila',
+      is_active: true, is_draft: false,
+      images: ['https://example.com/x.jpg'],
+    }),
+  })).body[0]
+  cleanup.listingIds.push(rulingBListing.id)
+
+  // CONTROL: the same renter, not yet suspended, succeeds.
+  const rulingBControl = await rpc(probeSuspendedRenterTok, 'create_inquiry', { p_listing_id: rulingBListing.id, p_content: 'hi (control, renter active)' })
+  check('control: a not-yet-suspended renter can open an inquiry', rulingBControl.status === 200, `status ${rulingBControl.status} ${rulingBControl.body.slice(0, 120)}`)
+  if (rulingBControl.status === 200) cleanup.conversationIds.push(JSON.parse(rulingBControl.body))
+
+  await admin(`profiles?id=eq.${probeSuspendedRenterId}`, { method: 'PATCH', body: JSON.stringify({ suspended_at: new Date().toISOString() }) })
+  const rulingBSuspended = await rpc(probeSuspendedRenterTok, 'create_inquiry', { p_listing_id: rulingBListing.id, p_content: 'hi (should be refused)' })
+  check('a suspended renter cannot open a new inquiry', rulingBSuspended.status >= 400, `status ${rulingBSuspended.status} ${rulingBSuspended.body.slice(0, 120)}`)
+  // Clear immediately so nothing lingers even if a later check throws.
+  await admin(`profiles?id=eq.${probeSuspendedRenterId}`, { method: 'PATCH', body: JSON.stringify({ suspended_at: null }) })
 
 } finally {
   // ── Cleanup ────────────────────────────────────────────────────────────
