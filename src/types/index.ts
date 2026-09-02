@@ -26,6 +26,8 @@ export interface Profile {
   notify_promos: boolean
   qr_payment_url: string | null
   qr_payment_label: string | null
+  suspended_at: string | null
+  suspension_reason: string | null
   created_at: string
 }
 
