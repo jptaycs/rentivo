@@ -1,10 +1,14 @@
-// Verification for migration 053: messages RLS moved from bookings onto
-// conversations. Exercises every currently-deployed client path (old-shape
-// insert with no conversation_id, participant read, read-receipt update) plus
-// the two checks the policy swap exists for (non-participant blocked, content
-// tampering blocked). All access assertions go through asUser() with a real
-// signed-in session — admin() is used only for setup, independent assertion
-// of stored state, and cleanup.
+// Verification for migration 053 (messages RLS moved from bookings onto
+// conversations) plus its fix-round-1 hardening in migration 054 (booking_id
+// forgery closed, UPDATE policy gets an explicit WITH CHECK). Exercises every
+// currently-deployed client path (old-shape insert with no conversation_id,
+// participant read, read-receipt update) plus the checks the policy swap and
+// its hardening exist for (non-participant blocked, content/sender_id
+// tampering blocked, booking_id forgery overwritten, a bookingless
+// conversation actually readable by its participants and nobody else). All
+// access assertions go through asUser() with a real signed-in session —
+// admin() is used only for setup, independent assertion of stored state, and
+// cleanup.
 import { admin, asUser, signIn, check, done, URL, SECRET } from './env.mjs'
 
 const FORBIDDEN_HOST_ID = 'c38111b3-9922-4d18-9ae9-a12c8ffb9c68' // Isse Capucao — do not touch
@@ -16,14 +20,24 @@ const renterTok = await signIn('renter@demo.rentivo.ph', 'DemoRentivo1')
 // Find a booking the demo renter/host are party to, and its conversation.
 // Deliberately excludes the forbidden host — 048/task briefs across this repo
 // name that host and booking as off-limits for probe writes.
-const bookings = (await admin('bookings?select=id,renter_id,host_id,booking_ref&limit=200')).body
-const booking = bookings.find(b =>
+const bookings = (await admin('bookings?select=id,renter_id,host_id,listing_id,booking_ref&limit=200')).body
+const usable = bookings.filter(b =>
   b.renter_id && b.host_id &&
   b.host_id !== FORBIDDEN_HOST_ID &&
   b.booking_ref !== FORBIDDEN_BOOKING_CODE)
 
+const booking = usable[0]
+// A second, distinct booking to play the "stranger's booking" in the
+// booking_id-forgery check below. Any other booking works — the attack
+// doesn't require any relationship to the attacker, that's the whole point.
+const otherBooking = usable.find(b => b.id !== booking?.id)
+
 if (!booking) {
   console.error('BLOCKED: no usable booking found that is not the forbidden host/booking.')
+  process.exit(1)
+}
+if (!otherBooking) {
+  console.error('BLOCKED: need a second, distinct booking for the booking_id-forgery check.')
   process.exit(1)
 }
 
@@ -36,9 +50,11 @@ const convoId = convoBefore.id
 const originalLastMessageAt = convoBefore.last_message_at
 
 console.log(`Using booking ${booking.id} / conversation ${convoId} (host ${booking.host_id}, renter ${booking.renter_id})`)
+console.log(`Using booking ${otherBooking.id} as the "stranger's booking" for the forgery check`)
 
 const createdMessageIds = []
 let probeUserId = null
+let bookinglessConvoId = null
 
 try {
   // ---- Check 1: old-shape INSERT still works -----------------------------
@@ -103,6 +119,40 @@ try {
     afterTamper?.content === 'rls-probe seeded from host',
     `PATCH status ${tamper.status}, content is now ${afterTamper?.content}`)
 
+  // ---- Check 6 (fix round 1, MINOR 4): sender_id tampering is blocked too --
+  // sender_id forgery is precisely what the INSERT policy exists to prevent;
+  // guarding content but not sender_id would be arbitrary. seeded.sender_id
+  // is the host — the renter attempts to relabel it as themselves.
+  const senderTamper = await asUser(renterTok, `messages?id=eq.${seeded.id}`, {
+    method: 'PATCH', body: JSON.stringify({ sender_id: booking.renter_id }),
+  })
+  const afterSenderTamper = (await admin(`messages?select=sender_id&id=eq.${seeded.id}`)).body[0]
+  check('participant cannot rewrite message sender_id, verified via admin re-read',
+    afterSenderTamper?.sender_id === booking.host_id,
+    `PATCH status ${senderTamper.status}, sender_id is now ${afterSenderTamper?.sender_id}`)
+
+  // ---- Check 7 (fix round 1, IMPORTANT 1): booking_id forgery is closed ----
+  // A participant POSTs into their OWN conversation but sets booking_id to an
+  // unrelated stranger's booking. Before migration 054 this succeeded and
+  // stored the forged booking_id verbatim (RLS never checked it) — exploitable
+  // because notifyNewMessage() resolves the email recipient from
+  // message.booking_id on the admin client, bypassing RLS entirely. After 054
+  // the trigger must overwrite booking_id with the conversation's own value.
+  const forge = await asUser(renterTok, 'messages', {
+    method: 'POST',
+    body: JSON.stringify({
+      conversation_id: convoId,
+      booking_id: otherBooking.id,
+      sender_id: booking.renter_id,
+      content: 'rls-probe booking_id forgery attempt',
+    }),
+  })
+  const forgeRow = Array.isArray(forge.body) ? forge.body[0] : null
+  if (forgeRow?.id) createdMessageIds.push(forgeRow.id)
+  check('a forged booking_id (a stranger\'s booking) is overwritten to the conversation\'s own booking_id',
+    forge.status === 201 && forgeRow?.booking_id === booking.id && forgeRow?.booking_id !== otherBooking.id,
+    `status ${forge.status} stored booking_id ${forgeRow?.booking_id} (sent ${otherBooking.id}, expected ${booking.id})`)
+
   // ---- Check 4: a NON-PARTICIPANT is blocked --------------------------------
   // Create a throwaway third account that is neither the renter nor host on
   // this conversation. Uses the GoTrue admin endpoint (service role) so the
@@ -125,7 +175,7 @@ try {
 
   const probeTok = await signIn(probeEmail, probePassword)
   const asProbe = await asUser(probeTok, `messages?select=id&conversation_id=eq.${convoId}`)
-  check('a NON-PARTICIPANT reads ZERO messages from this conversation',
+  check('a NON-PARTICIPANT reads ZERO messages from this (booking-tied) conversation',
     asProbe.status === 200 && Array.isArray(asProbe.body) && asProbe.body.length === 0,
     `status ${asProbe.status} count ${asProbe.body?.length} body ${JSON.stringify(asProbe.body)}`)
 
@@ -142,6 +192,57 @@ try {
     createdMessageIds.push(probeInsert.body[0].id)
   }
 
+  // ---- Check 8 (fix round 1, IMPORTANT 2): a BOOKINGLESS conversation works
+  // Nothing in the suite so far discriminates old vs new policy, because
+  // every message above still carries a real booking_id and the OLD policy
+  // (pivoted on booking_id) would have passed checks 2/4 too. This is the
+  // test that actually proves the pivot: seed a conversation with
+  // booking_id = null (the pre-booking-inquiry shape Task 5 will create) and
+  // one message on it, then confirm a participant CAN read it (would have
+  // FAILED under the old policy — there is no booking row to join to) and the
+  // non-participant still reads zero.
+  const seedConvo = await admin('conversations', {
+    method: 'POST',
+    body: JSON.stringify({
+      listing_id: booking.listing_id,
+      renter_id: booking.renter_id,
+      host_id: booking.host_id,
+      booking_id: null,
+    }),
+  })
+  if (seedConvo.status !== 201 || !seedConvo.body?.[0]?.id) {
+    throw new Error(`could not seed a bookingless conversation: status ${seedConvo.status} body ${JSON.stringify(seedConvo.body)}`)
+  }
+  bookinglessConvoId = seedConvo.body[0].id
+  console.log(`Seeded bookingless conversation ${bookinglessConvoId}`)
+
+  const bookinglessMsg = await admin('messages', {
+    method: 'POST',
+    body: JSON.stringify({
+      conversation_id: bookinglessConvoId,
+      booking_id: null,
+      sender_id: booking.renter_id,
+      content: 'rls-probe bookingless inquiry',
+    }),
+  })
+  const bookinglessMsgRow = bookinglessMsg.body[0]
+
+  const asRenterBookingless = await asUser(renterTok, `messages?select=id&conversation_id=eq.${bookinglessConvoId}`)
+  check('a participant CAN read a bookingless (pre-booking-inquiry) conversation\'s messages',
+    asRenterBookingless.status === 200 && Array.isArray(asRenterBookingless.body) && asRenterBookingless.body.length === 1,
+    `status ${asRenterBookingless.status} count ${asRenterBookingless.body?.length}`)
+
+  const asProbeBookingless = await asUser(probeTok, `messages?select=id&conversation_id=eq.${bookinglessConvoId}`)
+  check('a NON-PARTICIPANT reads ZERO messages from the bookingless conversation',
+    asProbeBookingless.status === 200 && Array.isArray(asProbeBookingless.body) && asProbeBookingless.body.length === 0,
+    `status ${asProbeBookingless.status} count ${asProbeBookingless.body?.length}`)
+
+  // Clean up the bookingless message now (the conversation itself is cleaned
+  // up in the finally block below, alongside probe-account teardown).
+  if (bookinglessMsgRow?.id) {
+    await admin(`messages?id=eq.${bookinglessMsgRow.id}`, { method: 'DELETE' })
+  }
+
 } finally {
   // ---- Cleanup --------------------------------------------------------------
   for (const id of createdMessageIds) {
@@ -154,6 +255,14 @@ try {
     method: 'PATCH',
     body: JSON.stringify({ last_message_at: originalLastMessageAt }),
   })
+
+  // The bookingless conversation was created wholesale by this script — delete
+  // it outright (not "restore", there is nothing to restore it to). Any
+  // remaining message on it cascades on delete regardless, but it was already
+  // explicitly deleted above.
+  if (bookinglessConvoId) {
+    await admin(`conversations?id=eq.${bookinglessConvoId}`, { method: 'DELETE' })
+  }
 
   if (probeUserId) {
     await fetch(`${URL}/auth/v1/admin/users/${probeUserId}`, {
