@@ -46,11 +46,12 @@ supabase/migrations/     001 schema · 002 triggers · 003 RLS · 004 hardening 
                          041 verification auto-check flag (auto_check_failed/auto_check_detail)
                          042–043 verification-review notification types + RPC
                          044 suspension columns + admin_actions audit table
-                         045–047 suspension enforcement (RLS, is_host_suspended, money-path guards)
+                         045 suspension enforcement: visibility (RLS/view counter/create_booking)
+                         046 suspension enforcement: is_host_suspended() security-definer helper +
+                         request_payout guard
+                         047 suspension enforcement: drop profiles.suspension_reason +
+                         confirm_host_qr_payment guard
                          048 set_payout_account suspension guard + rejection-copy fix
-                         045 suspension visibility (RLS/view counter/create_booking)
-                         046 is_host_suspended() security-definer helper + request_payout guard
-                         047 drop profiles.suspension_reason + confirm_host_qr_payment guard
 src/app/(auth)/          login, signup, verify, callback, forgot/reset password
 src/app/(main)/          home, search, listings/[id], book, book/complete, hosts/[id],
                          dashboard/* (14 pages, all live-wired), host/new (listing wizard)
@@ -299,7 +300,8 @@ Rentivo.html             bundled prototype — canonical visual reference
 - [x] Custom domain + verified email sending (2026-08-31): bought `rentivo.live` (Namecheap). Added to Vercel (`vercel domains add`, A records `@`/`www` → `76.76.21.21`) and to Resend (DKIM TXT + SPF MX/TXT on `send.rentivo.live`), both confirmed via API polling — Resend domain status `verified`. Updated Vercel prod env (`NEXT_PUBLIC_APP_URL=https://rentivo.live`, `EMAIL_FROM=Rentivo <noreply@rentivo.live>`) and redeployed. Updated Supabase Site URL to `https://rentivo.live` and added `/auth/callback` + `/reset-password` there too (done via the dashboard — CLI's auth token lives in the macOS keychain, which is off-limits to read directly, so this one needed a manual dashboard step rather than the Management API route used for the `rentivo-taupe.vercel.app` entries above). Verified live: `rentivo.live` and `www.rentivo.live` both serve the app (Vercel confirms `"ok": true`), demo-account login still works, and two real Resend sends succeeded — one to the account owner, one to a different recipient — confirming the sandbox 403 restriction is fully lifted, not just for the owner's own inbox.
 
 **Polish / later**
-- [ ] **`/admin/reports`' "Payouts Owed" is not total money owed to hosts** — it sums only `payout_requests` rows a host has actually *requested* and that are still `pending`. Host earnings that are eligible for a payout but never requested appear nowhere on the page. Either relabel the column to say "requested" or compute the eligible-but-unrequested balance alongside it (`request_payout()`'s own CTE is the existing definition of eligibility to reuse).
+- [x] **`/admin/reports`' payouts column relabeled to say what it actually counts** — the field is now `payoutsRequestedPending` (`src/lib/admin-reports.ts`) and the page header/caption read "Payouts Pending" with an explicit note that this is not total liability to hosts, not "Payouts Owed".
+- [ ] **Still open: compute the eligible-but-unrequested payout balance.** `/admin/reports` still has no figure for host earnings that qualify for a payout but that nobody has requested yet — that balance appears nowhere on the page. `request_payout()`'s own CTE is the existing definition of eligibility to reuse if this gets built.
 - [ ] Apple Pay / Google Pay — blocked: PayMongo doesn't support them; keep "Coming soon"
 - [ ] `profiles.qr_payment_label` (host QR payment feature) is still fetchable via a direct anon-key raw PostgREST call even though it's no longer reachable through any app query path — needs a deliberate decision on whether/how to close this (see the Status entry above and the ⚠️ grant-audit note below before attempting a fix; a naive column-level `revoke` may not behave as expected on this project). **New consequence as of the suspension work (2026-09-02):** the only real fix on this project would be narrowing `profiles`' `public read using (true)` policy, and `getFeaturedListings`/`getPopularListings`/`getBundles`/`getActiveListingCount`/`searchListings` are now `!inner` joins on `profiles`. An `!inner` embed the caller cannot read returns **zero parent rows**, so narrowing that policy would blank the entire storefront — home, search and the listing count — rather than degrading cosmetically. Migration 046's `is_host_suspended` helper already protects the *RLS predicate* from the same change (see the ⚠️ note above), but nothing protects these five read paths. Any attempt at this must re-check every `!inner` profiles join first.
 - [x] `/dashboard/listings`' "N active listings" header count includes pending-review (`is_draft`) listings — fixed in the host-qa-fixes final-review fix wave (2026-09-02): predicate is now `is_active && !is_draft`.

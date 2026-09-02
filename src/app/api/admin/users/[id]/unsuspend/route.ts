@@ -56,7 +56,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     // Be explicit about the half-applied state: the ban is already gone, so the
     // user can sign in while suspended_at still hides their listings. Safe
     // direction, but an admin reading a bare Postgres message could not tell.
-    // Re-running this route clears it — it is deliberately not made idempotent.
+    // Re-running this route clears it — that's the point: this route is
+    // deliberately idempotent (see the doc comment above), so retrying from
+    // this half-applied state is the recovery path, not a hazard.
     return NextResponse.json(
       { error: `Login ban lifted, but clearing the suspension flag failed: ${profileError.message}` },
       { status: 500 }
