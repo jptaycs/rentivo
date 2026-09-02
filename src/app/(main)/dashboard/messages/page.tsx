@@ -12,13 +12,16 @@ import { ConversationView } from '@/components/messages/ConversationView'
 
 function MockConversationView({ thread, onBack }: { thread: (typeof MOCK_THREADS)[0]; onBack: () => void }) {
   const header = {
+    conversationId: thread.id,
     bookingId: thread.id,
     bookingRef: thread.bookingRef,
+    listingId: thread.id,
     listingTitle: thread.equipment,
     otherUser: { id: 'them', full_name: thread.otherUser.name, avatar_url: null },
   }
   const messages = thread.messages.map((m) => ({
     id: m.id,
+    conversation_id: thread.id,
     booking_id: thread.id,
     sender_id: m.senderId === 'me' ? 'me' : 'them',
     content: m.text,
@@ -53,16 +56,27 @@ function MessagesPageInner() {
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list')
 
   useEffect(() => {
-    const fromQuery = searchParams.get('booking')
-    if (fromQuery) {
+    const conversationParam = searchParams.get('conversation')
+    const bookingParam = searchParams.get('booking')
+    if (conversationParam) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sync selected thread to URL param; no test suite to safely verify a rewrite (see AGENTS.md)
-      setActiveId(fromQuery)
+      setActiveId(conversationParam)
       setMobileView('chat')
-    } else if (!live && !activeId) {
+      return
+    }
+    if (bookingParam) {
+      const match = threads.find((t) => t.bookingId === bookingParam)
+      if (match) {
+        setActiveId(match.conversationId)
+        setMobileView('chat')
+      }
+      return
+    }
+    if (!live && !activeId) {
       setActiveId(MOCK_THREADS[0]?.id ?? null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, live])
+  }, [searchParams, live, threads])
 
   const conversation = useConversation(live ? activeId : null)
 
@@ -84,13 +98,16 @@ function MessagesPageInner() {
         ) : (
           <ThreadList
             threads={live ? threads : MOCK_THREADS.map((t) => ({
+              conversationId: t.id,
               bookingId: t.id,
               bookingRef: t.bookingRef,
+              listingId: t.id,
               listingTitle: t.equipment,
               otherUser: { id: 'them', full_name: t.otherUser.name, avatar_url: null },
               lastMessage: t.lastMessage,
               lastAt: t.lastAt,
               unreadCount: t.unread,
+              isInquiry: false,
             }))}
             activeId={activeId}
             onSelect={handleSelect}

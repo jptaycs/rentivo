@@ -3,17 +3,32 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { PROFILE_COLUMNS } from '@/lib/listing-columns'
 import type { Profile } from '@/types'
 import type { Message } from '@/types'
 
 export interface ConversationHeader {
-  bookingId: string
-  bookingRef: string
+  conversationId: string
+  bookingId: string | null
+  bookingRef: string | null
+  listingId: string
   listingTitle: string
   otherUser: Pick<Profile, 'id' | 'full_name' | 'avatar_url'>
 }
 
-export function useConversation(bookingId: string | null) {
+interface ConversationRow {
+  id: string
+  listing_id: string
+  renter_id: string
+  host_id: string
+  booking_id: string | null
+  listing: { title: string } | null
+  booking: { booking_ref: string } | null
+  renter: Profile | null
+  host: Profile | null
+}
+
+export function useConversation(conversationId: string | null) {
   const [header, setHeader] = useState<ConversationHeader | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [userId, setUserId] = useState<string | null>(null)
@@ -21,7 +36,7 @@ export function useConversation(bookingId: string | null) {
   const [notFound, setNotFound] = useState(false)
 
   const load = useCallback(async () => {
-    if (!bookingId || !isSupabaseConfigured()) {
+    if (!conversationId || !isSupabaseConfigured()) {
       setLoading(false)
       return
     }
@@ -38,45 +53,43 @@ export function useConversation(bookingId: string | null) {
     setUserId(user.id)
 
     const { data } = await supabase
-      .from('bookings')
+      .from('conversations')
       .select(
-        'id, booking_ref, renter_id, host_id, listing:listings(title), renter:profiles!bookings_renter_id_fkey(*), host:profiles!bookings_host_id_fkey(*)'
+        `id, listing_id, renter_id, host_id, booking_id,
+         listing:listings(title),
+         booking:bookings(booking_ref),
+         renter:profiles!conversations_renter_id_fkey(${PROFILE_COLUMNS}),
+         host:profiles!conversations_host_id_fkey(${PROFILE_COLUMNS})`
       )
-      .eq('id', bookingId)
+      .eq('id', conversationId)
       .maybeSingle()
-    const booking = data as unknown as {
-      id: string
-      booking_ref: string
-      renter_id: string
-      host_id: string
-      listing: { title: string } | null
-      renter: Profile | null
-      host: Profile | null
-    } | null
+    const conversation = data as unknown as ConversationRow | null
 
-    if (!booking) {
+    if (!conversation) {
       setNotFound(true)
       setLoading(false)
       return
     }
 
-    const other = booking.renter_id === user.id ? booking.host : booking.renter
+    const other = conversation.renter_id === user.id ? conversation.host : conversation.renter
     if (!other) {
       setNotFound(true)
       setLoading(false)
       return
     }
     setHeader({
-      bookingId: booking.id,
-      bookingRef: booking.booking_ref,
-      listingTitle: booking.listing?.title ?? 'Rentivo booking',
+      conversationId: conversation.id,
+      bookingId: conversation.booking_id,
+      bookingRef: conversation.booking?.booking_ref ?? null,
+      listingId: conversation.listing_id,
+      listingTitle: conversation.listing?.title ?? 'Rentivo listing',
       otherUser: other,
     })
 
     const { data: msgs } = await supabase
       .from('messages')
       .select('*')
-      .eq('booking_id', bookingId)
+      .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true })
     setMessages(msgs ?? [])
     setLoading(false)
@@ -85,7 +98,7 @@ export function useConversation(bookingId: string | null) {
     if (unreadIds.length > 0) {
       await supabase.from('messages').update({ is_read: true }).in('id', unreadIds)
     }
-  }, [bookingId])
+  }, [conversationId])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- standard fetch-on-mount pattern; no test suite to safely verify a rewrite (see AGENTS.md)
@@ -93,13 +106,13 @@ export function useConversation(bookingId: string | null) {
   }, [load])
 
   useEffect(() => {
-    if (!bookingId || !isSupabaseConfigured()) return
+    if (!conversationId || !isSupabaseConfigured()) return
     const supabase = createClient()
     const channel = supabase
-      .channel(`conversation:${bookingId}`)
+      .channel(`conversation:${conversationId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `booking_id=eq.${bookingId}` },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
           const msg = payload.new as Message
           setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]))
@@ -112,10 +125,10 @@ export function useConversation(bookingId: string | null) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [bookingId, userId])
+  }, [conversationId, userId])
 
   async function send(content: string, imageFile?: File): Promise<string | null> {
-    if (!bookingId || !userId) return null
+    if (!conversationId || !userId) return null
     if (!content.trim() && !imageFile) return null
     const supabase = createClient()
 
@@ -132,7 +145,7 @@ export function useConversation(bookingId: string | null) {
 
     const { data, error } = await supabase
       .from('messages')
-      .insert({ booking_id: bookingId, sender_id: userId, content: content.trim(), image_url: imageUrl })
+      .insert({ conversation_id: conversationId, sender_id: userId, content: content.trim(), image_url: imageUrl })
       .select()
       .single()
     if (!error && data) {
