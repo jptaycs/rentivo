@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { AlertTriangle } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { VerificationReviewActions } from '@/components/admin/VerificationReviewActions'
 
@@ -11,6 +12,8 @@ interface VerificationRow {
   selfie_path: string
   status: 'pending' | 'approved' | 'rejected'
   reviewer_notes: string | null
+  auto_check_failed: boolean
+  auto_check_detail: string | null
   created_at: string
   reviewed_at: string | null
   profiles: { full_name: string; is_host: boolean; is_verified: boolean; created_at: string } | null
@@ -32,7 +35,7 @@ export default async function AdminVerificationsPage({
   let query = admin
     .from('verification_requests')
     .select(
-      'id, user_id, id_doc_path, selfie_path, status, reviewer_notes, created_at, reviewed_at, profiles!verification_requests_user_id_fkey(full_name, is_host, is_verified, created_at)'
+      'id, user_id, id_doc_path, selfie_path, status, reviewer_notes, auto_check_failed, auto_check_detail, created_at, reviewed_at, profiles!verification_requests_user_id_fkey(full_name, is_host, is_verified, created_at)'
     )
     .order('created_at', { ascending: false })
     .limit(50)
@@ -97,6 +100,20 @@ export default async function AdminVerificationsPage({
                 {r.status}
               </span>
             </div>
+
+            {r.auto_check_failed && (
+              <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <p className="font-semibold">Automated check failed — review this one carefully.</p>
+                  <p className="text-xs">
+                    The submitter&apos;s browser could not confirm a face on
+                    {r.auto_check_detail ? ` ${r.auto_check_detail}` : ' one or both images'}, and submitted anyway.
+                    This flag is reported by the browser and is advisory only.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               {(

@@ -118,6 +118,8 @@ export interface VerificationRequest {
   selfie_path: string
   status: 'pending' | 'approved' | 'rejected'
   reviewer_notes: string | null
+  auto_check_failed: boolean
+  auto_check_detail: string | null
   created_at: string
   reviewed_at: string | null
 }
