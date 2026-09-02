@@ -50,15 +50,20 @@ export { LISTING_COLUMNS, PROFILE_COLUMNS } from './listing-columns'
 import { LISTING_COLUMNS, PROFILE_COLUMNS } from './listing-columns'
 
 const HOST_SELECT = `${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey(${PROFILE_COLUMNS})`
+// Inner-join variant, so `host.suspended_at` can be filtered on. A suspended
+// host's listings leave the marketplace — RLS (045) enforces this, and these
+// filters make the rule visible at the call site rather than only in a migration.
+const HOST_SELECT_INNER = `${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey!inner(${PROFILE_COLUMNS})`
 
 export async function getFeaturedListings(limit = 6): Promise<Listing[]> {
   if (!isSupabaseConfigured()) return MOCK_LISTINGS.slice(0, limit)
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('listings')
-    .select(HOST_SELECT)
+    .select(HOST_SELECT_INNER)
     .eq('is_active', true)
     .eq('is_draft', false)
+    .is('host.suspended_at', null)
     .neq('category', 'bundle')
     .order('rating', { ascending: false, nullsFirst: false })
     .limit(limit)
@@ -71,9 +76,10 @@ export async function getPopularListings(limit = 12): Promise<Listing[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('listings')
-    .select(HOST_SELECT)
+    .select(HOST_SELECT_INNER)
     .eq('is_active', true)
     .eq('is_draft', false)
+    .is('host.suspended_at', null)
     .neq('category', 'bundle')
     .order('review_count', { ascending: false })
     .limit(limit)
@@ -86,9 +92,10 @@ export async function getBundles(limit = 6): Promise<Listing[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('listings')
-    .select(HOST_SELECT)
+    .select(HOST_SELECT_INNER)
     .eq('is_active', true)
     .eq('is_draft', false)
+    .is('host.suspended_at', null)
     .eq('category', 'bundle')
     .order('rating', { ascending: false, nullsFirst: false })
     .limit(limit)
@@ -101,9 +108,10 @@ export async function getActiveListingCount(): Promise<number> {
   const supabase = await createClient()
   const { count, error } = await supabase
     .from('listings')
-    .select('id', { count: 'exact', head: true })
+    .select(`id, host:profiles!listings_host_id_fkey!inner(id)`, { count: 'exact', head: true })
     .eq('is_active', true)
     .eq('is_draft', false)
+    .is('host.suspended_at', null)
   if (error) throw new Error(`Failed to count listings: ${error.message}`)
   return count ?? 0
 }
@@ -146,6 +154,7 @@ export async function searchListings(params: ListingSearchParams): Promise<Listi
     .select(`${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey!inner(${PROFILE_COLUMNS})`)
     .eq('is_active', true)
     .eq('is_draft', false)
+    .is('host.suspended_at', null)
 
   if (params.query) {
     const escaped = params.query.replace(/[%_,()]/g, '')

@@ -19,7 +19,8 @@ export async function getHostProfile(id: string): Promise<HostProfileData | null
   const supabase = await createClient()
 
   const [{ data: profile }, { data: listings }, { data: reviews }] = await Promise.all([
-    supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', id).eq('is_host', true).maybeSingle(),
+    supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', id).eq('is_host', true)
+      .is('suspended_at', null).maybeSingle(),
     supabase
       .from('listings')
       .select(`${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey(${PROFILE_COLUMNS})`)
