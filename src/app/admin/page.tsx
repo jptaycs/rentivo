@@ -12,23 +12,47 @@ async function pendingCount(table: string) {
   return count ?? 0
 }
 
+// `profiles` has no `status` column, so this can't reuse pendingCount above.
+// Also excludes soft-deleted auth users (deleteUser(uid, true) keeps the
+// auth.users row with deleted_at set) — otherwise tombstones would inflate
+// both counts, same reasoning as the /admin/users list page.
+async function userCounts() {
+  const admin = createAdminClient()
+  const [{ data: usersList }, { data: profilesData }] = await Promise.all([
+    // NOTE: perPage caps this at 1000 auth users — fine at this app's current
+    // scale, will need real pagination before it isn't (same note as the
+    // /admin/users list page).
+    admin.auth.admin.listUsers({ perPage: 1000 }),
+    admin.from('profiles').select('id, suspended_at').limit(1000),
+  ])
+  const deletedIds = new Set((usersList?.users ?? []).filter((u) => u.deleted_at).map((u) => u.id))
+  const visible = (profilesData ?? []).filter((p) => !deletedIds.has(p.id))
+  return {
+    total: visible.length,
+    suspended: visible.filter((p) => p.suspended_at !== null).length,
+  }
+}
+
 export default async function AdminOverviewPage() {
-  const [verifications, payoutAccounts, payoutRequests] = await Promise.all([
+  const [verifications, payoutAccounts, payoutRequests, users] = await Promise.all([
     pendingCount('verification_requests'),
     pendingCount('payout_accounts'),
     pendingCount('payout_requests'),
+    userCounts(),
   ])
 
   const cards = [
     { label: 'Pending identity verifications', count: verifications, href: '/admin/verifications' },
     { label: 'Payout accounts awaiting review', count: payoutAccounts, href: '/admin/payouts' },
     { label: 'Pending payout requests', count: payoutRequests, href: '/admin/payouts' },
+    { label: 'Total users', count: users.total, href: '/admin/users' },
+    { label: 'Suspended users', count: users.suspended, href: '/admin/users?status=suspended' },
   ]
 
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold text-gray-900">Overview</h1>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {cards.map((c) => (
           <Link
             key={c.label}

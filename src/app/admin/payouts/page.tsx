@@ -54,6 +54,21 @@ export default async function AdminPayoutsPage() {
   const pending = requests.filter((r) => r.status === 'pending')
   const settled = requests.filter((r) => r.status !== 'pending')
 
+  // A payout request already `pending` when a host is suspended is NOT
+  // unwound (see AGENTS.md task-8 brief correction) — it can still be marked
+  // paid from here. Surface suspension so an admin doesn't pay a suspended
+  // host by accident, rather than silently blocking the action.
+  const hostIds = Array.from(new Set([...accounts.map((a) => a.user_id), ...requests.map((r) => r.host_id)]))
+  const suspendedHostIds = new Set<string>()
+  if (hostIds.length > 0) {
+    const { data: suspendedProfiles } = await admin
+      .from('profiles')
+      .select('id')
+      .in('id', hostIds)
+      .not('suspended_at', 'is', null)
+    for (const p of suspendedProfiles ?? []) suspendedHostIds.add(p.id as string)
+  }
+
   return (
     <div className="space-y-10">
       <section>
@@ -66,7 +81,14 @@ export default async function AdminPayoutsPage() {
         <div className="space-y-4">
           {accounts.map((a) => (
             <div key={a.id} className="rounded-2xl bg-white p-6 shadow-sm">
-              <p className="font-semibold text-gray-900">{a.profiles?.full_name || 'Unknown host'}</p>
+              <p className="font-semibold text-gray-900">
+                {a.profiles?.full_name || 'Unknown host'}
+                {suspendedHostIds.has(a.user_id) && (
+                  <span className="ml-2 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">
+                    Suspended
+                  </span>
+                )}
+              </p>
               <p className="mt-1 text-sm text-gray-600">
                 {a.method} · {a.account_name} · {a.account_number}
               </p>
@@ -91,7 +113,14 @@ export default async function AdminPayoutsPage() {
             <div key={r.id} className="rounded-2xl bg-white p-6 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="font-semibold text-gray-900">{r.profiles?.full_name || 'Unknown host'}</p>
+                  <p className="font-semibold text-gray-900">
+                    {r.profiles?.full_name || 'Unknown host'}
+                    {suspendedHostIds.has(r.host_id) && (
+                      <span className="ml-2 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">
+                        Suspended — verify before paying
+                      </span>
+                    )}
+                  </p>
                   <p className="text-sm text-gray-600">
                     {r.payout_accounts
                       ? `${r.payout_accounts.method} · ${r.payout_accounts.account_name} · ${r.payout_accounts.account_number}`
@@ -143,7 +172,14 @@ export default async function AdminPayoutsPage() {
               <tbody>
                 {settled.map((r) => (
                   <tr key={r.id} className="border-b border-gray-50">
-                    <td className="px-4 py-3">{r.profiles?.full_name || '—'}</td>
+                    <td className="px-4 py-3">
+                      {r.profiles?.full_name || '—'}
+                      {suspendedHostIds.has(r.host_id) && (
+                        <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-800">
+                          Suspended
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-semibold">{peso(r.amount)}</td>
                     <td className="px-4 py-3 capitalize">{r.status}</td>
                     <td className="px-4 py-3 text-xs">{r.reference || r.notes || '—'}</td>

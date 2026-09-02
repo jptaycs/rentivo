@@ -18,6 +18,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <Link href="/admin" className="hover:underline">Overview</Link>
               <Link href="/admin/verifications" className="hover:underline">Verifications</Link>
               <Link href="/admin/payouts" className="hover:underline">Payouts</Link>
+              <Link href="/admin/users" className="hover:underline">Users</Link>
+              {/* Reports lands in Task 10 — link added now so this nav is only
+                  edited once. 404s until that page exists. */}
+              <Link href="/admin/reports" className="hover:underline">Reports</Link>
             </nav>
           </div>
           <div className="flex items-center gap-4 text-xs text-white/70">
