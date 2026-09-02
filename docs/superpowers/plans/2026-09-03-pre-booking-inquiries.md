@@ -21,7 +21,7 @@ Copied verbatim from the spec and `AGENTS.md`. **Every task's requirements impli
 - **Never `select('*')` on a `listings` or `profiles` join.** Use `LISTING_COLUMNS` / `PROFILE_COLUMNS` from `src/lib/listing-columns.ts`. `profiles` has a `using (true)` public-read policy, so `profiles(*)` ships every column to the caller — the documented `street_address` and `qr_payment_label` leaks.
 - **Hosted Postgres:** use `gen_random_uuid()`, never `uuid_generate_v4`.
 - **New tables need explicit Data API grants** or PostgREST returns 403.
-- **Migrations are numbered sequentially.** The last applied is `048_guard_payout_account_and_fix_rejection_copy.sql`; this plan adds `049`–`054`.
+- **Migrations are numbered sequentially.** The last applied is `048_guard_payout_account_and_fix_rejection_copy.sql`; this plan adds `049`–`055` (`052` is the Task 3 fix-round shim repair).
 - **Apply with** `supabase db push --linked --yes`; ignore pg-delta cert noise after "Applying migration…"; confirm with `supabase migration list --linked`.
 - **Demo accounts:** host `demo@demo.rentivo.ph`, renter `renter@demo.rentivo.ph`, both password `DemoRentivo1`.
 - **DO NOT TOUCH** host `c38111b3-9922-4d18-9ae9-a12c8ffb9c68` (Isse Capucao) or booking `RNT-A4DA55` (a real renter's real booking). Use throwaway `probe-*@example.com` accounts for anything destructive.
@@ -49,9 +49,9 @@ So in this plan, "write the failing test" means **write the verification script 
 | `supabase/migrations/049_conversations.sql` | Create table, indexes, RLS, grants |
 | `supabase/migrations/050_backfill_conversations.sql` | One conversation per existing booking |
 | `supabase/migrations/051_messages_conversation_id.sql` | Add + backfill + `not null` the FK |
-| `supabase/migrations/052_messages_rls_by_conversation.sql` | Replace all three `messages` policies |
-| `supabase/migrations/053_create_inquiry.sql` | `create_inquiry` RPC + 2 triggers |
-| `supabase/migrations/054_drop_messages_booking_id.sql` | **Optional.** Final cleanup |
+| `supabase/migrations/053_messages_rls_by_conversation.sql` | Replace all three `messages` policies |
+| `supabase/migrations/054_create_inquiry.sql` | `create_inquiry` RPC + 2 triggers |
+| `supabase/migrations/055_drop_messages_booking_id.sql` | **Optional.** Final cleanup |
 | `scripts/verify/env.mjs` | Shared env loader + service-role fetch helper for verification scripts |
 | `scripts/verify/*.mjs` | One verification script per task |
 | `src/hooks/useThreads.ts` | Threads from `conversations` |
@@ -481,7 +481,7 @@ create index messages_conversation_idx on public.messages(conversation_id);
 -- now, but the app code that knows about conversation_id does not ship until
 -- Tasks 6-9 are built and deployed. The instant conversation_id becomes NOT
 -- NULL above, the CURRENTLY DEPLOYED useConversation.send() — which inserts
--- only booking_id — starts failing with a not-null violation, and after 052 its
+-- only booking_id — starts failing with a not-null violation, and after the RLS migration its
 -- insert also fails the new RLS check. That is a live messaging outage on a
 -- production site for the whole span of Tasks 3-9.
 --
@@ -548,8 +548,8 @@ git commit -m "Add messages.conversation_id and keep last_message_at server-side
 ## Task 4: Rewrite `messages` RLS around conversations
 
 **Files:**
-- Create: `supabase/migrations/052_messages_rls_by_conversation.sql`
-- Create: `scripts/verify/052-messages-rls.mjs`
+- Create: `supabase/migrations/053_messages_rls_by_conversation.sql`
+- Create: `scripts/verify/053-messages-rls.mjs`
 
 **Interfaces:**
 - Consumes: `messages.conversation_id` from Task 3.
@@ -559,7 +559,7 @@ git commit -m "Add messages.conversation_id and keep last_message_at server-side
 
 - [ ] **Step 1: Write the failing verification script**
 
-Create `scripts/verify/052-messages-rls.mjs`:
+Create `scripts/verify/053-messages-rls.mjs`:
 
 ```js
 import { admin, asUser, signIn, check } from './env.mjs'
@@ -607,14 +607,14 @@ process.exit(0)
 - [ ] **Step 2: Run it and confirm the tamper check FAILS**
 
 ```bash
-node scripts/verify/052-messages-rls.mjs
+node scripts/verify/053-messages-rls.mjs
 ```
 
 Expected: `participant cannot rewrite message content` **FAILS** if `messages` holds a table-level UPDATE grant (migration 040's finding — a table-level grant satisfies a write to any column, making `grant update (is_read)` decorative). Record the result: it determines whether Step 3's `revoke` is load-bearing or belt-and-braces. Either way the migration includes it.
 
 - [ ] **Step 3: Write the migration**
 
-Create `supabase/migrations/052_messages_rls_by_conversation.sql`:
+Create `supabase/migrations/053_messages_rls_by_conversation.sql`:
 
 ```sql
 -- Rentivo — Move messages RLS from bookings to conversations.
@@ -678,7 +678,7 @@ supabase db push --linked --yes
 - [ ] **Step 5: Run the verification script and confirm ALL checks PASS**
 
 ```bash
-node scripts/verify/052-messages-rls.mjs
+node scripts/verify/053-messages-rls.mjs
 ```
 
 Expected: read PASS, read-receipt PASS, tamper-rejected PASS.
@@ -686,7 +686,7 @@ Expected: read PASS, read-receipt PASS, tamper-rejected PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add supabase/migrations/052_messages_rls_by_conversation.sql scripts/verify/052-messages-rls.mjs
+git add supabase/migrations/053_messages_rls_by_conversation.sql scripts/verify/053-messages-rls.mjs
 git commit -m "Move messages RLS onto conversations and narrow the update grant"
 ```
 
@@ -695,8 +695,8 @@ git commit -m "Move messages RLS onto conversations and narrow the update grant"
 ## Task 5: `create_inquiry` RPC and the booking-attach trigger
 
 **Files:**
-- Create: `supabase/migrations/053_create_inquiry.sql`
-- Create: `scripts/verify/053-create-inquiry.mjs`
+- Create: `supabase/migrations/054_create_inquiry.sql`
+- Create: `scripts/verify/054-create-inquiry.mjs`
 
 **Interfaces:**
 - Consumes: everything from Tasks 1–4.
@@ -704,7 +704,7 @@ git commit -m "Move messages RLS onto conversations and narrow the update grant"
 
 - [ ] **Step 1: Write the failing verification script**
 
-Create `scripts/verify/053-create-inquiry.mjs`:
+Create `scripts/verify/054-create-inquiry.mjs`:
 
 ```js
 import { URL, ANON, admin, signIn, check } from './env.mjs'
@@ -758,14 +758,14 @@ process.exit(0)
 - [ ] **Step 2: Run it and confirm it FAILS**
 
 ```bash
-node scripts/verify/053-create-inquiry.mjs
+node scripts/verify/054-create-inquiry.mjs
 ```
 
 Expected: `renter can open an inquiry` FAILS with `404` / `Could not find the function public.create_inquiry`.
 
 - [ ] **Step 3: Write the migration**
 
-Create `supabase/migrations/053_create_inquiry.sql`:
+Create `supabase/migrations/054_create_inquiry.sql`:
 
 ```sql
 -- Rentivo — The only path that creates a conversation, plus booking attach.
@@ -891,7 +891,7 @@ supabase db push --linked --yes
 - [ ] **Step 5: Run the verification script and confirm it PASSES**
 
 ```bash
-node scripts/verify/053-create-inquiry.mjs
+node scripts/verify/054-create-inquiry.mjs
 ```
 
 Expected: every check PASS (the draft check may print SKIP if no draft listing exists).
@@ -899,7 +899,7 @@ Expected: every check PASS (the draft check may print SKIP if no draft listing e
 - [ ] **Step 6: Verify the attach trigger with a throwaway booking**
 
 ```bash
-node scripts/verify/053-create-inquiry.mjs   # leaves the DB clean
+node scripts/verify/054-create-inquiry.mjs   # leaves the DB clean
 ```
 
 Then, in a scratch script: open an inquiry as the demo renter, call `create_booking` for that same listing, and assert the conversation's `booking_id` is now set and its earlier message is still present. Delete the probe booking and conversation afterwards, and re-query the baseline counts.
@@ -907,7 +907,7 @@ Then, in a scratch script: open an inquiry as the demo renter, call `create_book
 - [ ] **Step 7: Commit**
 
 ```bash
-git add supabase/migrations/053_create_inquiry.sql scripts/verify/053-create-inquiry.mjs
+git add supabase/migrations/054_create_inquiry.sql scripts/verify/054-create-inquiry.mjs
 git commit -m "Add create_inquiry RPC and attach inquiries to new bookings by trigger"
 ```
 
@@ -1381,7 +1381,7 @@ git commit -m "Verify pre-booking inquiries end to end and record the model chan
 **Do not run this until Task 10 has been green for a while.** This is the only irreversible step in the plan, and the feature is complete and correct without it. Its sole benefit is removing a now-unused column so no future code can reintroduce two identities for one thread.
 
 **Files:**
-- Create: `supabase/migrations/054_drop_messages_booking_id.sql`
+- Create: `supabase/migrations/055_drop_messages_booking_id.sql`
 
 - [ ] **Step 1: Prove the column is unused**
 
@@ -1417,7 +1417,7 @@ alter table public.messages drop column booking_id;
 ```bash
 supabase db push --linked --yes
 node scripts/verify/full-inquiries.mjs   # must still be fully green
-git add supabase/migrations/054_drop_messages_booking_id.sql
+git add supabase/migrations/055_drop_messages_booking_id.sql
 git commit -m "Drop the now-unused messages.booking_id"
 ```
 
