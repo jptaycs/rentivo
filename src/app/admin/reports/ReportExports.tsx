@@ -25,7 +25,7 @@ export function ExportRevenueButton({ rows }: { rows: MonthlyRevenue[] }) {
       ['Month', 'Revenue', 'Deposits Held', 'Earned', 'Collected', 'Uncollected', 'Payouts Paid', 'Payouts Owed'],
       rows.map((r) => [
         r.month,
-        r.gross,
+        r.revenue,
         r.depositsHeld,
         r.earned,
         r.collected,
@@ -46,7 +46,10 @@ export function ExportRevenueButton({ rows }: { rows: MonthlyRevenue[] }) {
 export function ExportInFlightButton({ rows }: { rows: InFlightRental[] }) {
   const handleClick = () => {
     const csv = toCsv(
-      ['Booking Ref', 'Listing', 'Host', 'Renter', 'Pickup', 'Return', 'Status', 'Amount'],
+      // "Booking Total", matching the on-page header: this figure still
+      // includes the refundable security deposit, unlike the Revenue columns
+      // in the revenue CSV above.
+      ['Booking Ref', 'Listing', 'Host', 'Renter', 'Pickup', 'Return', 'Status', 'Booking Total'],
       rows.map((r) => [
         r.bookingRef,
         r.listingTitle,
@@ -83,7 +86,7 @@ export function ExportRankedButton({
   const handleClick = () => {
     const csv = toCsv(
       ['Name', 'Detail', 'Bookings', 'Revenue'],
-      rows.map((r) => [r.label, r.sublabel, r.count, r.value])
+      rows.map((r) => [r.label, r.sublabel, r.count, r.revenue])
     )
     download(RANKED_FILENAMES[kind], csv)
   }

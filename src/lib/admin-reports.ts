@@ -29,13 +29,16 @@ export interface MonthlyRevenue {
    * doesn't need discount/protection_fee to be selected separately).
    * Deliberately NOT total_amount: at this dataset's mix, ~61% of
    * total_amount is a refundable security deposit Rentivo is holding, not
-   * revenue. Renamed from an earlier "gross" that used total_amount and
-   * would have badly misled a reader skimming this report — see
-   * depositsHeld below for the excluded portion, broken out rather than
-   * silently dropped.
+   * revenue.
+   *
+   * The field is named `revenue`, not `gross`: it was briefly called `gross`
+   * while it still held total_amount, and keeping that name after the value
+   * became net of the deposit would have left the identifier meaning the
+   * opposite of the number, guarded only by this comment. See depositsHeld
+   * below for the excluded portion, broken out rather than silently dropped.
    */
-  gross: number
-  /** The refundable security-deposit portion of total_amount, excluded from `gross` above. Money Rentivo is holding, not earning. */
+  revenue: number
+  /** The refundable security-deposit portion of total_amount, excluded from `revenue` above. Money Rentivo is holding, not earning. */
   depositsHeld: number
   earned: number
   collected: number
@@ -60,7 +63,13 @@ export interface RankedRow {
   label: string
   sublabel: string
   count: number
-  value: number
+  /**
+   * Same definition as MonthlyRevenue.revenue: `total_amount -
+   * security_deposit`. Named `revenue` rather than a generic `value` so the
+   * identifier states which of the two plausible money figures it holds —
+   * the deposit-exclusive one.
+   */
+  revenue: number
 }
 
 export interface CommissionTotals {
@@ -155,7 +164,7 @@ export async function getMonthlyRevenue(months = 12): Promise<MonthlyRevenue[]> 
   for (const key of lastNMonthKeys(months)) {
     byMonth.set(key, {
       month: key,
-      gross: 0,
+      revenue: 0,
       depositsHeld: 0,
       earned: 0,
       collected: 0,
@@ -171,8 +180,8 @@ export async function getMonthlyRevenue(months = 12): Promise<MonthlyRevenue[]> 
     if (!row) continue // outside the requested window
     // total_amount - security_deposit = rental_fee - discount + service_fee
     // + protection_fee + delivery_fee by construction of create_booking's
-    // insert — the revenue-bearing figure, see MonthlyRevenue.gross's doc.
-    row.gross += b.total_amount - b.security_deposit
+    // insert — the revenue-bearing figure, see MonthlyRevenue.revenue's doc.
+    row.revenue += b.total_amount - b.security_deposit
     row.depositsHeld += b.security_deposit
     row.earned += b.service_fee
     if (isPaymongoMethod(b.payment_method)) {
@@ -274,7 +283,7 @@ function rank(
     const id = keyOf(r)
     if (!id) continue
     // Revenue-bearing amount, same definition and same reasoning as
-    // MonthlyRevenue.gross: total_amount minus the refundable security
+    // MonthlyRevenue.revenue: total_amount minus the refundable security
     // deposit. A "top host/renter/listing" ranking by GMV should not credit
     // (or blame) anyone for money Rentivo is only holding and will give
     // back.
@@ -282,13 +291,13 @@ function rank(
     const existing = byId.get(id)
     if (existing) {
       existing.count += 1
-      existing.value += revenueAmount
+      existing.revenue += revenueAmount
     } else {
       const { label, sublabel } = labelOf(r)
-      byId.set(id, { id, label, sublabel, count: 1, value: revenueAmount })
+      byId.set(id, { id, label, sublabel, count: 1, revenue: revenueAmount })
     }
   }
-  return [...byId.values()].sort((a, b) => b.count - a.count || b.value - a.value).slice(0, limit)
+  return [...byId.values()].sort((a, b) => b.count - a.count || b.revenue - a.revenue).slice(0, limit)
 }
 
 export async function getTopListings(limit = 10): Promise<RankedRow[]> {

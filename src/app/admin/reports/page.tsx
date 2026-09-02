@@ -42,10 +42,10 @@ function RankedTable({ title, rows, kind }: { title: string; rows: RankedRow[]; 
               <tr className="border-b border-gray-100 text-xs text-gray-500">
                 <th className="px-2 py-2">Name</th>
                 <th className="px-2 py-2">Bookings</th>
-                {/* "Revenue", not "Value" — matches admin-reports.ts's rank()
+                {/* "Revenue" — matches admin-reports.ts's RankedRow.revenue
                     definition (total_amount minus the refundable security
-                    deposit), same reasoning as the Revenue Over Time
-                    section's Gross→Revenue rename above. */}
+                    deposit), same figure as the Revenue Over Time section's
+                    Revenue column. */}
                 <th className="px-2 py-2">Revenue</th>
               </tr>
             </thead>
@@ -57,7 +57,7 @@ function RankedTable({ title, rows, kind }: { title: string; rows: RankedRow[]; 
                     {r.sublabel && <p className="text-xs text-gray-500">{r.sublabel}</p>}
                   </td>
                   <td className="px-2 py-2">{r.count}</td>
-                  <td className="px-2 py-2 font-semibold">{peso(r.value)}</td>
+                  <td className="px-2 py-2 font-semibold">{peso(r.revenue)}</td>
                 </tr>
               ))}
             </tbody>
@@ -131,14 +131,14 @@ export default async function AdminReportsPage() {
           <h2 className="text-xl font-bold text-gray-900">Revenue Over Time</h2>
           <ExportRevenueButton rows={monthly} />
         </div>
-        {/* Gross used to be total_amount, which is ~61% refundable security
-            deposit at this dataset's current mix — an owner skimming this
-            page would read "Gross" as business done and be badly misled.
-            Revenue below is now the revenue-bearing figure (rental + service
-            + delivery + any historical protection fee — i.e. everything
-            except the deposit), with the held deposit broken out into its
-            own clearly-labelled column so both figures are visible without
-            either one misrepresenting the other. */}
+        {/* This column was briefly "Gross" holding total_amount, which is
+            ~61% refundable security deposit at this dataset's current mix —
+            an owner skimming this page would read "Gross" as business done
+            and be badly misled. Revenue below is the revenue-bearing figure
+            (rental + service + delivery + any historical protection fee —
+            i.e. everything except the deposit), with the held deposit broken
+            out into its own clearly-labelled column so both figures are
+            visible without either one misrepresenting the other. */}
         <p className="mb-4 text-xs text-gray-500">
           Revenue excludes refundable security deposits — see Deposits Held for the money Rentivo is holding, not
           earning.
@@ -161,7 +161,7 @@ export default async function AdminReportsPage() {
               {monthly.map((m) => (
                 <tr key={m.month} className="border-b border-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{m.month}</td>
-                  <td className="px-4 py-3">{peso(m.gross)}</td>
+                  <td className="px-4 py-3">{peso(m.revenue)}</td>
                   <td className="px-4 py-3 text-amber-800">{peso(m.depositsHeld)}</td>
                   <td className="px-4 py-3">{peso(m.earned)}</td>
                   <td className="px-4 py-3">{peso(m.collected)}</td>
@@ -181,6 +181,16 @@ export default async function AdminReportsPage() {
           <h2 className="text-xl font-bold text-gray-900">Rentals In Flight</h2>
           <ExportInFlightButton rows={inFlight} />
         </div>
+        {/* The money column here is the booking's full charged total, which
+            unlike every other money figure on this page still INCLUDES the
+            refundable security deposit — it's what the renter actually paid
+            (or owes) for a rental that hasn't finished, not a revenue
+            figure. Header says "Booking Total" rather than "Amount" so it
+            can't be read as the same basis as Revenue above. */}
+        <p className="mb-4 text-xs text-gray-500">
+          Booking Total is the full amount charged, including the refundable security deposit — unlike the Revenue
+          figures above, which exclude it.
+        </p>
         {inFlight.length === 0 ? (
           <p className="rounded-2xl bg-white p-8 text-center text-sm text-gray-500 shadow-sm">
             No pending, confirmed, or active rentals right now.
@@ -197,7 +207,7 @@ export default async function AdminReportsPage() {
                   <th className="px-4 py-3">Pickup</th>
                   <th className="px-4 py-3">Return</th>
                   <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Amount</th>
+                  <th className="px-4 py-3">Booking Total</th>
                 </tr>
               </thead>
               <tbody>
