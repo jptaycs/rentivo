@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Loader2, Mail, Lock, AlertCircle } from 'lucide-react'
@@ -14,6 +14,18 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  // Read client-side (not useSearchParams()) to match how this file already
+  // reads `next` elsewhere in this component, and so /login can stay a
+  // statically-prerendered page instead of needing a Suspense boundary.
+  const [suspended, setSuspended] = useState(false)
+
+  useEffect(() => {
+    // Fetch-on-mount pattern (window.location.search is unavailable during
+    // SSR, so this can't be a lazy useState initializer) — same class as the
+    // other documented set-state-in-effect sites in this codebase.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSuspended(new URLSearchParams(window.location.search).get('suspended') === '1')
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -64,6 +76,13 @@ export function LoginForm() {
         <span className="text-xs text-gray-400 font-medium">or with email</span>
         <div className="flex-1 h-px bg-gray-200" />
       </div>
+
+      {/* Suspended */}
+      {suspended && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          This account has been suspended. If you think this is a mistake, contact support.
+        </div>
+      )}
 
       {/* Error */}
       {error && (

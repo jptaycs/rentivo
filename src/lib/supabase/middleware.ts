@@ -38,6 +38,31 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // A ban blocks new logins, but an already-issued JWT stays valid for up to an
+  // hour. Close that window on the routes that matter. Deliberately scoped to
+  // PROTECTED_PREFIXES: those pages already hit the database, so this read costs
+  // nothing there, while public browsing — the overwhelming majority of
+  // requests — stays query-free.
+  if (user && isProtected) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('suspended_at')
+      .eq('id', user.id)
+      .maybeSingle()
+    if (profile?.suspended_at) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      url.search = '?suspended=1'
+      const res = NextResponse.redirect(url)
+      // Clear the session so the next request is a clean signed-out state rather
+      // than looping through this same check.
+      for (const c of request.cookies.getAll()) {
+        if (c.name.includes('-auth-token')) res.cookies.delete(c.name)
+      }
+      return res
+    }
+  }
+
   // /admin is allowlist-only. Convenience layer — requireAdminPage()/
   // requireAdminApi() re-check server-side; this is never the sole gate.
   const isAdminPagePath = path === '/admin' || path.startsWith('/admin/')
