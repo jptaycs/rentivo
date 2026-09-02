@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Calendar, Zap, Star, Shield, AlertCircle } from 'lucide-react'
+import { Zap, Star, Shield, AlertCircle, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { calcPricing } from '@/lib/pricing'
+import { useListingAvailability } from '@/hooks/useListingAvailability'
+import { AvailabilityCalendar } from './AvailabilityCalendar'
 import type { Listing } from '@/types'
 
 interface BookingPanelProps {
@@ -17,6 +19,7 @@ export function BookingPanel({ listing }: BookingPanelProps) {
   const [pickupDate, setPickupDate] = useState('')
   const [returnDate, setReturnDate] = useState('')
   const [available, setAvailable] = useState<boolean | null>(null)
+  const { blockedDates, loading: blocksLoading } = useListingAvailability(listing.id)
 
   useEffect(() => {
     if (!pickupDate || !returnDate || returnDate <= pickupDate || !isSupabaseConfigured()) {
@@ -36,6 +39,9 @@ export function BookingPanel({ listing }: BookingPanelProps) {
       })
     return () => { cancelled = true }
   }, [pickupDate, returnDate, listing.id])
+
+  const fmtShort = (d: string) =>
+    new Date(`${d}T00:00:00`).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
 
   const days = pickupDate && returnDate
     ? Math.max(
@@ -85,33 +91,36 @@ export function BookingPanel({ listing }: BookingPanelProps) {
         )}
       </div>
 
-      {/* Date picker */}
-      <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-200">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <Calendar className="w-4 h-4 text-[#003049] shrink-0" />
-          <div className="flex-1">
+      {/* Date picker — a real calendar rather than two native <input type="date">
+          fields, which cannot show which days the listing is already taken. */}
+      <div className="border border-gray-200 rounded-xl overflow-hidden">
+        <div className="grid grid-cols-2 divide-x divide-gray-200 border-b border-gray-200">
+          <div className="px-4 py-2.5">
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Pickup</p>
-            <input
-              type="date"
-              value={pickupDate}
-              min={new Date().toISOString().split('T')[0]}
-              onChange={(e) => setPickupDate(e.target.value)}
-              className="text-sm text-gray-800 outline-none bg-transparent w-full mt-0.5"
-            />
+            <p className={`text-sm mt-0.5 ${pickupDate ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>
+              {pickupDate ? fmtShort(pickupDate) : 'Select date'}
+            </p>
+          </div>
+          <div className="px-4 py-2.5">
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Return</p>
+            <p className={`text-sm mt-0.5 ${returnDate ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>
+              {returnDate ? fmtShort(returnDate) : 'Select date'}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 px-4 py-3">
-          <Calendar className="w-4 h-4 text-[#003049] shrink-0" />
-          <div className="flex-1">
-            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Return</p>
-            <input
-              type="date"
-              value={returnDate}
-              min={pickupDate || new Date().toISOString().split('T')[0]}
-              onChange={(e) => setReturnDate(e.target.value)}
-              className="text-sm text-gray-800 outline-none bg-transparent w-full mt-0.5"
+        <div className="p-3">
+          {blocksLoading ? (
+            <div className="h-64 flex items-center justify-center">
+              <Loader2 className="w-5 h-5 text-gray-300 animate-spin" />
+            </div>
+          ) : (
+            <AvailabilityCalendar
+              blockedDates={blockedDates}
+              pickupDate={pickupDate}
+              returnDate={returnDate}
+              onChange={(p, r) => { setPickupDate(p); setReturnDate(r) }}
             />
-          </div>
+          )}
         </div>
       </div>
 
