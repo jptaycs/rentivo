@@ -24,7 +24,17 @@ const contentSecurityPolicy = [
   "img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co https://*.tile.openstreetmap.org https://lh3.googleusercontent.com",
   "font-src 'self'",
   // *.supabase.co: auth/storage/RPC; wss: Realtime; api.paymongo.com: card
-  // tokenization, called directly from the browser with the public key
+  // tokenization, called directly from the browser with the public key.
+  // DELIBERATELY does NOT list odml.pa.googleapis.com: MediaPipe's on-device
+  // FaceDetector (src/lib/id-validation.ts) unconditionally builds a telemetry
+  // logger that POSTs there on a timer regardless of self-hosting the model.
+  // The payload carries no image bytes or identifiers, but the request itself
+  // would correlate a host's IP/timing with a government-ID upload — the
+  // exact thing self-hosting was meant to prevent. This line's omission of
+  // that host is what actually blocks it (CSP blocks the fetch, MediaPipe
+  // swallows the failure, never retries) — self-hosting alone did NOT stop
+  // it. Do not add odml.pa.googleapis.com here without a deliberate privacy
+  // review; see AGENTS.md's identity-verification note for the full story.
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.paymongo.com",
   "frame-ancestors 'none'",
   "object-src 'none'",

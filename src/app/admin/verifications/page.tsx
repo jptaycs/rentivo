@@ -21,6 +21,45 @@ interface VerificationRow {
 
 const FILTERS = ['pending', 'approved', 'rejected', 'all'] as const
 
+const CHECK_CODE_LABEL: Record<string, string> = {
+  no_face: 'no face was found',
+  too_small: 'the image was too small to check',
+  unreadable: 'the image could not be opened',
+}
+
+/**
+ * `auto_check_detail` is a comma-joined list of `id:<code>` / `selfie:<code>`
+ * (a real failed check the submitter overrode) and/or a bare
+ * `detector_unavailable` (the on-device model never loaded, so *nothing* ran —
+ * not a bypass at all). The banner used to hardcode "could not confirm a
+ * face", which is false for `too_small`/`unreadable` (no face check ever ran)
+ * and doubly false for a detector-unavailable-only submission, where the user
+ * also made no override choice. Branch on the actual codes instead.
+ */
+function autoCheckSummary(detail: string | null): string {
+  const slotFindings: string[] = []
+  let detectorUnavailable = false
+  for (const part of (detail ?? '').split(',').filter(Boolean)) {
+    if (part === 'detector_unavailable') {
+      detectorUnavailable = true
+      continue
+    }
+    const [slot, code] = part.split(':')
+    const label = CHECK_CODE_LABEL[code]
+    if (label && (slot === 'id' || slot === 'selfie')) {
+      slotFindings.push(`the ${slot === 'id' ? 'ID' : 'selfie'} (${label})`)
+    }
+  }
+
+  if (slotFindings.length > 0) {
+    return `The submitter's browser flagged ${slotFindings.join(' and ')}, and submitted anyway.`
+  }
+  if (detectorUnavailable) {
+    return "The face-detection check couldn't load in the submitter's browser, so no automated check ran on this submission at all — this isn't a sign of a deliberate bypass."
+  }
+  return 'An automated check on this submission did not pass. Review the documents carefully.'
+}
+
 export default async function AdminVerificationsPage({
   searchParams,
 }: {
@@ -107,9 +146,8 @@ export default async function AdminVerificationsPage({
                 <div>
                   <p className="font-semibold">Automated check failed — review this one carefully.</p>
                   <p className="text-xs">
-                    The submitter&apos;s browser could not confirm a face on
-                    {r.auto_check_detail ? ` ${r.auto_check_detail}` : ' one or both images'}, and submitted anyway.
-                    This flag is reported by the browser and is advisory only.
+                    {autoCheckSummary(r.auto_check_detail)} This flag is reported by the browser and is advisory
+                    only.
                   </p>
                 </div>
               </div>

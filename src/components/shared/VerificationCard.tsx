@@ -33,11 +33,19 @@ export function VerificationCard() {
 
   async function pick(kind: 'id' | 'selfie', file: File | null) {
     if (!file) return
+    // Captured before the (possibly slow, model-download) check so the
+    // override-reset comparison below reflects this slot's status going in,
+    // not whatever it happens to be once the await resolves.
+    const hadFail = kind === 'id' ? Boolean(idCode) : Boolean(selfieCode)
     setChecking(true)
     setCheckingKind(kind)
     const result = kind === 'id' ? await validateIdDocument(file) : await validateSelfie(file)
     setChecking(false)
     setCheckingKind(null)
+    // Reset the override whenever this slot's failing status changes — this
+    // component previously had no reset at all, so even a *pass* left a
+    // stale tick armed to silently wave through a future, different failure.
+    if (Boolean(!result.ok) !== hadFail) setOverride(false)
     if (result.ok) {
       if (result.degraded) setDegraded(true)
       if (kind === 'id') { setIdFile(file); setIdError(''); setIdCode(null) } else { setSelfieFile(file); setSelfieError(''); setSelfieCode(null) }
@@ -108,7 +116,15 @@ export function VerificationCard() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input ref={idRef} type="file" accept="image/*" className="sr-only"
-              onChange={(e) => pick('id', e.target.files?.[0] ?? null)} />
+              onChange={(e) => {
+                // Reset the input's own value first — per the HTML file-input
+                // contract, re-selecting the *same* path otherwise fires no
+                // `change` event, so retrying the same file after a
+                // false-negative silently does nothing.
+                const file = e.target.files?.[0] ?? null
+                e.target.value = ''
+                pick('id', file)
+              }} />
             <button
               onClick={() => idRef.current?.click()}
               disabled={checking}
@@ -132,7 +148,11 @@ export function VerificationCard() {
             </button>
 
             <input ref={selfieRef} type="file" accept="image/*" className="sr-only"
-              onChange={(e) => pick('selfie', e.target.files?.[0] ?? null)} />
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null
+                e.target.value = ''
+                pick('selfie', file)
+              }} />
             <button
               onClick={() => selfieRef.current?.click()}
               disabled={checking}
