@@ -538,7 +538,14 @@ export async function notifyAccountReinstated(userId: string) {
     'Your Rentivo account has been reinstated',
     adminDecisionHtml({
       heading: 'Account Reinstated',
-      bodyHtml: `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">Your Rentivo account is active again. You can sign in as usual, and any listings you had are back on the marketplace.</p>`,
+      // Deliberately does NOT promise the listings are back. Reinstatement
+      // clears profiles.suspended_at, which un-hides listings the SUSPENSION
+      // hid — but migration 037's verification gate hides a host's listings
+      // independently (is_draft), and account deletion deactivates them. A
+      // host whose ID was never approved would read "back on the marketplace",
+      // go looking, and find nothing. Point them at the page that tells them
+      // the truth instead of asserting it here.
+      bodyHtml: `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">Your Rentivo account is active again — you can sign in as usual. If you host, check <strong>My Listings</strong> to confirm each one is live; anything still pending ID verification stays hidden until that's approved.</p>`,
       ctaPath: '/login',
       ctaLabel: 'Sign In',
     })
