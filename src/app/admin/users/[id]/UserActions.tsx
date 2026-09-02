@@ -6,7 +6,24 @@ import type { DeletionBlocker } from '@/lib/account-deletion'
 
 interface Props {
   userId: string
+  /** auth.users.deleted_at is set (soft-deleted via deleteUser(uid, true)) —
+   *  no action makes sense against an account that's already gone: suspending
+   *  it would email an address whose owner no longer has a normal profile,
+   *  and it can't be deleted again. */
+  isDeleted: boolean
+  /** profiles.suspended_at is set. Can be true while isBanned is false — the
+   *  suspend route sets this flag BEFORE attempting the GoTrue ban, so a
+   *  failed ban leaves a half-applied state. */
   isSuspended: boolean
+  /** The account's REAL GoTrue ban state (mirrors the suspend/unsuspend
+   *  routes' own isBanned() semantics), independent of isSuspended. When
+   *  isSuspended is true and this is false, the previous suspend only
+   *  half-applied and needs a retry, not an un-suspend. */
+  isBanned: boolean
+  /** The reason from the latest 'suspend' admin_actions row, if any — used
+   *  only to prefill a retry's reason field. The route still requires it be
+   *  re-submitted; this is a convenience, not a stored value being reused. */
+  suspensionReason: string | null
   /** null when checkDeletionEligibility couldn't run at all (e.g. bad id) —
    *  treated the same as blocked, since there's nothing to show as eligible. */
   eligible: boolean
@@ -14,7 +31,16 @@ interface Props {
   blocking: DeletionBlocker
 }
 
-export function UserActions({ userId, isSuspended, eligible, reason, blocking }: Props) {
+export function UserActions({
+  userId,
+  isDeleted,
+  isSuspended,
+  isBanned,
+  suspensionReason,
+  eligible,
+  reason,
+  blocking,
+}: Props) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -22,7 +48,22 @@ export function UserActions({ userId, isSuspended, eligible, reason, blocking }:
   const [showSuspendForm, setShowSuspendForm] = useState(false)
   const [suspendReason, setSuspendReason] = useState('')
 
+  // The retry form (half-applied suspend) is shown unconditionally when that
+  // state exists, so it needs its own reason field, prefilled for convenience.
+  const [retryReason, setRetryReason] = useState(suspensionReason ?? '')
+
   const [confirmText, setConfirmText] = useState('')
+
+  if (isDeleted) {
+    return (
+      <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <h2 className="mb-2 text-lg font-bold text-gray-900">Actions</h2>
+        <p className="text-sm text-gray-500">
+          This account has already been deleted. There is nothing further to do here.
+        </p>
+      </div>
+    )
+  }
 
   async function post(path: string, body?: object) {
     setBusy(true)
@@ -67,8 +108,38 @@ export function UserActions({ userId, isSuspended, eligible, reason, blocking }:
 
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
-      {/* Suspend / Un-suspend */}
-      {isSuspended ? (
+      {/* Suspend / Retry suspend / Un-suspend */}
+      {isSuspended && !isBanned ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-800">
+            Previous suspend attempt only partially applied
+          </p>
+          <p className="mt-1 text-xs text-amber-800">
+            The profile was flagged as suspended, but the login block itself failed and was never
+            applied — this account can still sign in. Provide the reason again to retry.
+          </p>
+          <label className="mb-2 mt-3 block text-xs font-semibold text-gray-500">
+            Reason (required — shown in the audit log and emailed to the user)
+          </label>
+          <textarea
+            value={retryReason}
+            onChange={(e) => setRetryReason(e.target.value)}
+            rows={3}
+            className="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm focus:border-[#003049] focus:outline-none"
+            placeholder="Why is this account being suspended?"
+          />
+          {!retryReason.trim() && (
+            <p className="mt-1 text-xs text-gray-400">A reason is required to retry the suspend.</p>
+          )}
+          <button
+            onClick={() => post('suspend', { reason: retryReason.trim() })}
+            disabled={busy || !retryReason.trim()}
+            className="mt-3 rounded-xl bg-red-600 px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {busy ? 'Working…' : 'Retry suspend'}
+          </button>
+        </div>
+      ) : isSuspended ? (
         <button
           onClick={() => post('unsuspend')}
           disabled={busy}

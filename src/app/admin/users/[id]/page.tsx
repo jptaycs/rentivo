@@ -11,6 +11,23 @@ export const dynamic = 'force-dynamic'
 const peso = (n: number) => `₱${n.toLocaleString('en-PH')}`
 const mask = (number: string) => `•••• ${number.slice(-4)}`
 
+/**
+ * Mirrors src/app/api/admin/users/[id]/suspend/route.ts's isBanned() exactly
+ * (route.ts files may only export HTTP method handlers, so this can't be
+ * imported — duplicated deliberately, keep in sync with that file).
+ * GoTrue reports an un-banned user as an absent/past banned_until.
+ *
+ * This is the REAL ban state, independent of profiles.suspended_at: the
+ * suspend route sets suspended_at BEFORE attempting the GoTrue ban, so a
+ * failed ban leaves suspended_at=true with isBanned=false — a half-applied
+ * suspension the detail page must surface as retryable, not as "suspended".
+ */
+function isBanned(bannedUntil: string | null | undefined): boolean {
+  if (!bannedUntil) return false
+  const t = Date.parse(bannedUntil)
+  return Number.isFinite(t) && t > Date.now()
+}
+
 interface ProfileRow {
   id: string
   full_name: string
@@ -83,6 +100,7 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
   const { data: authUser } = await admin.auth.admin.getUserById(id)
   const email = authUser?.user?.email ?? '—'
   const isDeleted = Boolean(authUser?.user?.deleted_at)
+  const banned = isBanned(authUser?.user?.banned_until)
 
   const [
     { data: listingsData },
@@ -217,13 +235,23 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
             <p className="mt-1">
               Reason: {suspensionReason ?? 'No reason found in the audit log (unexpected — check admin_actions).'}
             </p>
+            {!banned && (
+              <p className="mt-2 font-semibold">
+                ⚠️ This suspension only partially applied — the profile was flagged, but the login
+                block never took effect, so this account can still sign in. Use &ldquo;Retry
+                suspend&rdquo; below.
+              </p>
+            )}
           </div>
         )}
       </div>
 
       <UserActions
         userId={id}
+        isDeleted={isDeleted}
         isSuspended={Boolean(profile.suspended_at)}
+        isBanned={banned}
+        suspensionReason={suspensionReason}
         eligible={eligibility.ok}
         reason={eligibility.ok ? null : eligibility.reason}
         blocking={eligibility.ok ? { bookings: [], pendingPayouts: 0 } : eligibility.blocking}
