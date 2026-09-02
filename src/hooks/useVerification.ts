@@ -44,7 +44,11 @@ export function useVerification() {
     reload()
   }, [reload])
 
-  async function submit(idFile: File, selfieFile: File): Promise<string | null> {
+  async function submit(
+    idFile: File,
+    selfieFile: File,
+    autoCheck?: { failed: boolean; detail: string | null }
+  ): Promise<string | null> {
     const supabase = createClient()
     const {
       data: { user },
@@ -70,6 +74,8 @@ export function useVerification() {
       user_id: user.id,
       id_doc_path: idPath,
       selfie_path: selfiePath,
+      auto_check_failed: autoCheck?.failed ?? false,
+      auto_check_detail: autoCheck?.detail ?? null,
     })
     if (insertError) return insertError.message
 

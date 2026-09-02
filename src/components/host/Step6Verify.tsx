@@ -1,13 +1,16 @@
 'use client'
 
-import { useRef } from 'react'
-import { ChevronLeft, Loader2, CheckCircle2, Upload, BadgeCheck, Shield, Clock, XCircle } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { ChevronLeft, Loader2, CheckCircle2, Upload, BadgeCheck, Shield, Clock, XCircle, AlertCircle } from 'lucide-react'
 import { useVerification } from '@/hooks/useVerification'
+import { validateIdDocument, validateSelfie } from '@/lib/id-validation'
 
 export interface VerifyData {
   idFile: File | null
   selfieFile: File | null
   agreed: boolean
+  autoCheckFailed: boolean
+  autoCheckDetail: string | null
 }
 
 interface Step6VerifyProps {
@@ -23,13 +26,52 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
   const idRef = useRef<HTMLInputElement>(null)
   const selfieRef = useRef<HTMLInputElement>(null)
 
+  const [idError, setIdError] = useState('')
+  const [selfieError, setSelfieError] = useState('')
+  const [idAttempts, setIdAttempts] = useState(0)
+  const [selfieAttempts, setSelfieAttempts] = useState(0)
+  const [override, setOverride] = useState(false)
+  const [checking, setChecking] = useState(false)
+  const [degraded, setDegraded] = useState(false)
+  // Which tile is mid-check, purely for the visible spinner — the on-device
+  // face model is an 11.7 MB one-time download, so an unexplained
+  // multi-second freeze on a slow connection reads as a broken upload.
+  const [checkingKind, setCheckingKind] = useState<'id' | 'selfie' | null>(null)
+
   function set<K extends keyof VerifyData>(key: K, value: VerifyData[K]) {
     onChange({ ...data, [key]: value })
   }
 
+  async function pick(kind: 'id' | 'selfie', file: File | null) {
+    if (!file) return
+    setChecking(true)
+    setCheckingKind(kind)
+    const result = kind === 'id' ? await validateIdDocument(file) : await validateSelfie(file)
+    setChecking(false)
+    setCheckingKind(null)
+    if (result.ok && result.degraded) setDegraded(true)
+    const message = result.ok ? '' : result.reason
+    if (kind === 'id') { setIdError(message); if (message) setIdAttempts((n) => n + 1) }
+    else { setSelfieError(message); if (message) setSelfieAttempts((n) => n + 1) }
+
+    const idMsg = kind === 'id' ? message : idError
+    const selfieMsg = kind === 'selfie' ? message : selfieError
+    const degradedNow = degraded || (result.ok && Boolean(result.degraded))
+    const failedNow = Boolean(idMsg) || Boolean(selfieMsg) || degradedNow
+    const detailNow = [
+      idMsg && 'id:no_face',
+      selfieMsg && 'selfie:no_face',
+      degradedNow && 'detector_unavailable',
+    ].filter(Boolean).join(',') || null
+    onChange({ ...data, [kind === 'id' ? 'idFile' : 'selfieFile']: file, autoCheckFailed: failedNow, autoCheckDetail: detailNow })
+  }
+
   // Already verified, or a review is already in flight — nothing to upload
   const alreadyHandled = isVerified || request?.status === 'pending'
-  const canSubmit = alreadyHandled ? data.agreed : Boolean(data.idFile && data.selfieFile && data.agreed)
+  const blocked = Boolean(idError || selfieError) && !override
+  const canSubmit = alreadyHandled
+    ? data.agreed
+    : Boolean(data.idFile && data.selfieFile && data.agreed) && !blocked && !checking
 
   return (
     <div className="space-y-6">
@@ -83,22 +125,27 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
           {/* Government ID */}
           <div>
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Government-Issued ID</p>
-            <input ref={idRef} type="file" accept="image/*,.pdf" className="sr-only"
-              onChange={(e) => set('idFile', e.target.files?.[0] ?? null)} />
+            <input ref={idRef} type="file" accept="image/*" className="sr-only"
+              onChange={(e) => pick('id', e.target.files?.[0] ?? null)} />
             <button
               onClick={() => idRef.current?.click()}
-              className={`w-full flex items-center gap-4 p-4 border-2 rounded-xl transition-all ${
-                data.idFile ? 'border-[#22C55E] bg-green-50' : 'border-dashed border-gray-200 hover:border-[#003049] hover:bg-gray-50'
+              disabled={checking}
+              className={`w-full flex items-center gap-4 p-4 border-2 rounded-xl transition-all disabled:cursor-wait ${
+                checkingKind === 'id' ? 'border-gray-200 bg-gray-50'
+                  : idError ? 'border-red-300 bg-red-50'
+                  : data.idFile ? 'border-[#22C55E] bg-green-50' : 'border-dashed border-gray-200 hover:border-[#003049] hover:bg-gray-50'
               }`}
             >
-              {data.idFile
-                ? <CheckCircle2 className="w-6 h-6 text-[#22C55E] shrink-0" />
-                : <Upload className="w-6 h-6 text-gray-400 shrink-0" />}
+              {checkingKind === 'id'
+                ? <Loader2 className="w-6 h-6 text-gray-400 shrink-0 animate-spin" />
+                : idError
+                  ? <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
+                  : data.idFile ? <CheckCircle2 className="w-6 h-6 text-[#22C55E] shrink-0" /> : <Upload className="w-6 h-6 text-gray-400 shrink-0" />}
               <div className="text-left">
-                <p className={`text-sm font-semibold ${data.idFile ? 'text-[#22C55E]' : 'text-gray-700'}`}>
-                  {data.idFile ? data.idFile.name : 'Upload government ID'}
+                <p className={`text-sm font-semibold ${checkingKind === 'id' ? 'text-gray-500' : idError ? 'text-red-600' : data.idFile ? 'text-[#22C55E]' : 'text-gray-700'}`}>
+                  {checkingKind === 'id' ? 'Checking your document…' : data.idFile ? data.idFile.name : 'Upload government ID'}
                 </p>
-                <p className="text-xs text-gray-400">Passport, Driver&apos;s License, or PhilSys ID · JPG, PNG, PDF</p>
+                <p className="text-xs text-gray-400">Passport, Driver&apos;s License, or PhilSys ID · JPG or PNG</p>
               </div>
             </button>
           </div>
@@ -107,24 +154,55 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
           <div>
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Selfie with ID</p>
             <input ref={selfieRef} type="file" accept="image/*" className="sr-only"
-              onChange={(e) => set('selfieFile', e.target.files?.[0] ?? null)} />
+              onChange={(e) => pick('selfie', e.target.files?.[0] ?? null)} />
             <button
               onClick={() => selfieRef.current?.click()}
-              className={`w-full flex items-center gap-4 p-4 border-2 rounded-xl transition-all ${
-                data.selfieFile ? 'border-[#22C55E] bg-green-50' : 'border-dashed border-gray-200 hover:border-[#003049] hover:bg-gray-50'
+              disabled={checking}
+              className={`w-full flex items-center gap-4 p-4 border-2 rounded-xl transition-all disabled:cursor-wait ${
+                checkingKind === 'selfie' ? 'border-gray-200 bg-gray-50'
+                  : selfieError ? 'border-red-300 bg-red-50'
+                  : data.selfieFile ? 'border-[#22C55E] bg-green-50' : 'border-dashed border-gray-200 hover:border-[#003049] hover:bg-gray-50'
               }`}
             >
-              {data.selfieFile
-                ? <CheckCircle2 className="w-6 h-6 text-[#22C55E] shrink-0" />
-                : <Upload className="w-6 h-6 text-gray-400 shrink-0" />}
+              {checkingKind === 'selfie'
+                ? <Loader2 className="w-6 h-6 text-gray-400 shrink-0 animate-spin" />
+                : selfieError
+                  ? <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
+                  : data.selfieFile ? <CheckCircle2 className="w-6 h-6 text-[#22C55E] shrink-0" /> : <Upload className="w-6 h-6 text-gray-400 shrink-0" />}
               <div className="text-left">
-                <p className={`text-sm font-semibold ${data.selfieFile ? 'text-[#22C55E]' : 'text-gray-700'}`}>
-                  {data.selfieFile ? data.selfieFile.name : 'Upload selfie holding your ID'}
+                <p className={`text-sm font-semibold ${checkingKind === 'selfie' ? 'text-gray-500' : selfieError ? 'text-red-600' : data.selfieFile ? 'text-[#22C55E]' : 'text-gray-700'}`}>
+                  {checkingKind === 'selfie' ? 'Checking your photo…' : data.selfieFile ? data.selfieFile.name : 'Upload selfie holding your ID'}
                 </p>
                 <p className="text-xs text-gray-400">Clear photo of your face and the front of your ID</p>
               </div>
             </button>
           </div>
+
+          {(idError || selfieError) && (
+            <div className="space-y-2">
+              {idError && (
+                <div className="flex items-start gap-2.5 bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" /> {idError}
+                </div>
+              )}
+              {selfieError && (
+                <div className="flex items-start gap-2.5 bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" /> {selfieError}
+                </div>
+              )}
+            </div>
+          )}
+
+          {(idAttempts >= 2 || selfieAttempts >= 2) && (idError || selfieError) && (
+            <label className="flex items-start gap-3 cursor-pointer" onClick={() => setOverride(!override)}>
+              <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${override ? 'bg-[#003049] border-[#003049]' : 'border-gray-300'}`}>
+                {override && <CheckCircle2 className="w-3 h-3 text-white" />}
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                My document is valid — submit for manual review anyway.
+              </p>
+            </label>
+          )}
         </>
       )}
 

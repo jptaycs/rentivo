@@ -27,7 +27,7 @@ const INITIAL: WizardState = {
   pricing: { dailyPrice: '', weeklyPrice: '', monthlyPrice: '', securityDeposit: '', deliveryFee: '' },
   blockedDates: [],
   address: { streetAddress: '', city: '', province: '', isInstantBook: false },
-  verify: { idFile: null, selfieFile: null, agreed: false },
+  verify: { idFile: null, selfieFile: null, agreed: false, autoCheckFailed: false, autoCheckDetail: null },
 }
 
 export function ListingWizard() {
@@ -188,6 +188,8 @@ export function ListingWizard() {
             user_id: user.id,
             id_doc_path: idPath,
             selfie_path: selfiePath,
+            auto_check_failed: state.verify.autoCheckFailed,
+            auto_check_detail: state.verify.autoCheckDetail,
           })
           if (verifyInsertError) throw new Error(verifyInsertError.message)
         } catch (verifyErr) {
