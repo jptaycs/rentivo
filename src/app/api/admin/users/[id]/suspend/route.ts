@@ -11,6 +11,13 @@ const BAN_DURATION = '876000h'
 /** Same shape as src/lib/hosts.ts and src/lib/account-deletion.ts. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+/** GoTrue reports an un-banned user as an absent/past banned_until. */
+function isBanned(bannedUntil: string | null | undefined): boolean {
+  if (!bannedUntil) return false
+  const t = Date.parse(bannedUntil)
+  return Number.isFinite(t) && t > Date.now()
+}
+
 /**
  * Suspend an account: block login (GoTrue ban) and set profiles.suspended_at,
  * which every listing/booking/payout read path checks (migrations 045–047).
@@ -33,10 +40,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Invalid user id.' }, { status: 400 })
   }
 
-  let body: { reason?: string }
+  let body: { reason?: string } | null
   try {
     body = await req.json()
   } catch {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
+  // `JSON.parse('null')` succeeds, so a literal `null` body reaches here as an
+  // object-typed null and would throw on the property read below.
+  if (!body || typeof body !== 'object') {
     return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
   }
   const reason = typeof body.reason === 'string' && body.reason.trim() ? body.reason.trim() : null
@@ -48,18 +60,35 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const { data: target, error: targetError } = await admin
     .from('profiles')
-    .select('id, full_name, suspended_at')
+    .select('id, suspended_at')
     .eq('id', id)
     .maybeSingle()
   if (targetError || !target) {
     return NextResponse.json({ error: 'User not found.' }, { status: 404 })
   }
 
+  // Fail CLOSED on a GoTrue error: `{ data: { user: null }, error }` would make
+  // isAdminEmail(undefined) false and let an admin be suspended. Resolve the auth
+  // user first and treat "couldn't read it" as "not found", never as "not an admin".
+  const { data: authUser, error: authUserError } = await admin.auth.admin.getUserById(id)
+  if (authUserError || !authUser?.user) {
+    return NextResponse.json({ error: 'User not found.' }, { status: 404 })
+  }
+
   // Refuse to suspend an admin — including yourself. Locking the only admin out
   // of the panel would leave nobody able to undo it.
-  const { data: authUser } = await admin.auth.admin.getUserById(id)
-  if (isAdminEmail(authUser?.user?.email)) {
+  if (isAdminEmail(authUser.user.email)) {
     return NextResponse.json({ error: 'Admin accounts cannot be suspended.' }, { status: 400 })
+  }
+
+  // Refuse a redundant suspension: it would rewrite suspended_at to now, append a
+  // second audit row, and re-send the suspension email to someone already suspended.
+  // The check is deliberately on BOTH halves being applied, not on suspended_at
+  // alone — a partially-applied suspension (the ban_failed path below leaves the
+  // flag set and the ban unapplied) must stay retryable, and a bare
+  // `suspended_at is not null` test would strand exactly that state.
+  if (target.suspended_at && isBanned(authUser.user.banned_until)) {
+    return NextResponse.json({ error: 'This account is already suspended.' }, { status: 400 })
   }
 
   // Order matters: mark the profile first. If the ban call then fails, the
@@ -78,14 +107,30 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     ban_duration: BAN_DURATION,
   })
   if (banError) {
+    // The profile is already flagged — listings hidden, protected routes blocked —
+    // so this half-applied state must not be left with no record of why or by whom.
+    // suspension_reason no longer exists (047), so this row is the only thing that
+    // could ever explain the flag. Written BEFORE returning, flagged as partial.
+    const { error: partialAuditError } = await admin.from('admin_actions').insert({
+      admin_email: gate.email ?? 'unknown',
+      action: 'suspend',
+      target_user_id: id,
+      detail: { reason, ban_failed: true },
+    })
+    if (partialAuditError) {
+      console.error('[admin] suspend partial-failure audit insert failed', partialAuditError)
+    }
+    // No email on this path: login still works, so telling the user they can't
+    // sign in would be false. The 500 tells the admin to retry, and the
+    // already-suspended guard above deliberately allows that retry.
     return NextResponse.json(
       { error: `Profile marked suspended, but the login block failed: ${banError.message}` },
       { status: 500 }
     )
   }
 
-  // The ONLY durable record of why. Not fire-and-forget, and not optional:
-  // there is no schema left that would catch a lost reason.
+  // The ONLY durable record of why. Non-fatal here — unlike the delete route — because
+  // the suspension has already fully applied and a failed audit must not undo it.
   // Supabase's User type has `email?: string`, while admin_actions.admin_email
   // is `text not null` — fall back rather than letting the audit insert fail and
   // lose the record of who did this.

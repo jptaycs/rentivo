@@ -12,6 +12,13 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  *
  * There is no suspension_reason column to clear (dropped in 047); the reason
  * stays in the admin_actions history, which is an audit log and is not rewritten.
+ *
+ * Deliberately NOT guarded on "already active", unlike the suspend route's
+ * already-suspended check. This is the recovery path: both halves of a
+ * suspension can end up half-applied (suspend's ban_failed branch, or this
+ * route's own profileError branch), and refusing to run against an account that
+ * looks active would strand exactly those states. Re-running it is harmless —
+ * the cost is a redundant reinstatement email, against a stuck account.
  */
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const gate = await requireAdminApi()
@@ -46,7 +53,14 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     .update({ suspended_at: null })
     .eq('id', id)
   if (profileError) {
-    return NextResponse.json({ error: profileError.message }, { status: 500 })
+    // Be explicit about the half-applied state: the ban is already gone, so the
+    // user can sign in while suspended_at still hides their listings. Safe
+    // direction, but an admin reading a bare Postgres message could not tell.
+    // Re-running this route clears it — it is deliberately not made idempotent.
+    return NextResponse.json(
+      { error: `Login ban lifted, but clearing the suspension flag failed: ${profileError.message}` },
+      { status: 500 }
+    )
   }
 
   const { error: auditError } = await admin.from('admin_actions').insert({

@@ -24,10 +24,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Invalid user id.' }, { status: 400 })
   }
 
-  let body: { confirm?: string }
+  let body: { confirm?: string } | null
   try {
     body = await req.json()
   } catch {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
+  // `JSON.parse('null')` succeeds, so a literal `null` body reaches here as an
+  // object-typed null and would throw on the property read below.
+  if (!body || typeof body !== 'object') {
     return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
   }
   if (body.confirm !== 'DELETE') {
@@ -79,7 +84,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     },
   })
   if (auditError) {
-    console.error('[admin] delete audit insert failed', auditError)
+    // FATAL here, unlike suspend/unsuspend. Deletion is irreversible and
+    // anonymizing: once deleteAccount runs, full_name reads 'Deleted User' and
+    // the auth address is gone, so the { email, full_name } captured above
+    // becomes unrecoverable. Proceeding would complete an irreversible action
+    // with no record of who was removed or by whom. Nothing has happened yet at
+    // this point, so the admin can simply retry.
+    console.error('[admin] delete audit insert failed — deletion aborted', auditError)
+    return NextResponse.json(
+      { error: `Could not write the audit record, so the deletion was not performed: ${auditError.message}` },
+      { status: 500 }
+    )
   }
 
   const result = await deleteAccount(id)
