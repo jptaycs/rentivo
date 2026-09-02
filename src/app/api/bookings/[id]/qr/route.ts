@@ -33,6 +33,29 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'This booking is not paid via QR.' }, { status: 400 })
   }
 
+  // The fifth money path. Every other one is closed to a suspended host
+  // (create_booking 045, request_payout 046, confirm_host_qr_payment 047,
+  // /api/payments/checkout's booking-reuse branch), but this route is scoped to
+  // the booking's two PARTIES and the renter is not the suspended one — so the
+  // middleware suspension check never fires for them. Without this guard a
+  // renter could still open a suspended host's personal GCash QR and pay them
+  // off-platform for a booking that can then never be marked paid, because 047
+  // closed confirm_host_qr_payment. Rentivo never held that money and so cannot
+  // refund it. It is also a PII exposure: the response carries
+  // qr_payment_label, the host's real name and mobile number.
+  //
+  // is_host_suspended is `security definer` (046), so the answer does not depend
+  // on what the renter's session may read from `profiles`. Fails CLOSED on an
+  // RPC error, and reuses the party-check's own 404 rather than a distinct
+  // message — a renter has no business learning the moderation state of another
+  // account, and this matches the checkout route's identical choice.
+  const { data: suspended, error: suspendedError } = await supabase.rpc('is_host_suspended', {
+    p_host_id: booking.host_id,
+  })
+  if (suspendedError || suspended) {
+    return NextResponse.json({ error: 'Booking not found.' }, { status: 404 })
+  }
+
   const admin = createAdminClient()
   const { data: hostProfile } = await admin
     .from('profiles')
