@@ -22,8 +22,17 @@ const buttonClass =
 export function ExportRevenueButton({ rows }: { rows: MonthlyRevenue[] }) {
   const handleClick = () => {
     const csv = toCsv(
-      ['Month', 'Gross', 'Earned', 'Collected', 'Uncollected', 'Payouts Paid', 'Payouts Owed'],
-      rows.map((r) => [r.month, r.gross, r.earned, r.collected, r.uncollected, r.payoutsPaid, r.payoutsOwed])
+      ['Month', 'Revenue', 'Deposits Held', 'Earned', 'Collected', 'Uncollected', 'Payouts Paid', 'Payouts Owed'],
+      rows.map((r) => [
+        r.month,
+        r.gross,
+        r.depositsHeld,
+        r.earned,
+        r.collected,
+        r.uncollected,
+        r.payoutsPaid,
+        r.payoutsOwed,
+      ])
     )
     download('rentivo-revenue.csv', csv)
   }
@@ -73,7 +82,7 @@ export function ExportRankedButton({
 }) {
   const handleClick = () => {
     const csv = toCsv(
-      ['Name', 'Detail', 'Bookings', 'Value'],
+      ['Name', 'Detail', 'Bookings', 'Revenue'],
       rows.map((r) => [r.label, r.sublabel, r.count, r.value])
     )
     download(RANKED_FILENAMES[kind], csv)

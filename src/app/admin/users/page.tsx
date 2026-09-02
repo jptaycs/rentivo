@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdminPage } from '@/lib/admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +30,14 @@ export default async function AdminUsersPage({
 }: {
   searchParams: Promise<{ q?: string; role?: string; status?: string }>
 }) {
+  // Defense in depth: the shared /admin layout already gates this route, but
+  // a client-side navigation between sibling admin routes doesn't re-render
+  // the layout, leaving middleware as the sole gate on that request. Re-check
+  // here too, matching AGENTS.md's documented claim that every admin
+  // page/route re-checks server-side (see src/lib/admin.ts's requireAdminPage
+  // doc comment).
+  await requireAdminPage()
+
   const { q: rawQ, role: rawRole, status: rawStatus } = await searchParams
   const q = (rawQ ?? '').trim()
   const role = ROLE_FILTERS.includes(rawRole as (typeof ROLE_FILTERS)[number])

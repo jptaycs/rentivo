@@ -21,7 +21,22 @@ export const PAYMONGO_METHODS = ['card', 'gcash', 'maya', 'qrph'] as const
 
 export interface MonthlyRevenue {
   month: string
+  /**
+   * Revenue-bearing money only: `rental_fee - discount + service_fee +
+   * protection_fee + delivery_fee` (equivalently `total_amount -
+   * security_deposit`, which is how it's actually computed below — that
+   * identity holds by construction of create_booking's total_amount, so it
+   * doesn't need discount/protection_fee to be selected separately).
+   * Deliberately NOT total_amount: at this dataset's mix, ~61% of
+   * total_amount is a refundable security deposit Rentivo is holding, not
+   * revenue. Renamed from an earlier "gross" that used total_amount and
+   * would have badly misled a reader skimming this report — see
+   * depositsHeld below for the excluded portion, broken out rather than
+   * silently dropped.
+   */
   gross: number
+  /** The refundable security-deposit portion of total_amount, excluded from `gross` above. Money Rentivo is holding, not earning. */
+  depositsHeld: number
   earned: number
   collected: number
   uncollected: number
@@ -54,12 +69,14 @@ export interface CommissionTotals {
   uncollected: number
 }
 
-const MONEY_SELECT = 'service_fee, rental_fee, delivery_fee, total_amount, payment_method, created_at'
+const MONEY_SELECT =
+  'service_fee, rental_fee, delivery_fee, security_deposit, total_amount, payment_method, created_at'
 
 interface MoneyRow {
   service_fee: number
   rental_fee: number
   delivery_fee: number
+  security_deposit: number
   total_amount: number
   payment_method: string | null
   created_at: string
@@ -89,18 +106,27 @@ export async function getCommissionTotals(): Promise<CommissionTotals> {
   return { earned, collected, uncollected: earned - collected }
 }
 
-/** `YYYY-MM` in the local (server) timezone — good enough for a monthly bucket key. */
+/**
+ * `YYYY-MM`, UTC. PostgREST returns `created_at` as a UTC ISO string, so
+ * slicing the first 7 characters is already a UTC bucket. `lastNMonthKeys`
+ * below is deliberately built the same way (via `Date.UTC`) so the two agree
+ * on one basis — they used to disagree (this one UTC, that one
+ * server-local), which is invisible on Vercel (UTC) but would, in local PH
+ * dev (UTC+8), put a booking created 00:00–08:00 PHT on the 1st into the
+ * previous month's bucket here while lastNMonthKeys' window edge used the
+ * next one.
+ */
 function monthKey(iso: string): string {
   return iso.slice(0, 7)
 }
 
-/** Last `n` month keys ending with the current month, oldest first. */
+/** Last `n` UTC month keys ending with the current UTC month, oldest first — see monthKey's comment on why UTC. */
 function lastNMonthKeys(n: number): string[] {
   const keys: string[] = []
   const now = new Date()
   for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1))
+    keys.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`)
   }
   return keys
 }
@@ -127,14 +153,27 @@ export async function getMonthlyRevenue(months = 12): Promise<MonthlyRevenue[]> 
   // explicit zero row rather than being skipped entirely.
   const byMonth = new Map<string, MonthlyRevenue>()
   for (const key of lastNMonthKeys(months)) {
-    byMonth.set(key, { month: key, gross: 0, earned: 0, collected: 0, uncollected: 0, payoutsPaid: 0, payoutsOwed: 0 })
+    byMonth.set(key, {
+      month: key,
+      gross: 0,
+      depositsHeld: 0,
+      earned: 0,
+      collected: 0,
+      uncollected: 0,
+      payoutsPaid: 0,
+      payoutsOwed: 0,
+    })
   }
 
   for (const b of bookings) {
     const key = monthKey(b.created_at)
     const row = byMonth.get(key)
     if (!row) continue // outside the requested window
-    row.gross += b.total_amount
+    // total_amount - security_deposit = rental_fee - discount + service_fee
+    // + protection_fee + delivery_fee by construction of create_booking's
+    // insert — the revenue-bearing figure, see MonthlyRevenue.gross's doc.
+    row.gross += b.total_amount - b.security_deposit
+    row.depositsHeld += b.security_deposit
     row.earned += b.service_fee
     if (isPaymongoMethod(b.payment_method)) {
       row.collected += b.service_fee
@@ -196,6 +235,7 @@ interface RankableBookingRow {
   host_id: string
   renter_id: string
   total_amount: number
+  security_deposit: number
   listing: { title: string; brand: string } | null
   host: { full_name: string; city: string | null } | null
   renter: { full_name: string; city: string | null } | null
@@ -212,7 +252,7 @@ async function rankableBookings(): Promise<RankableBookingRow[]> {
   const { data, error } = await admin
     .from('bookings')
     .select(
-      `listing_id, host_id, renter_id, total_amount,
+      `listing_id, host_id, renter_id, total_amount, security_deposit,
        listing:listings!bookings_listing_id_fkey(${LISTING_COLUMNS}),
        host:profiles!bookings_host_id_fkey(${PROFILE_COLUMNS}),
        renter:profiles!bookings_renter_id_fkey(${PROFILE_COLUMNS})`
@@ -233,22 +273,23 @@ function rank(
   for (const r of rows) {
     const id = keyOf(r)
     if (!id) continue
+    // Revenue-bearing amount, same definition and same reasoning as
+    // MonthlyRevenue.gross: total_amount minus the refundable security
+    // deposit. A "top host/renter/listing" ranking by GMV should not credit
+    // (or blame) anyone for money Rentivo is only holding and will give
+    // back.
+    const revenueAmount = r.total_amount - r.security_deposit
     const existing = byId.get(id)
     if (existing) {
       existing.count += 1
-      existing.value += r.total_amount
+      existing.value += revenueAmount
     } else {
       const { label, sublabel } = labelOf(r)
-      byId.set(id, { id, label, sublabel, count: 1, value: r.total_amount })
+      byId.set(id, { id, label, sublabel, count: 1, value: revenueAmount })
     }
   }
   return [...byId.values()].sort((a, b) => b.count - a.count || b.value - a.value).slice(0, limit)
 }
-
-// Value for every ranking below is `total_amount` — the total booking value
-// (GMV) attributable to that listing/host/renter, not the service fee. That's
-// the natural "how much business did this do" metric for a ranking table; the
-// commission split is already covered by the Commission section above.
 
 export async function getTopListings(limit = 10): Promise<RankedRow[]> {
   const rows = await rankableBookings()
@@ -265,14 +306,25 @@ export async function getTopListings(limit = 10): Promise<RankedRow[]> {
 // filtering them out. Their historical bookings are real revenue that
 // actually happened; dropping them would make a money report undercount the
 // past on top of the account no longer existing. They surface honestly as
-// "Deleted User" with whatever fields survived anonymization.
+// "Deleted User" with whatever fields survived anonymization — but since
+// account-deletion.ts nulls `city` too, two deleted accounts would otherwise
+// render as visually identical rows (same label, same empty sublabel),
+// distinguishable only by an invisible id. deletedSublabel below appends a
+// short id fragment so the inclusion is legible the moment it first fires,
+// rather than reading as a rendering bug.
+function deletedSublabel(name: string, id: string, city: string | null): string {
+  return name === 'Deleted User' ? `account deleted · ${id.slice(0, 8)}` : (city ?? '')
+}
 
 export async function getTopHosts(limit = 10): Promise<RankedRow[]> {
   const rows = await rankableBookings()
   return rank(
     rows,
     (r) => r.host_id,
-    (r) => ({ label: r.host?.full_name ?? 'Unknown host', sublabel: r.host?.city ?? '' }),
+    (r) => {
+      const name = r.host?.full_name ?? 'Unknown host'
+      return { label: name, sublabel: deletedSublabel(name, r.host_id, r.host?.city ?? null) }
+    },
     limit
   )
 }
@@ -282,7 +334,10 @@ export async function getTopRenters(limit = 10): Promise<RankedRow[]> {
   return rank(
     rows,
     (r) => r.renter_id,
-    (r) => ({ label: r.renter?.full_name ?? 'Unknown renter', sublabel: r.renter?.city ?? '' }),
+    (r) => {
+      const name = r.renter?.full_name ?? 'Unknown renter'
+      return { label: name, sublabel: deletedSublabel(name, r.renter_id, r.renter?.city ?? null) }
+    },
     limit
   )
 }

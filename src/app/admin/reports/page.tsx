@@ -7,12 +7,24 @@ import {
   getTopRenters,
   type RankedRow,
 } from '@/lib/admin-reports'
+import { requireAdminPage } from '@/lib/admin'
+import { SERVICE_FEE_RATE } from '@/lib/pricing'
 import { ExportRevenueButton, ExportInFlightButton, ExportRankedButton } from './ReportExports'
 
 export const dynamic = 'force-dynamic'
 
 const peso = (n: number) => `₱${n.toLocaleString('en-PH')}`
-const date = (iso: string) => new Date(iso).toLocaleDateString('en-PH')
+
+// pickup_date/return_date are Postgres `date` columns — plain "YYYY-MM-DD",
+// no time component. new Date("2026-09-01").toLocaleDateString() parses that
+// as UTC midnight, which renders a day early in any negative-UTC-offset
+// runtime (this project already fixed this exact class of bug once, see
+// commit 082a1bf on the SearchBar date pickers). Format the string directly
+// instead of round-tripping through Date/UTC.
+const date = (dateOnly: string) => {
+  const [y, m, d] = dateOnly.split('-').map(Number)
+  return `${m}/${d}/${y}`
+}
 
 function RankedTable({ title, rows, kind }: { title: string; rows: RankedRow[]; kind: 'listings' | 'hosts' | 'renters' }) {
   return (
@@ -30,7 +42,11 @@ function RankedTable({ title, rows, kind }: { title: string; rows: RankedRow[]; 
               <tr className="border-b border-gray-100 text-xs text-gray-500">
                 <th className="px-2 py-2">Name</th>
                 <th className="px-2 py-2">Bookings</th>
-                <th className="px-2 py-2">Value</th>
+                {/* "Revenue", not "Value" — matches admin-reports.ts's rank()
+                    definition (total_amount minus the refundable security
+                    deposit), same reasoning as the Revenue Over Time
+                    section's Gross→Revenue rename above. */}
+                <th className="px-2 py-2">Revenue</th>
               </tr>
             </thead>
             <tbody>
@@ -53,6 +69,9 @@ function RankedTable({ title, rows, kind }: { title: string; rows: RankedRow[]; 
 }
 
 export default async function AdminReportsPage() {
+  // Defense in depth: see the matching comment in /admin/users/page.tsx.
+  await requireAdminPage()
+
   const [commission, monthly, inFlight, topListings, topHosts, topRenters] = await Promise.all([
     getCommissionTotals(),
     getMonthlyRevenue(),
@@ -67,8 +86,8 @@ export default async function AdminReportsPage() {
       <div>
         <h1 className="mb-1 text-2xl font-bold text-gray-900">Business Reports</h1>
         <p className="text-sm text-gray-500">
-          Commission is on the 5% service fee only, not the full rental amount — see the definitions below each
-          card.
+          Commission is on the {SERVICE_FEE_RATE * 100}% service fee only, not the full rental amount — see the
+          definitions below each card.
         </p>
       </div>
 
@@ -108,16 +127,29 @@ export default async function AdminReportsPage() {
           charting library, and pulling one in for a six-series monthly
           table isn't justified by this one page. */}
       <section>
-        <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="mb-1 flex items-center justify-between gap-2">
           <h2 className="text-xl font-bold text-gray-900">Revenue Over Time</h2>
           <ExportRevenueButton rows={monthly} />
         </div>
+        {/* Gross used to be total_amount, which is ~61% refundable security
+            deposit at this dataset's current mix — an owner skimming this
+            page would read "Gross" as business done and be badly misled.
+            Revenue below is now the revenue-bearing figure (rental + service
+            + delivery + any historical protection fee — i.e. everything
+            except the deposit), with the held deposit broken out into its
+            own clearly-labelled column so both figures are visible without
+            either one misrepresenting the other. */}
+        <p className="mb-4 text-xs text-gray-500">
+          Revenue excludes refundable security deposits — see Deposits Held for the money Rentivo is holding, not
+          earning.
+        </p>
         <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-xs text-gray-500">
                 <th className="px-4 py-3">Month</th>
-                <th className="px-4 py-3">Gross</th>
+                <th className="px-4 py-3">Revenue</th>
+                <th className="px-4 py-3">Deposits Held</th>
                 <th className="px-4 py-3">Earned</th>
                 <th className="px-4 py-3">Collected</th>
                 <th className="px-4 py-3">Uncollected</th>
@@ -130,6 +162,7 @@ export default async function AdminReportsPage() {
                 <tr key={m.month} className="border-b border-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{m.month}</td>
                   <td className="px-4 py-3">{peso(m.gross)}</td>
+                  <td className="px-4 py-3 text-amber-800">{peso(m.depositsHeld)}</td>
                   <td className="px-4 py-3">{peso(m.earned)}</td>
                   <td className="px-4 py-3">{peso(m.collected)}</td>
                   <td className="px-4 py-3">{peso(m.uncollected)}</td>

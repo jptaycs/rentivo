@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { checkDeletionEligibility } from '@/lib/account-deletion'
 import { LISTING_COLUMNS } from '@/lib/listing-columns'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { requireAdminPage } from '@/lib/admin'
 import { UserActions } from './UserActions'
 
 export const dynamic = 'force-dynamic'
@@ -86,6 +87,11 @@ interface AdminActionRow {
 }
 
 export default async function AdminUserDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  // Defense in depth: see the matching comment in /admin/users/page.tsx — the
+  // shared layout gate isn't re-run on a client-side navigation between
+  // sibling admin routes.
+  await requireAdminPage()
+
   const { id } = await params
   const admin = createAdminClient()
 
