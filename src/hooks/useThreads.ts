@@ -3,29 +3,45 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { PROFILE_COLUMNS } from '@/lib/listing-columns'
 import type { Profile } from '@/types'
 
 export interface MessageThread {
-  bookingId: string
-  bookingRef: string
+  conversationId: string
+  bookingId: string | null
+  bookingRef: string | null
+  listingId: string
   listingTitle: string
   otherUser: Pick<Profile, 'id' | 'full_name' | 'avatar_url'>
   lastMessage: string
   lastAt: string
   unreadCount: number
+  isInquiry: boolean
 }
 
-interface BookingRow {
+interface ConversationRow {
   id: string
-  booking_ref: string
+  listing_id: string
   renter_id: string
   host_id: string
+  booking_id: string | null
+  last_message_at: string
   listing: { title: string } | null
+  booking: { booking_ref: string } | null
   renter: Profile | null
   host: Profile | null
 }
 
-/** One thread per booking I'm party to, ordered by most recent message. */
+interface MessageRow {
+  conversation_id: string
+  content: string
+  image_url: string | null
+  sender_id: string
+  is_read: boolean
+  created_at: string
+}
+
+/** One thread per conversation I'm party to, ordered by most recent message. */
 export function useThreads() {
   const [threads, setThreads] = useState<MessageThread[]>([])
   const [userId, setUserId] = useState<string | null>(null)
@@ -46,49 +62,61 @@ export function useThreads() {
     }
     setUserId(user.id)
 
-    const { data: bookings } = await supabase
-      .from('bookings')
+    const { data: conversations } = await supabase
+      .from('conversations')
       .select(
-        'id, booking_ref, renter_id, host_id, listing:listings(title), renter:profiles!bookings_renter_id_fkey(*), host:profiles!bookings_host_id_fkey(*)'
+        `id, listing_id, renter_id, host_id, booking_id, last_message_at,
+         listing:listings(title),
+         booking:bookings(booking_ref),
+         renter:profiles!conversations_renter_id_fkey(${PROFILE_COLUMNS}),
+         host:profiles!conversations_host_id_fkey(${PROFILE_COLUMNS})`
       )
       .or(`renter_id.eq.${user.id},host_id.eq.${user.id}`)
+      .order('last_message_at', { ascending: false })
 
-    const rows = (bookings as unknown as BookingRow[]) ?? []
+    const rows = (conversations as unknown as ConversationRow[]) ?? []
     if (rows.length === 0) {
       setThreads([])
       setLoading(false)
       return
     }
 
-    const bookingIds = rows.map((b) => b.id)
+    const conversationIds = rows.map((c) => c.id)
     const { data: messages } = await supabase
       .from('messages')
-      .select('booking_id, content, image_url, sender_id, is_read, created_at')
-      .in('booking_id', bookingIds)
+      .select('conversation_id, content, image_url, sender_id, is_read, created_at')
+      .in('conversation_id', conversationIds)
       .order('created_at', { ascending: true })
 
-    const byBooking = new Map<string, typeof messages>()
-    for (const m of messages ?? []) {
-      const list = byBooking.get(m.booking_id) ?? []
+    const byConversation = new Map<string, MessageRow[]>()
+    for (const m of (messages as MessageRow[]) ?? []) {
+      const list = byConversation.get(m.conversation_id) ?? []
       list.push(m)
-      byBooking.set(m.booking_id, list)
+      byConversation.set(m.conversation_id, list)
     }
 
     const built = rows
-      .map((b): MessageThread | null => {
-        const msgs = byBooking.get(b.id) ?? []
-        if (msgs.length === 0) return null
-        const last = msgs[msgs.length - 1]
-        const other = b.renter_id === user.id ? b.host : b.renter
+      .map((c): MessageThread | null => {
+        const other = c.renter_id === user.id ? c.host : c.renter
         if (!other) return null
+        const msgs = byConversation.get(c.id) ?? []
+        // The old behaviour dropped any thread with zero messages. Keep that
+        // filter only for booking threads — an inquiry always has at least
+        // one message because create_inquiry inserts one.
+        const isInquiry = c.booking_id === null
+        if (!isInquiry && msgs.length === 0) return null
+        const last = msgs[msgs.length - 1]
         return {
-          bookingId: b.id,
-          bookingRef: b.booking_ref,
-          listingTitle: b.listing?.title ?? 'Rentivo booking',
+          conversationId: c.id,
+          bookingId: c.booking_id,
+          bookingRef: c.booking?.booking_ref ?? null,
+          listingId: c.listing_id,
+          listingTitle: c.listing?.title ?? 'Rentivo listing',
           otherUser: other,
-          lastMessage: last.content || (last.image_url ? '📷 Photo' : ''),
-          lastAt: last.created_at,
+          lastMessage: last ? last.content || (last.image_url ? '📷 Photo' : '') : '',
+          lastAt: last?.created_at ?? c.last_message_at,
           unreadCount: msgs.filter((m) => m.sender_id !== user.id && !m.is_read).length,
+          isInquiry,
         }
       })
       .filter((t): t is MessageThread => t !== null)

@@ -26,15 +26,15 @@ export function ThreadList({ threads, activeId, onSelect }: ThreadListProps) {
       <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
         {threads.map(t => (
           <button
-            key={t.bookingId}
-            onClick={() => onSelect(t.bookingId)}
+            key={t.conversationId}
+            onClick={() => onSelect(t.conversationId)}
             className={`w-full flex items-start gap-3 px-4 py-4 text-left hover:bg-gray-50 transition-colors ${
-              activeId === t.bookingId ? 'bg-blue-50/60' : ''
+              activeId === t.conversationId ? 'bg-blue-50/60' : ''
             }`}
           >
             {/* Avatar */}
             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
-              activeId === t.bookingId ? 'bg-[#003049] text-white' : 'bg-gray-100 text-gray-600'
+              activeId === t.conversationId ? 'bg-[#003049] text-white' : 'bg-gray-100 text-gray-600'
             }`}>
               {t.otherUser.full_name.charAt(0).toUpperCase()}
             </div>
@@ -47,7 +47,12 @@ export function ThreadList({ threads, activeId, onSelect }: ThreadListProps) {
                 </p>
                 <span className="text-[10px] text-gray-400 shrink-0">{timeAgo(t.lastAt)}</span>
               </div>
-              <p className="text-xs text-gray-400 truncate mt-0.5">{t.listingTitle}</p>
+              <div className="flex items-center justify-between gap-2 mt-0.5">
+                <p className="text-xs text-gray-400 truncate">{t.listingTitle}</p>
+                {t.isInquiry
+                  ? <span className="text-[10px] font-semibold text-[#003049] bg-blue-50 px-1.5 py-0.5 rounded shrink-0">Inquiry</span>
+                  : <span className="text-[10px] text-gray-400 shrink-0">{t.bookingRef}</span>}
+              </div>
               <p className={`text-xs truncate mt-0.5 ${t.unreadCount > 0 ? 'text-[#111827] font-medium' : 'text-gray-400'}`}>
                 {t.lastMessage}
               </p>
