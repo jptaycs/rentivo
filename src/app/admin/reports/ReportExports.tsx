@@ -22,7 +22,10 @@ const buttonClass =
 export function ExportRevenueButton({ rows }: { rows: MonthlyRevenue[] }) {
   const handleClick = () => {
     const csv = toCsv(
-      ['Month', 'Revenue', 'Deposits Held', 'Earned', 'Collected', 'Uncollected', 'Payouts Paid', 'Payouts Owed'],
+      // "Payouts Pending" mirrors the on-page header — it counts only
+      // payouts hosts have requested and that are still open, which is not
+      // total liability to hosts. See MonthlyRevenue's field docs.
+      ['Month', 'Revenue', 'Deposits Held', 'Earned', 'Collected', 'Uncollected', 'Payouts Paid', 'Payouts Pending'],
       rows.map((r) => [
         r.month,
         r.revenue,
@@ -31,7 +34,7 @@ export function ExportRevenueButton({ rows }: { rows: MonthlyRevenue[] }) {
         r.collected,
         r.uncollected,
         r.payoutsPaid,
-        r.payoutsOwed,
+        r.payoutsRequestedPending,
       ])
     )
     download('rentivo-revenue.csv', csv)
@@ -49,7 +52,7 @@ export function ExportInFlightButton({ rows }: { rows: InFlightRental[] }) {
       // "Booking Total", matching the on-page header: this figure still
       // includes the refundable security deposit, unlike the Revenue columns
       // in the revenue CSV above.
-      ['Booking Ref', 'Listing', 'Host', 'Renter', 'Pickup', 'Return', 'Status', 'Booking Total'],
+      ['Booking Ref', 'Listing', 'Host', 'Renter', 'Pickup', 'Return', 'Status', 'Payment', 'Booking Total'],
       rows.map((r) => [
         r.bookingRef,
         r.listingTitle,
@@ -58,6 +61,7 @@ export function ExportInFlightButton({ rows }: { rows: InFlightRental[] }) {
         r.pickupDate,
         r.returnDate,
         r.status,
+        r.paymentStatus,
         r.amount,
       ])
     )

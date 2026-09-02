@@ -141,7 +141,10 @@ export default async function AdminReportsPage() {
             visible without either one misrepresenting the other. */}
         <p className="mb-4 text-xs text-gray-500">
           Revenue excludes refundable security deposits — see Deposits Held for the money Rentivo is holding, not
-          earning.
+          earning. Payouts Paid is bucketed by the month a payout was actually settled, not the month it was
+          requested. Payouts Pending counts only payouts hosts have <em>requested</em> and that are still open — it
+          is not total liability to hosts, since eligible earnings a host hasn&apos;t yet requested appear nowhere on
+          this page.
         </p>
         <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
           <table className="w-full text-left text-sm">
@@ -154,7 +157,12 @@ export default async function AdminReportsPage() {
                 <th className="px-4 py-3">Collected</th>
                 <th className="px-4 py-3">Uncollected</th>
                 <th className="px-4 py-3">Payouts Paid</th>
-                <th className="px-4 py-3">Payouts Owed</th>
+                {/* "Payouts Pending", not "Payouts Owed": this counts only
+                    payouts a host has actively REQUESTED and that are still
+                    open. Eligible-but-unrequested host earnings are owed too
+                    and are not on this page, so "Owed" read as a liability
+                    total it never was. */}
+                <th className="px-4 py-3">Payouts Pending</th>
               </tr>
             </thead>
             <tbody>
@@ -167,7 +175,7 @@ export default async function AdminReportsPage() {
                   <td className="px-4 py-3">{peso(m.collected)}</td>
                   <td className="px-4 py-3">{peso(m.uncollected)}</td>
                   <td className="px-4 py-3">{peso(m.payoutsPaid)}</td>
-                  <td className="px-4 py-3">{peso(m.payoutsOwed)}</td>
+                  <td className="px-4 py-3">{peso(m.payoutsRequestedPending)}</td>
                 </tr>
               ))}
             </tbody>
@@ -181,15 +189,22 @@ export default async function AdminReportsPage() {
           <h2 className="text-xl font-bold text-gray-900">Rentals In Flight</h2>
           <ExportInFlightButton rows={inFlight} />
         </div>
-        {/* The money column here is the booking's full charged total, which
-            unlike every other money figure on this page still INCLUDES the
-            refundable security deposit — it's what the renter actually paid
-            (or owes) for a rental that hasn't finished, not a revenue
-            figure. Header says "Booking Total" rather than "Amount" so it
-            can't be read as the same basis as Revenue above. */}
+        {/* The money column here is the booking's full total, which unlike
+            every other money figure on this page still INCLUDES the refundable
+            security deposit — it's what the renter paid, or still owes, for a
+            rental that hasn't finished. Header says "Booking Total" rather
+            than "Amount" so it can't be read as the same basis as Revenue
+            above.
+
+            This list is NOT filtered on payment_status — a pending booking is
+            routinely unpaid and an admin needs to see it — so the caption used
+            to say "the full amount charged", which is simply false for those
+            rows. The Payment column now states it per row, matching the host
+            dashboard's "Awaiting payment" chip (commit 3db5883). */}
         <p className="mb-4 text-xs text-gray-500">
-          Booking Total is the full amount charged, including the refundable security deposit — unlike the Revenue
-          figures above, which exclude it.
+          Booking Total is the booking&apos;s full amount including the refundable security deposit — unlike the
+          Revenue figures above, which exclude it. It is only money actually taken where Payment says{' '}
+          <span className="font-semibold">paid</span>; an unpaid row is an amount owed, not collected.
         </p>
         {inFlight.length === 0 ? (
           <p className="rounded-2xl bg-white p-8 text-center text-sm text-gray-500 shadow-sm">
@@ -207,6 +222,7 @@ export default async function AdminReportsPage() {
                   <th className="px-4 py-3">Pickup</th>
                   <th className="px-4 py-3">Return</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Payment</th>
                   <th className="px-4 py-3">Booking Total</th>
                 </tr>
               </thead>
@@ -220,6 +236,15 @@ export default async function AdminReportsPage() {
                     <td className="px-4 py-3">{date(r.pickupDate)}</td>
                     <td className="px-4 py-3">{date(r.returnDate)}</td>
                     <td className="px-4 py-3 capitalize">{r.status}</td>
+                    <td className="px-4 py-3">
+                      {r.paymentStatus === 'paid' ? (
+                        <span className="capitalize text-gray-600">{r.paymentStatus}</span>
+                      ) : (
+                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold capitalize text-amber-800">
+                          {r.paymentStatus === 'unpaid' ? 'Awaiting payment' : r.paymentStatus}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-semibold">{peso(r.amount)}</td>
                   </tr>
                 ))}

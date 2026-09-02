@@ -43,8 +43,27 @@ export interface MonthlyRevenue {
   earned: number
   collected: number
   uncollected: number
+  /**
+   * Payout requests actually SETTLED in this month, bucketed by
+   * `payout_requests.processed_at` — the timestamp `mark_payout_paid` sets
+   * (020:47) — not by `requested_at`. Those differ: a payout requested Jan 28
+   * and paid Feb 3 is February's cash outflow, and bucketing it by the request
+   * date put it in January, in a column an owner reads as money that left the
+   * business that month.
+   */
   payoutsPaid: number
-  payoutsOwed: number
+  /**
+   * Payouts a host has REQUESTED that are still `pending`, bucketed by
+   * `requested_at` (a pending request has no processed_at yet, by definition).
+   *
+   * This is NOT total liability to hosts. A host only appears here once they
+   * have actively asked for their money; completed, paid, payout-eligible
+   * bookings whose host has not yet clicked Request Payout are owed all the
+   * same and appear nowhere on this page. The field is named
+   * `payoutsRequestedPending`, not `payoutsOwed`, precisely so the identifier
+   * cannot be read as the broader figure — see the on-page caption too.
+   */
+  payoutsRequestedPending: number
 }
 
 export interface InFlightRental {
@@ -56,6 +75,14 @@ export interface InFlightRental {
   returnDate: string
   status: string
   amount: number
+  /**
+   * `unpaid` / `paid` / `refunded`. Present because `status` alone
+   * (pending|confirmed|active) says nothing about whether the money arrived:
+   * a `pending` booking is routinely unpaid, so captioning the amount column
+   * "the full amount charged" is false for those rows. Same distinction the
+   * host dashboard draws with its "Awaiting payment" chip (commit 3db5883).
+   */
+  paymentStatus: string
 }
 
 export interface RankedRow {
@@ -150,13 +177,19 @@ export async function getMonthlyRevenue(months = 12): Promise<MonthlyRevenue[]> 
   const bookings = await paidBookings()
 
   // payout_requests has no `created_at` column (the brief's wording used the
-  // generic name; the real timestamp column is `requested_at`), so that's
-  // what payoutsPaid/payoutsOwed bucket by.
+  // generic name; the real timestamp columns are `requested_at` and
+  // `processed_at`). The two payout figures bucket by DIFFERENT ones on
+  // purpose — see the MonthlyRevenue field docs.
   const { data: payoutData, error: payoutError } = await admin
     .from('payout_requests')
-    .select('amount, status, requested_at')
+    .select('amount, status, requested_at, processed_at')
   if (payoutError) throw new Error(`Failed to load payout_requests: ${payoutError.message}`)
-  const payouts = (payoutData ?? []) as { amount: number; status: string; requested_at: string }[]
+  const payouts = (payoutData ?? []) as {
+    amount: number
+    status: string
+    requested_at: string
+    processed_at: string | null
+  }[]
 
   // Seed every month in the window first so a quiet period renders as an
   // explicit zero row rather than being skipped entirely.
@@ -170,7 +203,7 @@ export async function getMonthlyRevenue(months = 12): Promise<MonthlyRevenue[]> 
       collected: 0,
       uncollected: 0,
       payoutsPaid: 0,
-      payoutsOwed: 0,
+      payoutsRequestedPending: 0,
     })
   }
 
@@ -192,11 +225,20 @@ export async function getMonthlyRevenue(months = 12): Promise<MonthlyRevenue[]> 
   }
 
   for (const p of payouts) {
-    const key = monthKey(p.requested_at)
-    const row = byMonth.get(key)
-    if (!row) continue
-    if (p.status === 'paid') row.payoutsPaid += p.amount
-    if (p.status === 'pending') row.payoutsOwed += p.amount
+    if (p.status === 'paid') {
+      // Settled money belongs to the month it actually settled in.
+      // `mark_payout_paid` always stamps processed_at, so the fallback should
+      // be unreachable — it exists so a row hand-fixed in the SQL editor
+      // still lands somewhere rather than silently vanishing from the report.
+      const row = byMonth.get(monthKey(p.processed_at ?? p.requested_at))
+      if (row) row.payoutsPaid += p.amount
+    }
+    if (p.status === 'pending') {
+      // Still-open requests have no processed_at; requested_at is the only
+      // date they have.
+      const row = byMonth.get(monthKey(p.requested_at))
+      if (row) row.payoutsRequestedPending += p.amount
+    }
   }
 
   return lastNMonthKeys(months).map((key) => byMonth.get(key)!)
@@ -207,6 +249,7 @@ interface InFlightBookingRow {
   pickup_date: string
   return_date: string
   status: string
+  payment_status: string
   total_amount: number
   listing: { title: string } | null
   host: { full_name: string } | null
@@ -218,7 +261,11 @@ export async function getInFlightRentals(): Promise<InFlightRental[]> {
   const { data, error } = await admin
     .from('bookings')
     .select(
-      `booking_ref, pickup_date, return_date, status, total_amount,
+      // payment_status is selected deliberately: this list is NOT filtered on
+      // it (an unpaid pending booking is genuinely in flight and an admin needs
+      // to see it), so the row has to carry it or the money column reads as
+      // charged when it isn't.
+      `booking_ref, pickup_date, return_date, status, payment_status, total_amount,
        listing:listings!bookings_listing_id_fkey(${LISTING_COLUMNS}),
        host:profiles!bookings_host_id_fkey(${PROFILE_COLUMNS}),
        renter:profiles!bookings_renter_id_fkey(${PROFILE_COLUMNS})`
@@ -236,6 +283,7 @@ export async function getInFlightRentals(): Promise<InFlightRental[]> {
     returnDate: b.return_date,
     status: b.status,
     amount: b.total_amount,
+    paymentStatus: b.payment_status,
   }))
 }
 
