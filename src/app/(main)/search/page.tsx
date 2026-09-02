@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { CompactSearchBar } from '@/components/search/CompactSearchBar'
+import { SearchBar } from '@/components/search/SearchBar'
 import { SearchResults } from '@/components/search/SearchResults'
 import { Skeleton } from '@/components/ui/skeleton'
 import { searchListings, type ListingSearchParams } from '@/lib/listings'
@@ -28,9 +28,13 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       {/* Sticky search bar */}
       <div className="sticky top-16 z-40 bg-[#F8FAFC] border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <Suspense>
-            <CompactSearchBar />
-          </Suspense>
+          <SearchBar
+            variant="compact"
+            initialQuery={params.q ?? ''}
+            initialCity={params.city ?? ''}
+            initialFrom={params.from}
+            initialTo={params.to}
+          />
         </div>
       </div>
 
