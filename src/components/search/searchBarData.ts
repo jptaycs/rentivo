@@ -18,15 +18,13 @@ export const SUGGESTED_CATEGORIES = [
   { label: 'Creator Kits', detail: 'Complete bundles', emoji: '🎥', href: '/search?category=bundle' },
 ]
 
-export const RECENT_SEARCHES = [
-  { city: 'Manila', detail: 'Jun 30 – Jul 7' },
-  { city: 'Cebu City', detail: 'Jul 1 – 5' },
-  { city: 'Davao City', detail: 'Jul 15 – 20' },
-]
-export const SUGGESTED_DESTINATIONS = [
-  { city: 'Nearby', detail: 'Find gear around you', type: 'nearby' as const },
-  { city: 'Manila, Philippines', detail: 'Most listings available', type: 'city' as const },
-  { city: 'Cebu City, Philippines', detail: 'Growing creator community', type: 'city' as const },
-  { city: 'Davao City, Philippines', detail: 'Great for outdoor shoots', type: 'city' as const },
-  { city: 'Quezon City, Philippines', detail: 'Film and studio hub', type: 'city' as const },
-]
+// RECENT_SEARCHES and SUGGESTED_DESTINATIONS were removed on 2026-09-03.
+// RECENT_SEARCHES was invented history — the same three cities with made-up
+// date ranges shown identically to every visitor, including brand-new ones,
+// under a heading claiming they were the user's own searches. Nothing records
+// per-user search history, so there was nothing real to show.
+// SUGGESTED_DESTINATIONS was four hardcoded cities whose values ("Manila,
+// Philippines") were fed straight into `?city=` and matched with
+// `ilike '%…%'` against a column holding "Manila" — so every suggestion
+// returned zero results. WherePanel now derives every location from
+// src/lib/ph-locations.ts, the table the maps already pin against.

@@ -509,3 +509,163 @@ export function getCityCoordinates(city: string, province: string) {
   // 4. Province center, 5. Manila.
   return PROVINCE_COORDS[provinceKey] ?? PROVINCE_COORDS['metro manila']
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Search-bar location suggestions
+// ───────────────────────────────────────────────────────────────────────────
+//
+// Derived from CITIES_BY_PROVINCE / PH_PROVINCES above rather than kept as its
+// own list. The search bar previously hardcoded four destinations of its own
+// ('Manila, Philippines', 'Cebu City, Philippines', …) in searchBarData.ts,
+// which is the same separate-second-list shape that made the province dropdown
+// and the coordinate table drift apart — the bug this file's header documents.
+// Deriving means adding a city for the map automatically offers it in search.
+
+/**
+ * Official city names that differ from a plain title-case of their lookup key.
+ * The keys above are deliberately short ('cebu', 'quezon') because that is what
+ * getCityCoordinates() matches free-text host input against; this table only
+ * affects what a human reads in the dropdown.
+ */
+const CITY_DISPLAY_NAMES: Record<string, string> = {
+  'angeles': 'Angeles City',
+  'batangas': 'Batangas City',
+  'cavite': 'Cavite City',
+  'cebu': 'Cebu City',
+  'cotabato': 'Cotabato City',
+  'davao': 'Davao City',
+  'el salvador': 'El Salvador City',
+  'iloilo': 'Iloilo City',
+  'isabela': 'Isabela City',
+  'island garden of samal': 'Island Garden City of Samal',
+  'masbate': 'Masbate City',
+  'quezon': 'Quezon City',
+  'san carlos': 'San Carlos City',
+  'san fernando': 'San Fernando City',
+  'san jose': 'San Jose City',
+  'science of muñoz': 'Science City of Muñoz',
+  'sorsogon': 'Sorsogon City',
+  'surigao': 'Surigao City',
+  'talisay': 'Talisay City',
+  'tarlac': 'Tarlac City',
+  'zamboanga': 'Zamboanga City',
+}
+
+/**
+ * Short convenience aliases that CITIES_BY_PROVINCE carries alongside the full
+ * name of the same city, so getCityCoordinates() resolves either spelling.
+ * They must NOT become their own suggestions, or the dropdown shows the same
+ * place twice ("Island Garden City of Samal" and "Samal", both Davao del Norte).
+ */
+const ALIAS_CITY_KEYS = new Set(['samal', 'muñoz'])
+
+function titleCase(key: string): string {
+  return key.replace(/(^|[\s-])([a-zñ])/g, (_, sep: string, ch: string) => sep + ch.toUpperCase())
+}
+
+export interface PhLocation {
+  /** Official display name, e.g. "Cebu City". */
+  city: string
+  /** Province display name, e.g. "Cebu". */
+  province: string
+  /**
+   * The value handed to the search page's `?city=` filter. Deliberately the
+   * SHORT key ("Cebu"), not the display name ("Cebu City"): searchListings()
+   * matches with `ilike '%value%'` against a free-text column hosts type
+   * themselves, which really does hold both forms — the live database has
+   * "Cebu City", "Quezon City" and "Naga City" alongside bare "Manila",
+   * "Makati" and "Pasig". The short key is a substring of the long form, so it
+   * matches both; searching "Cebu City" would silently miss a listing whose
+   * host simply typed "Cebu".
+   */
+  value: string
+  /** Lowercase haystack for matching a typed query. */
+  haystack: string
+}
+
+/** Every city the map can pin, as a search suggestion. One entry per
+ *  (province, city) pair, so a repeated name like Talisay correctly offers
+ *  both its Cebu and its Negros Occidental entry. */
+export const PH_LOCATIONS: PhLocation[] = (() => {
+  const provinceDisplay = new Map(PH_PROVINCES.map((p) => [normalize(p), p]))
+  const out: PhLocation[] = []
+  for (const [provinceKey, cityKeys] of Object.entries(CITIES_BY_PROVINCE)) {
+    const province = provinceDisplay.get(provinceKey) ?? titleCase(provinceKey)
+    for (const cityKey of cityKeys) {
+      if (ALIAS_CITY_KEYS.has(cityKey)) continue
+      const city = CITY_DISPLAY_NAMES[cityKey] ?? titleCase(cityKey)
+      out.push({
+        city,
+        province,
+        value: titleCase(cityKey),
+        haystack: `${city} ${province}`.toLowerCase(),
+      })
+    }
+  }
+  return out.sort((a, b) => a.city.localeCompare(b.city))
+})()
+
+/** Shown when the Where field is empty — the metros that actually carry most
+ *  of the marketplace's listings, rather than a per-user history the app does
+ *  not record. */
+const FEATURED_CITY_VALUES = ['Manila', 'Quezon', 'Makati', 'Cebu', 'Davao', 'Baguio']
+
+export const PH_FEATURED_LOCATIONS: PhLocation[] = FEATURED_CITY_VALUES
+  .map((v) => PH_LOCATIONS.find((l) => l.value === v))
+  .filter((l): l is PhLocation => l !== undefined)
+
+export interface PhLocationResults {
+  /** Places matching what was typed, best match first. */
+  matches: PhLocation[]
+  /**
+   * Other cities in the same province as the best match — "related to the
+   * location being typed". Empty when nothing was typed, or when the province
+   * has no other city that isn't already in `matches`.
+   */
+  related: PhLocation[]
+  /** Province the `related` list belongs to, for its heading. */
+  relatedProvince: string | null
+}
+
+/**
+ * Ranks locations against a typed query.
+ *
+ * Ordering is by where the query hits, so typing "cebu" surfaces Cebu City
+ * before Danao/Talisay (which match only on their province name):
+ *   0 — city name starts with the query
+ *   1 — city name contains it
+ *   2 — province name starts with it
+ *   3 — anything else that matches at all
+ */
+export function searchPhLocations(query: string, limit = 6): PhLocationResults {
+  const q = query.trim().toLowerCase()
+  if (!q) {
+    return { matches: PH_FEATURED_LOCATIONS.slice(0, limit), related: [], relatedProvince: null }
+  }
+
+  const scored: { loc: PhLocation; rank: number }[] = []
+  for (const loc of PH_LOCATIONS) {
+    const city = loc.city.toLowerCase()
+    const province = loc.province.toLowerCase()
+    let rank = -1
+    if (city.startsWith(q)) rank = 0
+    else if (city.includes(q)) rank = 1
+    else if (province.startsWith(q)) rank = 2
+    else if (loc.haystack.includes(q)) rank = 3
+    if (rank >= 0) scored.push({ loc, rank })
+  }
+  scored.sort((a, b) => a.rank - b.rank || a.loc.city.localeCompare(b.loc.city))
+
+  const matches = scored.slice(0, limit).map((s) => s.loc)
+  if (matches.length === 0) {
+    return { matches, related: [], relatedProvince: null }
+  }
+
+  const relatedProvince = matches[0].province
+  const shown = new Set(matches.map((m) => `${m.province}|${m.city}`))
+  const related = PH_LOCATIONS
+    .filter((l) => l.province === relatedProvince && !shown.has(`${l.province}|${l.city}`))
+    .slice(0, limit)
+
+  return { matches, related, relatedProvince: related.length > 0 ? relatedProvince : null }
+}

@@ -1,6 +1,29 @@
 import type { RefObject } from 'react'
-import { MapPin, Navigation } from 'lucide-react'
-import { RECENT_SEARCHES, SUGGESTED_DESTINATIONS } from './searchBarData'
+import { MapPin } from 'lucide-react'
+import { searchPhLocations, type PhLocation } from '@/lib/ph-locations'
+
+function LocationRow({
+  loc, onSelect,
+}: {
+  loc: PhLocation
+  onSelect: (value: string) => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(loc.value)}
+      className="w-full flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors text-left"
+    >
+      <span className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+        <MapPin className="w-5 h-5 text-[#003049]" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-gray-900 truncate">{loc.city}</p>
+        <p className="text-xs text-gray-500 truncate">{loc.province}</p>
+      </div>
+    </button>
+  )
+}
 
 export function WherePanel({
   location, panelRef, style, onSelectLocation,
@@ -10,54 +33,46 @@ export function WherePanel({
   style: React.CSSProperties
   onSelectLocation: (value: string) => void
 }) {
-  const filteredSuggestions = SUGGESTED_DESTINATIONS.filter(s =>
-    !location || s.city.toLowerCase().includes(location.toLowerCase())
-  )
+  // Suggestions come from src/lib/ph-locations.ts — the same table the pickup
+  // and search maps pin against — so all 145 cities are offered, not the four
+  // that used to be hardcoded here. Those four were also stored as
+  // "Manila, Philippines" and fed straight into `?city=`, which searchListings()
+  // turns into `ilike '%Manila, Philippines%'`; since the column only ever holds
+  // "Manila", every one of them returned zero results when clicked.
+  const { matches, related, relatedProvince } = searchPhLocations(location)
+  const typed = location.trim().length > 0
 
   return (
-    <div ref={panelRef} style={style} className="animate-dropdown bg-white rounded-2xl shadow-2xl py-4 overflow-hidden">
-      {RECENT_SEARCHES.length > 0 && (
+    <div ref={panelRef} style={style} className="animate-dropdown bg-white rounded-2xl shadow-2xl py-4 overflow-hidden max-h-[22rem] overflow-y-auto">
+      {matches.length === 0 ? (
+        <div className="px-5 py-6 text-center">
+          <p className="text-sm font-semibold text-gray-900">No matching location</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Try a city or province name — or search without a location to see everything.
+          </p>
+        </div>
+      ) : (
         <>
-          <p className="text-xs font-semibold text-gray-500 px-5 py-2">Recent searches</p>
-          {RECENT_SEARCHES.map((s, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => onSelectLocation(s.city)}
-              className="w-full flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors text-left"
-            >
-              <span className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
-                <MapPin className="w-5 h-5 text-gray-500" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold text-gray-900">{s.city}</p>
-                <p className="text-xs text-gray-500">{s.detail}</p>
-              </div>
-            </button>
+          <p className="text-xs font-semibold text-gray-500 px-5 py-2">
+            {typed ? 'Locations' : 'Popular destinations'}
+          </p>
+          {matches.map((loc) => (
+            <LocationRow key={`m:${loc.province}|${loc.city}`} loc={loc} onSelect={onSelectLocation} />
           ))}
-          <div className="border-t border-gray-100 my-2" />
+
+          {relatedProvince && related.length > 0 && (
+            <>
+              <div className="border-t border-gray-100 my-2" />
+              <p className="text-xs font-semibold text-gray-500 px-5 py-2">
+                Elsewhere in {relatedProvince}
+              </p>
+              {related.map((loc) => (
+                <LocationRow key={`r:${loc.province}|${loc.city}`} loc={loc} onSelect={onSelectLocation} />
+              ))}
+            </>
+          )}
         </>
       )}
-      <p className="text-xs font-semibold text-gray-500 px-5 py-2">Suggested destinations</p>
-      {filteredSuggestions.map((s, i) => (
-        <button
-          key={i}
-          type="button"
-          onClick={() => onSelectLocation(s.type === 'nearby' ? '' : s.city)}
-          className="w-full flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors text-left"
-        >
-          <span className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-            {s.type === 'nearby'
-              ? <Navigation className="w-5 h-5 text-[#003049]" />
-              : <MapPin className="w-5 h-5 text-[#003049]" />
-            }
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-gray-900">{s.city}</p>
-            <p className="text-xs text-gray-500">{s.detail}</p>
-          </div>
-        </button>
-      ))}
     </div>
   )
 }
