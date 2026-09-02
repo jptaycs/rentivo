@@ -72,6 +72,20 @@ export async function POST(req: Request) {
     if (error || !data) {
       return NextResponse.json({ error: 'Booking not found or already paid.' }, { status: 400 })
     }
+    // A booking made before the host was suspended is still sitting here unpaid.
+    // create_booking's suspension guard (045) only covers the branch below that
+    // creates a new row, so without this check the reuse path would take real
+    // money for a host who is off the marketplace. is_host_suspended is
+    // `security definer` (046), so this answer does not depend on what the
+    // renter's session is allowed to read from `profiles`. The message matches
+    // the not-found response above on purpose — a renter has no business
+    // learning the moderation state of a stranger's account.
+    const { data: suspended, error: suspendedError } = await supabase.rpc('is_host_suspended', {
+      p_host_id: (data as Booking).host_id,
+    })
+    if (suspendedError || suspended) {
+      return NextResponse.json({ error: 'Booking not found or already paid.' }, { status: 400 })
+    }
     booking = data as Booking
   } else {
     if (!body.listingId || !body.pickupDate || !body.returnDate) {
