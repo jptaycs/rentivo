@@ -21,7 +21,7 @@ Copied verbatim from the spec and `AGENTS.md`. **Every task's requirements impli
 - **Never `select('*')` on a `listings` or `profiles` join.** Use `LISTING_COLUMNS` / `PROFILE_COLUMNS` from `src/lib/listing-columns.ts`. `profiles` has a `using (true)` public-read policy, so `profiles(*)` ships every column to the caller — the documented `street_address` and `qr_payment_label` leaks.
 - **Hosted Postgres:** use `gen_random_uuid()`, never `uuid_generate_v4`.
 - **New tables need explicit Data API grants** or PostgREST returns 403.
-- **Migrations are numbered sequentially.** The last applied is `048_guard_payout_account_and_fix_rejection_copy.sql`; this plan adds `049`–`056` (`052` is the Task 3 fix-round shim repair).
+- **Migrations are numbered sequentially.** The last applied is `048_guard_payout_account_and_fix_rejection_copy.sql`; this plan adds `049`–`057` (`052` is the Task 3 fix-round shim repair).
 - **Apply with** `supabase db push --linked --yes`; ignore pg-delta cert noise after "Applying migration…"; confirm with `supabase migration list --linked`.
 - **Demo accounts:** host `demo@demo.rentivo.ph`, renter `renter@demo.rentivo.ph`, both password `DemoRentivo1`.
 - **DO NOT TOUCH** host `c38111b3-9922-4d18-9ae9-a12c8ffb9c68` (Isse Capucao) or booking `RNT-A4DA55` (a real renter's real booking). Use throwaway `probe-*@example.com` accounts for anything destructive.
@@ -51,7 +51,7 @@ So in this plan, "write the failing test" means **write the verification script 
 | `supabase/migrations/051_messages_conversation_id.sql` | Add + backfill + `not null` the FK |
 | `supabase/migrations/053_messages_rls_by_conversation.sql` | Replace all three `messages` policies |
 | `supabase/migrations/055_create_inquiry.sql` | `create_inquiry` RPC + 2 triggers |
-| `supabase/migrations/056_drop_messages_booking_id.sql` | **Optional.** Final cleanup |
+| `supabase/migrations/057_drop_messages_booking_id.sql` | **Optional.** Final cleanup |
 | `scripts/verify/env.mjs` | Shared env loader + service-role fetch helper for verification scripts |
 | `scripts/verify/*.mjs` | One verification script per task |
 | `src/hooks/useThreads.ts` | Threads from `conversations` |
@@ -1381,7 +1381,7 @@ git commit -m "Verify pre-booking inquiries end to end and record the model chan
 **Do not run this until Task 10 has been green for a while.** This is the only irreversible step in the plan, and the feature is complete and correct without it. Its sole benefit is removing a now-unused column so no future code can reintroduce two identities for one thread.
 
 **Files:**
-- Create: `supabase/migrations/056_drop_messages_booking_id.sql`
+- Create: `supabase/migrations/057_drop_messages_booking_id.sql`
 
 - [ ] **Step 1: Prove the column is unused**
 
@@ -1417,7 +1417,7 @@ alter table public.messages drop column booking_id;
 ```bash
 supabase db push --linked --yes
 node scripts/verify/full-inquiries.mjs   # must still be fully green
-git add supabase/migrations/056_drop_messages_booking_id.sql
+git add supabase/migrations/057_drop_messages_booking_id.sql
 git commit -m "Drop the now-unused messages.booking_id"
 ```
 
