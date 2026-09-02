@@ -26,8 +26,11 @@ export interface Profile {
   notify_promos: boolean
   qr_payment_url: string | null
   qr_payment_label: string | null
+  /** Set by the admin suspend action. There is deliberately no companion
+   * `suspension_reason` column: it was admin-authored free text about a user on a
+   * `using (true)` table, so anon could read it (dropped in 047). The reason
+   * lives in admin_actions.detail and in the suspension email. */
   suspended_at: string | null
-  suspension_reason: string | null
   created_at: string
 }
 

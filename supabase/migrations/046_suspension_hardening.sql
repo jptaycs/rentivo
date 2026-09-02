@@ -22,8 +22,15 @@
 -- ============================================================
 
 -- ── 1. Suspension helper ─────────────────────────────────────────
--- `stable`, not `volatile`: the planner may then cache it per statement rather
--- than re-invoking it for every candidate listing row.
+-- `stable`, not `volatile`. Do NOT read this as a caching guarantee: a
+-- `security definer` function is never inlined, and STABLE only lets the
+-- planner reuse a result across rows when the ARGUMENTS are constant. Here the
+-- argument is `listings.host_id`, which varies per row, so this is invoked once
+-- per candidate row regardless. STABLE is still the correct label — the
+-- function reads only committed table data and has no side effects, so
+-- mislabelling it `volatile` would needlessly forbid optimisations elsewhere.
+-- (Corrected in 047's round; the original wording claimed a per-statement cache
+-- that does not apply to a per-row argument.)
 create or replace function public.is_host_suspended(p_host_id uuid)
 returns boolean
 language sql security definer stable set search_path = public
