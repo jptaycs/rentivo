@@ -511,3 +511,36 @@ export async function notifyPayoutFailed(hostId: string, amount: number, notes: 
     })
   )
 }
+
+export async function notifyAccountSuspended(userId: string, reason: string | null) {
+  const to = await emailForUser(userId)
+  if (!to) return
+  await send(
+    to,
+    'Your Rentivo account has been suspended',
+    adminDecisionHtml({
+      heading: 'Account Suspended',
+      bodyHtml:
+        `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">Your Rentivo account has been suspended. You can't sign in, and any listings you have are no longer visible on the marketplace.</p>` +
+        notesBlock(reason) +
+        `<p style="margin:16px 0 0;color:#4b5563;font-size:14px;line-height:1.6;">If you think this is a mistake, reply to this email and we'll take another look.</p>`,
+      ctaPath: '/',
+      ctaLabel: 'Go to Rentivo',
+    })
+  )
+}
+
+export async function notifyAccountReinstated(userId: string) {
+  const to = await emailForUser(userId)
+  if (!to) return
+  await send(
+    to,
+    'Your Rentivo account has been reinstated',
+    adminDecisionHtml({
+      heading: 'Account Reinstated',
+      bodyHtml: `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">Your Rentivo account is active again. You can sign in as usual, and any listings you had are back on the marketplace.</p>`,
+      ctaPath: '/login',
+      ctaLabel: 'Sign In',
+    })
+  )
+}
