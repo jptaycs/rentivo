@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import 'leaflet/dist/leaflet.css'
+import { MAP_TILE_URL, MAP_TILE_OPTIONS } from '@/lib/map-tiles'
 import { getCityCoordinates } from '@/lib/ph-locations'
 // Bundled locally so the marker serves from 'self' — next.config.ts's CSP
 // img-src does not (and should not) allow unpkg.com; these are Next
@@ -56,10 +57,7 @@ export default function PickupMapLeaflet({ city, province }: PickupMapLeafletPro
         attributionControl: true,
       })
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 18,
-      }).addTo(map)
+      L.tileLayer(MAP_TILE_URL, MAP_TILE_OPTIONS).addTo(map)
 
       L.marker([lat, lng], { icon }).addTo(map)
 

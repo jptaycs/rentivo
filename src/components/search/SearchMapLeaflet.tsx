@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import 'leaflet/dist/leaflet.css'
+import { MAP_TILE_URL, MAP_TILE_OPTIONS } from '@/lib/map-tiles'
 import { getCityCoordinates } from '@/lib/ph-locations'
 import type { Listing } from '@/types'
 // Bundled locally so the marker serves from 'self' — next.config.ts's CSP
@@ -70,10 +71,7 @@ export default function SearchMapLeaflet({ listings }: SearchMapLeafletProps) {
         attributionControl: true,
       })
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 18,
-      }).addTo(map)
+      L.tileLayer(MAP_TILE_URL, MAP_TILE_OPTIONS).addTo(map)
 
       const coords: [number, number][] = []
       for (const group of groups.values()) {

@@ -18,10 +18,13 @@ const contentSecurityPolicy = [
   `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
   // images.unsplash.com: seed data; *.supabase.co: storage buckets (listing/
-  // avatar/message images); *.tile.openstreetmap.org: pickup + search maps;
+  // avatar/message images); server.arcgisonline.com: Esri World Topo basemap
+  // tiles for the pickup + search maps (see src/lib/map-tiles.ts — this host
+  // must stay in sync with MAP_TILE_URL there, or every tile is CSP-blocked
+  // and both maps render as blank grey);
   // lh3.googleusercontent.com: Google OAuth avatars, rendered via a plain
   // <img> (Radix Avatar) so next/image's remotePatterns doesn't cover it
-  "img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co https://*.tile.openstreetmap.org https://lh3.googleusercontent.com",
+  "img-src 'self' data: blob: https://images.unsplash.com https://*.supabase.co https://server.arcgisonline.com https://lh3.googleusercontent.com",
   "font-src 'self'",
   // *.supabase.co: auth/storage/RPC; wss: Realtime; api.paymongo.com: card
   // tokenization, called directly from the browser with the public key.
