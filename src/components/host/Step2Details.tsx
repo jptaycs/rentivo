@@ -1,6 +1,7 @@
 'use client'
 
 import { ChevronRight, ChevronLeft, Plus, X } from 'lucide-react'
+import { BRAND_GROUPS, OTHER_BRAND } from '@/lib/brands'
 
 const CATEGORIES = [
   { value: 'mirrorless', label: 'Mirrorless Camera' },
@@ -18,8 +19,6 @@ const CONDITIONS = [
   { value: 'good', label: 'Good', desc: 'Normal wear, fully functional' },
   { value: 'fair', label: 'Fair', desc: 'Visible wear, works well' },
 ]
-
-const BRANDS = ['Sony', 'Canon', 'Nikon', 'Fujifilm', 'Panasonic', 'Blackmagic', 'Apple', 'Samsung', 'Other']
 
 interface DetailsData {
   category: string
@@ -90,7 +89,12 @@ export function Step2Details({ data, onChange, onNext, onBack }: Step2DetailsPro
           <label className={label}>Brand</label>
           <select value={data.brand} onChange={e => set('brand', e.target.value)} className={field}>
             <option value="">Select brand</option>
-            {BRANDS.map(b => <option key={b}>{b}</option>)}
+            {BRAND_GROUPS.map(g => (
+              <optgroup key={g.label} label={g.label}>
+                {g.brands.map(b => <option key={b}>{b}</option>)}
+              </optgroup>
+            ))}
+            <option>{OTHER_BRAND}</option>
           </select>
         </div>
         <div>

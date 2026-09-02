@@ -1,8 +1,9 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { Star, X } from 'lucide-react'
+import { ALL_BRANDS, FEATURED_BRANDS } from '@/lib/brands'
 
 const CATEGORIES = [
   { value: 'mirrorless', label: 'Mirrorless Cameras' },
@@ -13,8 +14,6 @@ const CATEGORIES = [
   { value: 'lens', label: 'Lenses' },
   { value: 'bundle', label: 'Creator Bundles' },
 ]
-
-const BRANDS = ['Sony', 'Canon', 'Nikon', 'Fujifilm', 'Apple', 'Samsung', 'Panasonic', 'Blackmagic']
 
 const PRICE_RANGES = [
   { label: 'Under ₱500', min: 0, max: 500 },
@@ -33,6 +32,7 @@ interface FilterSidebarProps {
 export function FilterSidebar({ onClose }: FilterSidebarProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [showAllBrands, setShowAllBrands] = useState(false)
 
   const get = useCallback((key: string) => searchParams.get(key) ?? '', [searchParams])
 
@@ -53,6 +53,16 @@ export function FilterSidebar({ onClose }: FilterSidebarProps) {
     },
     [get, update]
   )
+
+  // Collapsed shows the featured eight, plus the active brand if it isn't one
+  // of them — otherwise selecting "Leica" then collapsing hides the pill that
+  // says the filter is on, with no way to clear it.
+  const activeBrand = get('brand')
+  const brandPills = showAllBrands
+    ? ALL_BRANDS
+    : activeBrand && !FEATURED_BRANDS.includes(activeBrand as (typeof FEATURED_BRANDS)[number])
+      ? [...FEATURED_BRANDS, activeBrand]
+      : [...FEATURED_BRANDS]
 
   const resetAll = () => {
     const q = get('q')
@@ -110,7 +120,7 @@ export function FilterSidebar({ onClose }: FilterSidebarProps) {
       <div>
         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Brand</p>
         <div className="flex flex-wrap gap-1.5">
-          {BRANDS.map((b) => (
+          {brandPills.map((b) => (
             <button
               key={b}
               onClick={() => toggle('brand', b)}
@@ -124,6 +134,12 @@ export function FilterSidebar({ onClose }: FilterSidebarProps) {
             </button>
           ))}
         </div>
+        <button
+          onClick={() => setShowAllBrands((v) => !v)}
+          className="mt-2 text-xs font-semibold text-[#003049] hover:underline"
+        >
+          {showAllBrands ? 'Show fewer brands' : `+ Show all ${ALL_BRANDS.length} brands`}
+        </button>
       </div>
 
       {/* Price Range */}

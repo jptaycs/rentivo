@@ -17,6 +17,17 @@ const STATUS_STYLES: Record<string, string> = {
   cancelled: 'bg-red-50 text-red-500',
 }
 
+/**
+ * A booking the renter started but hasn't paid for yet. create_booking makes
+ * every booking pending+unpaid, so these land in the host's list immediately —
+ * the host can see the request, but shouldn't be able to accept or decline
+ * money that hasn't arrived. Cancelled bookings stay unpaid forever and aren't
+ * awaiting anything.
+ */
+function awaitingPayment(b: BookingWithRefs) {
+  return b.payment_status === 'unpaid' && b.status !== 'cancelled'
+}
+
 export default function BookingsPage() {
   const [tab, setTab] = useState('All')
   const { bookings, loading, setStatus, confirmQrPayment } = useHostBookings()
@@ -105,9 +116,16 @@ export default function BookingsPage() {
                     <p className="text-xs text-gray-500">{b.booking_ref}</p>
                   </div>
                 </div>
-                <span className={`text-xs font-semibold px-3 py-1 rounded-full capitalize ${STATUS_STYLES[b.status]}`}>
-                  {b.status}
-                </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {awaitingPayment(b) && (
+                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      Awaiting payment
+                    </span>
+                  )}
+                  <span className={`text-xs font-semibold px-3 py-1 rounded-full capitalize ${STATUS_STYLES[b.status]}`}>
+                    {b.status}
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
@@ -162,7 +180,15 @@ export default function BookingsPage() {
                   {actingOn === b.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Mark Payment Received
                 </button>
               )}
-              {b.status === 'pending' && (
+              {/* host_qr bookings are unpaid by design until the host taps
+                  "Mark Payment Received" above — that button is their call to
+                  action, so don't also nag them to wait for payment. */}
+              {b.status === 'pending' && awaitingPayment(b) && b.payment_method !== 'host_qr' && (
+                <span className="ml-auto text-xs text-gray-500 px-3 py-1.5">
+                  Accept or decline once the renter has paid.
+                </span>
+              )}
+              {b.status === 'pending' && !awaitingPayment(b) && (
                 <>
                   <button
                     onClick={() => act(b.id, 'confirmed')}

@@ -32,7 +32,7 @@ const MOCK_HOST: HostView = {
   rating: 4.97,
   reviewCount: 84,
   responseTime: '< 1 hour',
-  since: '2023',
+  since: 'March 4, 2023',
   listings: MOCK_LISTINGS.slice(0, 3),
   reviews: [
     { id: 'rv1', reviewer: 'Trish M.', rating: 5, date: 'June 2026', text: 'Super smooth transaction. Gear was in perfect condition and Carlo even threw in extra batteries. Will rent again!' },
@@ -44,6 +44,8 @@ const MOCK_HOST: HostView = {
 function toView(profile: Profile, listings: Listing[], reviews: Review[], city: string | null): HostView {
   const monthYear = (d: string) =>
     new Date(d).toLocaleDateString('en-PH', { month: 'long', year: 'numeric' })
+  const fullDate = (d: string) =>
+    new Date(d).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })
   return {
     name: profile.full_name,
     avatarUrl: profile.avatar_url,
@@ -55,7 +57,13 @@ function toView(profile: Profile, listings: Listing[], reviews: Review[], city: 
     responseTime: profile.response_time_hours
       ? `< ${profile.response_time_hours} hour${profile.response_time_hours > 1 ? 's' : ''}`
       : 'Within a day',
-    since: String(new Date(profile.created_at).getFullYear()),
+    // Exact date the host posted their first listing. `listings` comes back
+    // ordered created_at desc, so the last row is the earliest — no extra
+    // query. Note RLS only exposes active, published listings, so a host whose
+    // genuine first listing is paused or pending review shows their earliest
+    // *visible* one. Falls back to the account's own creation date when the
+    // host has no visible listings at all.
+    since: fullDate(listings[listings.length - 1]?.created_at ?? profile.created_at),
     listings,
     reviews: reviews.map((r) => ({
       id: r.id,
@@ -149,8 +157,8 @@ export default async function HostProfilePage({ params }: { params: Promise<{ id
                   <p className="text-xs text-gray-400">Listing{host.listings.length === 1 ? '' : 's'}</p>
                 </div>
                 <div>
-                  <p className="font-bold text-[#111827]">Since {host.since}</p>
-                  <p className="text-xs text-gray-400">Hosting</p>
+                  <p className="font-bold text-[#111827]">{host.since}</p>
+                  <p className="text-xs text-gray-400">Hosting since</p>
                 </div>
               </div>
             </div>

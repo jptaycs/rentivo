@@ -30,11 +30,16 @@ export function Step2Pickup({
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-[#111827]">How do you want to get it?</h2>
-        <p className="text-gray-500 mt-1 text-sm">Choose between picking up from the host or having it delivered.</p>
+        <p className="text-gray-500 mt-1 text-sm">
+          {offersDelivery
+            ? 'Choose between picking up from the host or having it delivered.'
+            : 'This host offers pickup only.'}
+        </p>
       </div>
 
-      {/* Option cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Option cards — delivery is hidden entirely when the host doesn't
+          offer it (delivery_fee is null), so Pickup spans the full row. */}
+      <div className={`grid grid-cols-1 gap-4 ${offersDelivery ? 'sm:grid-cols-2' : ''}`}>
         {/* Pickup */}
         <button
           onClick={() => onDeliveryChange(false)}
@@ -64,10 +69,10 @@ export function Step2Pickup({
         </button>
 
         {/* Delivery */}
+        {offersDelivery && (
         <button
           onClick={() => onDeliveryChange(true)}
-          disabled={!offersDelivery}
-          className={`relative flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`relative flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all text-left ${
             isDelivery
               ? 'border-[#003049] bg-blue-50/50'
               : 'border-gray-200 bg-white hover:border-blue-200'
@@ -87,16 +92,13 @@ export function Step2Pickup({
             <p className={`font-bold ${isDelivery ? 'text-[#003049]' : 'text-[#111827]'}`}>
               Delivery
             </p>
-            <p className="text-xs text-gray-500 mt-1">
-              {offersDelivery ? 'Host delivers to your location' : 'Not offered by this host'}
+            <p className="text-xs text-gray-500 mt-1">Host delivers to your location</p>
+            <p className={`text-xs font-semibold mt-2 ${deliveryFee > 0 ? 'text-[#003049]' : 'text-[#22C55E]'}`}>
+              {deliveryFee > 0 ? `₱${deliveryFee.toLocaleString()}` : 'Free'}
             </p>
-            {offersDelivery && (
-              <p className={`text-xs font-semibold mt-2 ${deliveryFee > 0 ? 'text-[#003049]' : 'text-[#22C55E]'}`}>
-                {deliveryFee > 0 ? `₱${deliveryFee.toLocaleString()}` : 'Free'}
-              </p>
-            )}
           </div>
         </button>
+        )}
       </div>
 
       {/* Pickup details */}

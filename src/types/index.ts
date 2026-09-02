@@ -158,7 +158,15 @@ export interface PayoutRequest {
 export interface Notification {
   id: string
   user_id: string
-  type: 'booking_request' | 'booking_confirmed' | 'booking_cancelled' | 'booking_completed' | 'booking_paid' | 'review_received'
+  type:
+    | 'booking_request'
+    | 'booking_confirmed'
+    | 'booking_cancelled'
+    | 'booking_completed'
+    | 'booking_paid'
+    | 'review_received'
+    | 'verification_approved'
+    | 'verification_rejected'
   title: string
   body: string
   link: string | null
