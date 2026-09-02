@@ -108,36 +108,70 @@ export function UserActions({
 
       {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
-      {/* Suspend / Retry suspend / Un-suspend */}
+      {/* Suspend / half-applied recovery / Un-suspend
+          `suspended_at` set while the account is NOT banned is a HALF-APPLIED
+          state, but it does not say which operation half-applied — both
+          routes can land here:
+            · suspend  sets suspended_at, then bans. A failed ban leaves this.
+            · unsuspend lifts the ban, then clears suspended_at. A failed
+              profile update leaves exactly the same state.
+          This panel used to assert the first reading and offer only "Retry
+          suspend", which meant an admin whose UN-suspend half-applied was
+          shown the wrong diagnosis and the only button on offer re-banned the
+          account they were trying to reinstate — the documented recovery path
+          (re-run unsuspend, which is deliberately un-guarded for this reason)
+          was unreachable from the UI. So: describe the state, not a cause, and
+          offer both directions. */}
       {isSuspended && !isBanned ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-semibold text-amber-800">
-            Previous suspend attempt only partially applied
+            This account is in a half-applied state
           </p>
           <p className="mt-1 text-xs text-amber-800">
-            The profile was flagged as suspended, but the login block itself failed and was never
-            applied — this account can still sign in. Provide the reason again to retry.
+            The profile is flagged as suspended, but the login block is not in place — this account
+            can still sign in, while its listings stay hidden. Either a suspend stopped after
+            flagging the profile, or an un-suspend stopped after lifting the ban. Pick the direction
+            you actually want:
           </p>
-          <label className="mb-2 mt-3 block text-xs font-semibold text-gray-500">
-            Reason (required — shown in the audit log and emailed to the user)
-          </label>
-          <textarea
-            value={retryReason}
-            onChange={(e) => setRetryReason(e.target.value)}
-            rows={3}
-            className="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm focus:border-[#003049] focus:outline-none"
-            placeholder="Why is this account being suspended?"
-          />
-          {!retryReason.trim() && (
-            <p className="mt-1 text-xs text-gray-400">A reason is required to retry the suspend.</p>
-          )}
-          <button
-            onClick={() => post('suspend', { reason: retryReason.trim() })}
-            disabled={busy || !retryReason.trim()}
-            className="mt-3 rounded-xl bg-red-600 px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {busy ? 'Working…' : 'Retry suspend'}
-          </button>
+
+          <div className="mt-4 rounded-xl border border-amber-200 bg-white p-4">
+            <p className="text-xs font-semibold text-gray-900">Finish suspending</p>
+            <label className="mb-2 mt-2 block text-xs font-semibold text-gray-500">
+              Reason (required — shown in the audit log and emailed to the user)
+            </label>
+            <textarea
+              value={retryReason}
+              onChange={(e) => setRetryReason(e.target.value)}
+              rows={3}
+              className="w-full rounded-xl border border-gray-200 bg-white p-3 text-sm focus:border-[#003049] focus:outline-none"
+              placeholder="Why is this account being suspended?"
+            />
+            {!retryReason.trim() && (
+              <p className="mt-1 text-xs text-gray-400">A reason is required to retry the suspend.</p>
+            )}
+            <button
+              onClick={() => post('suspend', { reason: retryReason.trim() })}
+              disabled={busy || !retryReason.trim()}
+              className="mt-3 rounded-xl bg-red-600 px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {busy ? 'Working…' : 'Retry suspend'}
+            </button>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-amber-200 bg-white p-4">
+            <p className="text-xs font-semibold text-gray-900">Finish reinstating</p>
+            <p className="mt-1 text-xs text-gray-500">
+              Clears the suspension flag and lifts any ban, putting the account fully back to active.
+              Safe to run from this state — the un-suspend route is idempotent by design.
+            </p>
+            <button
+              onClick={() => post('unsuspend')}
+              disabled={busy}
+              className="mt-3 rounded-xl bg-[#003049] px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {busy ? 'Working…' : 'Un-suspend'}
+            </button>
+          </div>
         </div>
       ) : isSuspended ? (
         <button
