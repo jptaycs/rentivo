@@ -1,14 +1,24 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, Loader2, CheckCircle2, Upload, BadgeCheck, Shield, Clock, XCircle, AlertCircle } from 'lucide-react'
 import { useVerification } from '@/hooks/useVerification'
-import { validateIdDocument, validateSelfie } from '@/lib/id-validation'
+import { validateIdDocument, validateSelfie, messageForCode, type ValidationCode } from '@/lib/id-validation'
 
 export interface VerifyData {
   idFile: File | null
   selfieFile: File | null
   agreed: boolean
+  // Verdict lives here, not in component-local state, so it shares the file's
+  // lifetime — Step6Verify unmounts/remounts on every Back→Next in the wizard
+  // (see ListingWizard's `{step === 6 && <Step6Verify …/>}`), and a verdict
+  // that reset to "no error" on remount while the failing file was still
+  // attached used to render a green check mark over a submission that had
+  // actually failed, and then overwrite the correct `autoCheckFailed: true`
+  // with `false` the next time either tile was touched.
+  idCode: ValidationCode | null
+  selfieCode: ValidationCode | null
+  degraded: boolean
   autoCheckFailed: boolean
   autoCheckDetail: string | null
 }
@@ -26,20 +36,29 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
   const idRef = useRef<HTMLInputElement>(null)
   const selfieRef = useRef<HTMLInputElement>(null)
 
-  const [idError, setIdError] = useState('')
-  const [selfieError, setSelfieError] = useState('')
   const [idAttempts, setIdAttempts] = useState(0)
   const [selfieAttempts, setSelfieAttempts] = useState(0)
   const [override, setOverride] = useState(false)
   const [checking, setChecking] = useState(false)
-  const [degraded, setDegraded] = useState(false)
   // Which tile is mid-check, purely for the visible spinner — the on-device
   // face model is an 11.7 MB one-time download, so an unexplained
   // multi-second freeze on a slow connection reads as a broken upload.
   const [checkingKind, setCheckingKind] = useState<'id' | 'selfie' | null>(null)
 
+  // Latest `data` behind a ref: `pick()` awaits a slow (model-download) check,
+  // and closing over the `data` prop directly means the write after that await
+  // merges into a stale pre-check snapshot — silently reverting anything the
+  // user changed (e.g. ticking the agreement box) while the check was running.
+  const dataRef = useRef(data)
+  useEffect(() => {
+    dataRef.current = data
+  }, [data])
+
+  const idError = data.idCode ? messageForCode('id', data.idCode) : ''
+  const selfieError = data.selfieCode ? messageForCode('selfie', data.selfieCode) : ''
+
   function set<K extends keyof VerifyData>(key: K, value: VerifyData[K]) {
-    onChange({ ...data, [key]: value })
+    onChange({ ...dataRef.current, [key]: value })
   }
 
   async function pick(kind: 'id' | 'selfie', file: File | null) {
@@ -49,21 +68,36 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
     const result = kind === 'id' ? await validateIdDocument(file) : await validateSelfie(file)
     setChecking(false)
     setCheckingKind(null)
-    if (result.ok && result.degraded) setDegraded(true)
-    const message = result.ok ? '' : result.reason
-    if (kind === 'id') { setIdError(message); if (message) setIdAttempts((n) => n + 1) }
-    else { setSelfieError(message); if (message) setSelfieAttempts((n) => n + 1) }
 
-    const idMsg = kind === 'id' ? message : idError
-    const selfieMsg = kind === 'selfie' ? message : selfieError
-    const degradedNow = degraded || (result.ok && Boolean(result.degraded))
-    const failedNow = Boolean(idMsg) || Boolean(selfieMsg) || degradedNow
+    const code = result.ok ? null : result.code
+    if (code) {
+      if (kind === 'id') setIdAttempts((n) => n + 1)
+      else setSelfieAttempts((n) => n + 1)
+    } else {
+      // The error this override was for just cleared — don't let a stale tick
+      // silently wave through a *different*, future failure on this field.
+      setOverride(false)
+    }
+
+    const current = dataRef.current
+    const idCode = kind === 'id' ? code : current.idCode
+    const selfieCode = kind === 'selfie' ? code : current.selfieCode
+    const degradedNow = current.degraded || Boolean(result.ok && result.degraded)
+    const failedNow = Boolean(idCode) || Boolean(selfieCode) || degradedNow
     const detailNow = [
-      idMsg && 'id:no_face',
-      selfieMsg && 'selfie:no_face',
+      idCode && `id:${idCode}`,
+      selfieCode && `selfie:${selfieCode}`,
       degradedNow && 'detector_unavailable',
     ].filter(Boolean).join(',') || null
-    onChange({ ...data, [kind === 'id' ? 'idFile' : 'selfieFile']: file, autoCheckFailed: failedNow, autoCheckDetail: detailNow })
+    onChange({
+      ...current,
+      [kind === 'id' ? 'idFile' : 'selfieFile']: file,
+      idCode,
+      selfieCode,
+      degraded: degradedNow,
+      autoCheckFailed: failedNow,
+      autoCheckDetail: detailNow,
+    })
   }
 
   // Already verified, or a review is already in flight — nothing to upload

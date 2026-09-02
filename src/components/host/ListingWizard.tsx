@@ -27,7 +27,7 @@ const INITIAL: WizardState = {
   pricing: { dailyPrice: '', weeklyPrice: '', monthlyPrice: '', securityDeposit: '', deliveryFee: '' },
   blockedDates: [],
   address: { streetAddress: '', city: '', province: '', isInstantBook: false },
-  verify: { idFile: null, selfieFile: null, agreed: false, autoCheckFailed: false, autoCheckDetail: null },
+  verify: { idFile: null, selfieFile: null, agreed: false, idCode: null, selfieCode: null, degraded: false, autoCheckFailed: false, autoCheckDetail: null },
 }
 
 export function ListingWizard() {

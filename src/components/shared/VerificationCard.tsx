@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import { BadgeCheck, Upload, CheckCircle2, Clock, XCircle, Loader2, AlertCircle } from 'lucide-react'
 import { useVerification } from '@/hooks/useVerification'
-import { validateIdDocument, validateSelfie } from '@/lib/id-validation'
+import { validateIdDocument, validateSelfie, type ValidationCode } from '@/lib/id-validation'
 
 export function VerificationCard() {
   const { request, isVerified, loading, submit } = useVerification()
@@ -13,6 +13,10 @@ export function VerificationCard() {
   const [error, setError] = useState('')
   const [idError, setIdError] = useState('')
   const [selfieError, setSelfieError] = useState('')
+  // The real failing codes, so the submitted `auto_check_detail` records what
+  // actually happened (e.g. `too_small`) instead of always claiming `no_face`.
+  const [idCode, setIdCode] = useState<ValidationCode | null>(null)
+  const [selfieCode, setSelfieCode] = useState<ValidationCode | null>(null)
   const [idAttempts, setIdAttempts] = useState(0)
   const [selfieAttempts, setSelfieAttempts] = useState(0)
   const [override, setOverride] = useState(false)
@@ -36,12 +40,12 @@ export function VerificationCard() {
     setCheckingKind(null)
     if (result.ok) {
       if (result.degraded) setDegraded(true)
-      if (kind === 'id') { setIdFile(file); setIdError('') } else { setSelfieFile(file); setSelfieError('') }
+      if (kind === 'id') { setIdFile(file); setIdError(''); setIdCode(null) } else { setSelfieFile(file); setSelfieError(''); setSelfieCode(null) }
       return
     }
     // Keep the file so the override can still submit it after a second try.
-    if (kind === 'id') { setIdFile(file); setIdError(result.reason); setIdAttempts((n) => n + 1) }
-    else { setSelfieFile(file); setSelfieError(result.reason); setSelfieAttempts((n) => n + 1) }
+    if (kind === 'id') { setIdFile(file); setIdError(result.reason); setIdCode(result.code); setIdAttempts((n) => n + 1) }
+    else { setSelfieFile(file); setSelfieError(result.reason); setSelfieCode(result.code); setSelfieAttempts((n) => n + 1) }
   }
 
   const blocked = Boolean(idError || selfieError) && !override
@@ -52,13 +56,14 @@ export function VerificationCard() {
     setError('')
     const failed = Boolean(idError || selfieError) || degraded
     const detail =
-      [idError && 'id:no_face', selfieError && 'selfie:no_face', degraded && 'detector_unavailable']
+      [idCode && `id:${idCode}`, selfieCode && `selfie:${selfieCode}`, degraded && 'detector_unavailable']
         .filter(Boolean).join(',') || null
     const err = await submit(idFile, selfieFile, { failed, detail })
     if (err) setError(err)
     else {
       setIdFile(null); setSelfieFile(null)
       setIdError(''); setSelfieError('')
+      setIdCode(null); setSelfieCode(null)
       setIdAttempts(0); setSelfieAttempts(0); setOverride(false); setDegraded(false)
     }
     setSubmitting(false)

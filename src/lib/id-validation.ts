@@ -74,13 +74,35 @@ async function inspect(file: File): Promise<Inspection> {
   }
 }
 
-async function requireAFace(file: File, noFaceReason: string): Promise<ValidationResult> {
+const NO_FACE_REASON: Record<'id' | 'selfie', string> = {
+  id: "We couldn't find a face on this document. Please photograph the ID itself — the side with your photo on it — not its case, packaging, or a screenshot.",
+  selfie: "We couldn't find a face in this photo. Please upload a clear photo of yourself holding your ID.",
+}
+
+/**
+ * The human-readable message for a given (slot, code) pair — the single source
+ * of truth for both the inline check below and any caller re-deriving a message
+ * from a persisted code (e.g. after a component remounts and only the code, not
+ * the original ValidationResult, survived).
+ */
+export function messageForCode(kind: 'id' | 'selfie', code: ValidationCode): string {
+  switch (code) {
+    case 'unreadable':
+      return "We couldn't open that image. Try a JPG or PNG straight from your camera."
+    case 'too_small':
+      return `That image is too small to read. Please upload one at least ${MIN_LONG_EDGE_PX}px on its longest side.`
+    case 'no_face':
+      return NO_FACE_REASON[kind]
+  }
+}
+
+async function requireAFace(kind: 'id' | 'selfie', file: File): Promise<ValidationResult> {
   const r = await inspect(file)
   switch (r.kind) {
     case 'unreadable':
-      return { ok: false, code: 'unreadable', reason: "We couldn't open that image. Try a JPG or PNG straight from your camera." }
+      return { ok: false, code: 'unreadable', reason: messageForCode(kind, 'unreadable') }
     case 'too_small':
-      return { ok: false, code: 'too_small', reason: `That image is too small to read. Please upload one at least ${MIN_LONG_EDGE_PX}px on its longest side.` }
+      return { ok: false, code: 'too_small', reason: messageForCode(kind, 'too_small') }
     // The detector itself failed, so nothing was actually checked. Pass, but say
     // so — the caller flags this submission for the reviewer.
     case 'degraded':
@@ -88,20 +110,14 @@ async function requireAFace(file: File, noFaceReason: string): Promise<Validatio
     case 'counted':
       // "At least one", never "exactly one" — a correct "selfie with ID" contains
       // the holder's face AND the portrait printed on the document.
-      return r.faces >= 1 ? { ok: true } : { ok: false, code: 'no_face', reason: noFaceReason }
+      return r.faces >= 1 ? { ok: true } : { ok: false, code: 'no_face', reason: messageForCode(kind, 'no_face') }
   }
 }
 
 export function validateIdDocument(file: File): Promise<ValidationResult> {
-  return requireAFace(
-    file,
-    "We couldn't find a face on this document. Please photograph the ID itself — the side with your photo on it — not its case, packaging, or a screenshot."
-  )
+  return requireAFace('id', file)
 }
 
 export function validateSelfie(file: File): Promise<ValidationResult> {
-  return requireAFace(
-    file,
-    "We couldn't find a face in this photo. Please upload a clear photo of yourself holding your ID."
-  )
+  return requireAFace('selfie', file)
 }
