@@ -23,3 +23,11 @@ export function parseDateParam(value?: string | null): Date | null {
   const date = new Date(y, m - 1, d)
   return Number.isNaN(date.getTime()) ? null : date
 }
+
+/** Formats a Date as a local `YYYY-MM-DD` string — i.e. the calendar day the user actually
+ * clicked, in their own timezone. Do NOT use `d.toISOString().split('T')[0]` for this: it
+ * converts to UTC first, which silently shifts the date backwards for any timezone east of
+ * UTC (e.g. the Philippines, UTC+8). */
+export function toLocalISODate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}

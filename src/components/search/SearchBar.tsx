@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Search, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { toMidnight, isSameDay, parseDateParam } from './calendarUtils'
+import { toMidnight, isSameDay, parseDateParam, toLocalISODate } from './calendarUtils'
 import { WhatPanel } from './WhatPanel'
 import { WherePanel } from './WherePanel'
 import { WhenPanel } from './WhenPanel'
@@ -239,8 +239,8 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
     const params = new URLSearchParams()
     if (query) params.set('q', query)
     if (location) params.set('city', location)
-    if (startDate) params.set('from', startDate.toISOString().split('T')[0])
-    if (endDate) params.set('to', endDate.toISOString().split('T')[0])
+    if (startDate) params.set('from', toLocalISODate(startDate))
+    if (endDate) params.set('to', toLocalISODate(endDate))
     router.push(`/search?${params.toString()}`)
   }
 
