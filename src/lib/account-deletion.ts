@@ -16,11 +16,35 @@ import { createAdminClient } from '@/lib/supabase/admin'
  * DOES cascade, so a real auth delete would wipe the counterparty's history.
  */
 
+/**
+ * What is blocking a deletion.
+ *
+ * ⚠️ Neither field is an assurance of absence. The two gates below are
+ * deliberately not short-circuited, and a query that FAILED contributes nothing
+ * rather than being read as "no blockers" — so:
+ *   • `pendingPayouts: 0` alongside a non-empty `bookings` may mean the payout
+ *     query errored, i.e. "not checked", NOT "none pending".
+ *   • `bookings: []` alongside `pendingPayouts > 0` may likewise mean the
+ *     bookings query errored.
+ *   • BOTH empty on an `ok: false` means the check could not be performed at
+ *     all (see EligibilityResult).
+ * Do not render either value as a positive statement ("no pending payouts") in
+ * a UI. Render only what is non-empty.
+ */
 export interface DeletionBlocker {
   bookings: string[]
   pendingPayouts: number
 }
 
+/**
+ * `ok: false` with a NON-EMPTY blocker = genuinely blocked; `reason` is copy a
+ * caller may show, and the caller should return 400.
+ *
+ * `ok: false` with an EMPTY blocker (no bookings AND `pendingPayouts: 0`) =
+ * the check could not be performed — a malformed uid, or a failed query. `reason`
+ * is then a raw diagnostic, not user-facing copy, and the caller should return
+ * 500. It never means "nothing is blocking".
+ */
 export type EligibilityResult =
   | { ok: true }
   | { ok: false; reason: string; blocking: DeletionBlocker }
