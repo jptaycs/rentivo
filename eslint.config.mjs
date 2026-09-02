@@ -17,6 +17,10 @@ const eslintConfig = defineConfig([
     "**/.next/**",
     "**/out/**",
     "**/build/**",
+    // Vendored MediaPipe WASM runtime, copied verbatim from
+    // @mediapipe/tasks-vision into public/models/ so it's self-hosted (see
+    // src/lib/id-validation.ts) — generated third-party code, not ours to lint.
+    "public/models/**",
   ]),
 ]);
 

@@ -10,7 +10,12 @@ import type { NextConfig } from 'next'
 const isDev = process.env.NODE_ENV !== 'production'
 const contentSecurityPolicy = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+  // 'wasm-unsafe-eval': the on-device ID face-detector (src/lib/id-validation.ts)
+  // instantiates WebAssembly. This permits WASM compilation ONLY — it does not
+  // re-enable eval() of JavaScript strings, so it is materially narrower than
+  // 'unsafe-eval'. Without it the detector works in dev (which grants
+  // 'unsafe-eval') and silently fails in production.
+  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
   // images.unsplash.com: seed data; *.supabase.co: storage buckets (listing/
   // avatar/message images); *.tile.openstreetmap.org: pickup + search maps;
