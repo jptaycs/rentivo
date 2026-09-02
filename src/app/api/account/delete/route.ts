@@ -38,8 +38,9 @@ export async function POST(req: Request) {
   if (!eligibility.ok) {
     // The module's reasons are admin-facing third-person; map them back to the
     // second-person wording this route has always returned to the user. A gate is
-    // only ever *blocked* with a non-empty blocker, so an empty one means the
-    // underlying query itself failed — which this route has always reported as a
+    // only ever *blocked* with a non-empty blocker, so an empty one means the check
+    // could not be performed at all (a failed query — or a malformed uid, which a
+    // verified session can't produce) — which this route has always reported as a
     // 500 carrying the raw error message, not a 400.
     if (eligibility.blocking.bookings.length > 0) {
       return NextResponse.json(

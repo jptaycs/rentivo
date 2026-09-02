@@ -25,6 +25,9 @@ export type EligibilityResult =
   | { ok: true }
   | { ok: false; reason: string; blocking: DeletionBlocker }
 
+/** Same shape as src/lib/hosts.ts — kept identical rather than reinvented. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /**
  * The two eligibility gates. Returns the blocking booking refs and the
  * pending-payout count so a caller can *show* what is blocking rather than
@@ -33,8 +36,31 @@ export type EligibilityResult =
  * The `reason` strings are admin-facing and phrased in the third person — the
  * self-service route maps them to its own second-person wording so what a real
  * user sees is unchanged.
+ *
+ * A **blocked** result always carries a non-empty blocker (a booking ref, or a
+ * payout count > 0). An `ok: false` with an EMPTY blocker therefore means the
+ * check could not be performed at all — a malformed uid, or a failed query —
+ * and `reason` is then a raw diagnostic, not copy to show a user. Callers
+ * should surface that case as a 500, not as a 400.
  */
 export async function checkDeletionEligibility(uid: string): Promise<EligibilityResult> {
+  // Shape-check the uid HERE rather than trusting every caller to do it. The
+  // bookings gate below interpolates it straight into a PostgREST `.or()` filter,
+  // which is filter grammar, not a bound parameter — an admin route passing a raw
+  // URL path segment would otherwise reach it unvalidated. This module is the one
+  // place that obligation gets discharged (see the header comment); a
+  // "remember to validate in each caller" rule is precisely the failure mode this
+  // repo has already recorded twice (038 resurrecting a grant 007 revoked, and
+  // 004's column grants sitting decorative). Returns rather than throws, so the
+  // callers' error semantics are unchanged.
+  if (!UUID_RE.test(uid)) {
+    return {
+      ok: false,
+      reason: 'Invalid user id.',
+      blocking: { bookings: [], pendingPayouts: 0 },
+    }
+  }
+
   const admin = createAdminClient()
 
   // Eligibility gate: block while any booking isn't in a final state
@@ -43,33 +69,29 @@ export async function checkDeletionEligibility(uid: string): Promise<Eligibility
     .select('booking_ref')
     .or(`renter_id.eq.${uid},host_id.eq.${uid}`)
     .in('status', ['pending', 'confirmed', 'active'])
-  if (blockingError) {
-    return {
-      ok: false,
-      reason: blockingError.message,
-      blocking: { bookings: [], pendingPayouts: 0 },
-    }
-  }
 
   // Eligibility gate: block while a payout request is still pending. Disbursement is
   // manual — an admin reads payout_accounts.account_number/account_name to send the
   // money — so scrubbing those fields now would strand real owed money with no way
   // for the (locked-out) host to restore it.
+  //
+  // Deliberately NOT short-circuited on the gate above: the admin UI reports
+  // everything blocking a deletion at once, which a short-circuit would prevent.
   const { data: pendingPayout, error: payoutError } = await admin
     .from('payout_requests')
     .select('id')
     .eq('host_id', uid)
     .eq('status', 'pending')
-  if (payoutError) {
-    return {
-      ok: false,
-      reason: payoutError.message,
-      blocking: { bookings: [], pendingPayouts: 0 },
-    }
-  }
 
-  const refs = (blocking ?? []).map((b) => b.booking_ref as string)
-  const payouts = (pendingPayout ?? []).length
+  // A query that failed tells us nothing, so it contributes nothing — it must not
+  // be read as "no blockers". The real blockers found by whichever query DID
+  // succeed are reported first below; only if neither found anything do we fall
+  // through to reporting the failure itself, so a broken query can never be
+  // mistaken for an eligible account. Consequence worth knowing: if bookings block
+  // AND the payout query failed, the reported `pendingPayouts: 0` means "unknown",
+  // not "none" — deletion is blocked either way, which is the safe direction.
+  const refs = blockingError ? [] : (blocking ?? []).map((b) => b.booking_ref as string)
+  const payouts = payoutError ? 0 : (pendingPayout ?? []).length
 
   if (refs.length > 0) {
     return {
@@ -83,6 +105,20 @@ export async function checkDeletionEligibility(uid: string): Promise<Eligibility
       ok: false,
       reason: 'This account has a payout in progress. It must be processed first.',
       blocking: { bookings: [], pendingPayouts: payouts },
+    }
+  }
+  if (blockingError) {
+    return {
+      ok: false,
+      reason: blockingError.message,
+      blocking: { bookings: [], pendingPayouts: 0 },
+    }
+  }
+  if (payoutError) {
+    return {
+      ok: false,
+      reason: payoutError.message,
+      blocking: { bookings: [], pendingPayouts: 0 },
     }
   }
   return { ok: true }
