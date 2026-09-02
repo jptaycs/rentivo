@@ -33,8 +33,12 @@ interface AppliedPromo {
 const PAYMONGO_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY
 
 // PayMongo activates payment methods per-merchant after KYB review. Methods
-// listed here render as unavailable rather than failing at attach time.
-// Clearing the env var re-enables them with no code deploy.
+// listed here render disabled with a "Coming soon" badge rather than failing at
+// attach time. That label is deliberately the same one Apple/Google Pay carry:
+// a renter only needs to know the method isn't selectable yet, and splitting the
+// copy into "Unavailable" vs "Coming soon" just read as two kinds of broken.
+// Clearing the env var re-enables them, but note NEXT_PUBLIC_* is inlined at
+// build time, so it needs a rebuild and redeploy — not just an env edit.
 const DISABLED_METHODS = (process.env.NEXT_PUBLIC_DISABLED_PAYMENT_METHODS ?? '')
   .split(',')
   .map((s) => s.trim())
@@ -249,7 +253,7 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
               <span className="font-medium text-[#111827] text-sm">{m.label}</span>
               {m.comingSoon && (
                 <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-gray-400 bg-gray-100 rounded-full px-2.5 py-1">
-                  {m.unavailable ? 'Unavailable' : 'Coming soon'}
+                  Coming soon
                 </span>
               )}
             </label>
