@@ -10,6 +10,7 @@ import {
 } from '@/lib/admin-reports'
 import { requireAdminPage } from '@/lib/admin'
 import { SERVICE_FEE_RATE } from '@/lib/pricing'
+import { POLICY_START_LABEL } from '@/lib/billing'
 import { ExportRevenueButton, ExportInFlightButton, ExportRankedButton, ExportUnrequestedButton } from './ReportExports'
 
 export const dynamic = 'force-dynamic'
@@ -125,14 +126,14 @@ export default async function AdminReportsPage() {
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Billed</p>
             <p className="mt-1 text-3xl font-bold text-[#003049]">{peso(commission.billed)}</p>
             <p className="mt-2 text-xs text-gray-500">
-              Commission bills issued or paid to hosts for host-QR bookings since 5 Sep 2026.
+              Commission bills issued or paid to hosts for host-QR bookings since {POLICY_START_LABEL}.
             </p>
           </div>
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Bill Payments</p>
             <p className="mt-1 text-3xl font-bold text-[#003049]">{peso(commission.billPayments)}</p>
             <p className="mt-2 text-xs text-gray-500">
-              Collected through commission bills. Uncollected minus this is what is still owed.
+              Collected through commission bills. Billed minus this is what hosts still owe.
             </p>
           </div>
         </div>

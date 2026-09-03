@@ -29,11 +29,15 @@ export default async function AdminBillsPage({ searchParams }: { searchParams: P
     .select('id, host_id, period, amount, status, issued_at, due_at, paid_at, paymongo_ref, void_reason, profiles!host_bills_host_id_fkey(full_name), host_bill_items(id)')
     .order('issued_at', { ascending: false })
     .limit(500)
-  if (status === 'issued' || status === 'overdue') q = q.eq('status', 'issued')
+  if (status === 'issued') q = q.eq('status', 'issued')
+  // Pushed into the query rather than filtered in JS after fetching 500
+  // `issued` rows: past 500 issued bills, a JS filter could silently drop
+  // overdue rows the /admin overview card's own exact-count query still
+  // sees, making this list and that count disagree.
+  else if (status === 'overdue') q = q.eq('status', 'issued').lt('due_at', new Date().toISOString())
   else if (status !== 'all') q = q.eq('status', status)
   const { data } = await q
-  let rows = (data ?? []) as unknown as Row[]
-  if (status === 'overdue') rows = rows.filter((r) => isOverdue(r))
+  const rows = (data ?? []) as unknown as Row[]
 
   const tabs: Status[] = ['issued', 'overdue', 'paid', 'void', 'all']
   return (

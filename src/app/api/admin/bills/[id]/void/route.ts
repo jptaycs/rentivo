@@ -13,6 +13,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   } catch {
     return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
   }
+  // A literal `null`/array/primitive JSON body parses fine above but isn't
+  // an object, so `.reason`/`.rebill` would throw rather than fall through
+  // to the "reason is required" 400 below.
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
   const reason = typeof body.reason === 'string' ? body.reason.trim() : ''
   if (!reason) {
     return NextResponse.json({ error: 'reason is required.' }, { status: 400 })
