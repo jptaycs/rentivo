@@ -24,8 +24,12 @@ export function useProfile() {
       return
     }
     setEmail(user.email ?? '')
-    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-    setProfile(data as Profile | null)
+    // Own-row read goes through a security-definer RPC (059): the private
+    // columns (qr_payment_label, notify_*) are no longer SELECT-granted on the
+    // table, so a `select('*')` here would 403. The RPC is scoped to
+    // auth.uid() and returns null when signed out.
+    const { data } = await supabase.rpc('get_my_profile')
+    setProfile((data as Profile | null) ?? null)
     setLoading(false)
   }, [])
 
