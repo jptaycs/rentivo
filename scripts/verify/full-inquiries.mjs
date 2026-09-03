@@ -19,7 +19,7 @@
 //      has a CONTROL assertion proving the same call succeeds before the
 //      condition being tested is applied, so the refusal is attributable.
 import { readFileSync, openSync, closeSync, statSync, mkdirSync } from 'node:fs'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { createClient } from '@supabase/supabase-js'
 import { URL as SUPABASE_URL, ANON, SECRET, admin, asUser, signIn, check, done } from './env.mjs'
 
@@ -172,6 +172,23 @@ async function bookListing(token, listingId, dayOffset) {
 async function jwtSub(token) {
   const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'))
   return payload.sub
+}
+
+// Runs a raw SQL query against the linked hosted database via the Supabase
+// CLI (there is no PostgREST equivalent for system-catalog queries like
+// pg_class/information_schema — this is the same tool migration 017's grant
+// audit was originally run with). Folded into the script itself, rather than
+// left as an ad hoc terminal command only prose attests to, so a rerun of
+// this file is itself the evidence.
+function dbQuery(sql) {
+  const res = spawnSync('supabase', ['db', 'query', '--linked', '--output-format', 'json', sql], {
+    cwd: REPO_ROOT,
+    encoding: 'utf8',
+  })
+  if (res.status !== 0) {
+    throw new Error(`supabase db query failed (exit ${res.status}): ${res.stderr || res.stdout}`)
+  }
+  return JSON.parse(res.stdout).rows
 }
 
 async function main() {
@@ -726,6 +743,53 @@ async function main() {
   const s6RecipientB = await waitForSkipLine(offset)
   check('case B: inquiry-thread message (booking_id NULL) resolves recipient to the HOST', s6RecipientB === s6HostId, `resolved ${s6RecipientB}, expected host ${s6HostId}`)
 
+  // =========================================================================
+  // GRANT AUDIT — migration 017's standing audit, re-run against
+  // conversations/messages. Folded into the script itself (rather than left
+  // as an ad hoc terminal command only prose attests to) so a rerun of this
+  // file IS the evidence. Uses the Supabase CLI (`supabase db query
+  // --linked`) because pg_class/information_schema queries have no PostgREST
+  // equivalent — this is not an RLS-scoped assertion like everything above,
+  // it is a direct system-catalog check of what the schema actually grants.
+  // =========================================================================
+  console.log('\n=== GRANT AUDIT: conversations + messages ===')
+
+  const rlsRows = dbQuery(
+    `select relname, relrowsecurity from pg_class where relname in ('conversations','messages') order by relname;`
+  )
+  check('RLS enabled on conversations', rlsRows.find((r) => r.relname === 'conversations')?.relrowsecurity === true, JSON.stringify(rlsRows))
+  check('RLS enabled on messages', rlsRows.find((r) => r.relname === 'messages')?.relrowsecurity === true, JSON.stringify(rlsRows))
+
+  const tableGrants = dbQuery(
+    `select grantee, table_name, privilege_type from information_schema.role_table_grants
+     where table_schema='public' and table_name in ('conversations','messages') and grantee in ('anon','authenticated')
+     order by table_name, grantee, privilege_type;`
+  )
+  const convoGrants = tableGrants.filter((r) => r.table_name === 'conversations')
+  check('conversations: anon has NO table-level grant at all', convoGrants.filter((r) => r.grantee === 'anon').length === 0, JSON.stringify(convoGrants))
+  check('conversations: authenticated has exactly SELECT (no INSERT/UPDATE/DELETE)',
+    convoGrants.filter((r) => r.grantee === 'authenticated').length === 1 &&
+    convoGrants.some((r) => r.grantee === 'authenticated' && r.privilege_type === 'SELECT'),
+    JSON.stringify(convoGrants))
+
+  const messagesTableGrants = tableGrants.filter((r) => r.table_name === 'messages')
+  check('messages: no table-level UPDATE grant for anon or authenticated (013\'s column grant would otherwise be decorative — see migration 053)',
+    !messagesTableGrants.some((r) => r.privilege_type === 'UPDATE'), JSON.stringify(messagesTableGrants))
+
+  const messagesUpdateColumnGrants = dbQuery(
+    `select grantee, column_name from information_schema.role_column_grants
+     where table_schema='public' and table_name='messages' and privilege_type='UPDATE' and grantee='authenticated'
+     order by column_name;`
+  )
+  check('messages: authenticated\'s only column-level UPDATE grant is is_read',
+    messagesUpdateColumnGrants.length === 1 && messagesUpdateColumnGrants[0].column_name === 'is_read',
+    JSON.stringify(messagesUpdateColumnGrants))
+
+  const createInquiryGrants = dbQuery(`select grantee from information_schema.role_routine_grants where routine_name='create_inquiry';`)
+  const createInquiryGrantees = createInquiryGrants.map((r) => r.grantee).sort()
+  check('create_inquiry: authenticated + service_role hold EXECUTE', createInquiryGrantees.includes('authenticated') && createInquiryGrantees.includes('service_role'), JSON.stringify(createInquiryGrantees))
+  check('create_inquiry: anon and public do NOT hold EXECUTE', !createInquiryGrantees.includes('anon') && !createInquiryGrantees.includes('public'), JSON.stringify(createInquiryGrantees))
+
   console.log('\n=== all scenarios executed ===')
 }
 
@@ -770,11 +834,17 @@ try {
     conversations: (await admin('conversations?select=id&limit=2000')).body.length,
     messages: (await admin('messages?select=id&limit=2000')).body.length,
     bookings: (await admin('bookings?select=id&limit=2000')).body.length,
+    listings: (await admin('listings?select=id&limit=2000')).body.length,
+    profiles: (await admin('profiles?select=id&limit=2000')).body.length,
   }
   console.log('baseline after:', JSON.stringify(baselineAfter))
+  // All five captured baseline values are compared, not just three — an
+  // uncompared captured value looks like coverage that isn't actually there.
   check('baseline restored: conversations=17', baselineAfter.conversations === 17, JSON.stringify(baselineAfter))
   check('baseline restored: messages=2', baselineAfter.messages === 2, JSON.stringify(baselineAfter))
   check('baseline restored: bookings=17', baselineAfter.bookings === 17, JSON.stringify(baselineAfter))
+  check('baseline restored: listings=25', baselineAfter.listings === 25, JSON.stringify(baselineAfter))
+  check('baseline restored: profiles=24', baselineAfter.profiles === 24, JSON.stringify(baselineAfter))
 
   const forbiddenHostRow = (await admin(`profiles?select=id,suspended_at&id=eq.${FORBIDDEN_HOST_ID}`)).body[0]
   check('forbidden host untouched (not suspended)', forbiddenHostRow && forbiddenHostRow.suspended_at === null, JSON.stringify(forbiddenHostRow))
