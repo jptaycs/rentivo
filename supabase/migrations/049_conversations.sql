@@ -45,7 +45,7 @@ create policy "conversations: participants read"
   using (auth.uid() = renter_id or auth.uid() = host_id);
 
 -- No insert/update/delete policy at all, on purpose. Writes happen only in
--- create_inquiry() and the booking trigger (053), both security definer, which
+-- create_inquiry() and the booking trigger (055), both security definer, which
 -- bypass RLS as the function owner. RLS default-deny covers everything else.
 
 -- Explicit Data API grants; without these PostgREST 403s. Note we grant SELECT

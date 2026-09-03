@@ -2,10 +2,11 @@
 --
 -- booking_id is deliberately LEFT IN PLACE and still populated. Dropping it is
 -- the one irreversible step in this workstream and is deferred to its own
--- optional migration (054), so everything up to here can be rolled back.
+-- optional migration (057, not yet applied — see AGENTS.md's To Do), so
+-- everything up to here can be rolled back.
 
 -- Ruling 1 (pre-flight): make booking_id nullable HERE, unconditionally.
--- create_inquiry (053) inserts messages with booking_id = null, so the column
+-- create_inquiry (055) inserts messages with booking_id = null, so the column
 -- must already be nullable by then. The original plan deferred this to a
 -- "check and add it if needed" step in Task 5, which an implementer can skip,
 -- producing a confusing not-null violation two migrations later.

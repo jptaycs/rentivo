@@ -215,6 +215,17 @@ export async function deleteAccount(uid: string): Promise<{ ok: true } | { ok: f
   // The message-images bucket is deliberately NOT cleaned up here — those images are
   // part of the counterparty's retained conversation history, same reasoning as
   // leaving messages rows untouched.
+  //
+  // `conversations` (pre-booking inquiries, migrations 049-056) is likewise
+  // deliberately LEFT UNTOUCHED, not purged or anonymized. It holds
+  // renter_id/host_id like bookings/messages/reviews and has no `on delete
+  // cascade` from profiles, but a conversation thread is the counterparty's
+  // retained history exactly like `messages` — the same reasoning as the
+  // paragraph above, not an omission. Nothing is exercised by this today:
+  // deletion soft-deletes the auth user and anonymizes (never hard-deletes)
+  // `profiles`, so the clause-less FK is never hit. Recorded explicitly per
+  // AGENTS.md's standing obligation so a future reader finds a decision here,
+  // not a gap.
 
   // Storage cleanup: avatars (list, since avatar_url is a public URL not a stored path).
   // Explicit limit: uploadAvatar writes a new timestamped path each time rather than
