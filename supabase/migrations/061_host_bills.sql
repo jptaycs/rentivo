@@ -74,7 +74,10 @@ grant select on public.host_bill_items to authenticated;
 --   host_qr, paid, not cancelled, paid_at >= POLICY_START,
 --   paid_at < period + 1 month, not already itemized.
 -- No lower bound inside the period on purpose: a booking marked paid after
--- its own month was billed is picked up by the next run, not lost.
+-- its own month was billed is picked up by the next run, not lost. The same
+-- roll-forward covers PayMongo's ₱100 minimum charge: a host whose eligible
+-- sum falls short simply gets no bill this period, and those bookings stay
+-- un-itemized until a later run's sum clears the floor.
 -- Idempotent: the partial unique index on (host_id, period) where status <>
 -- 'void', plus unique booking_id. Returns only the bills created by THIS
 -- call. A void bill's slot is free for a rerun to fill (see the index
@@ -86,6 +89,7 @@ as $$
 declare
   v_policy_start constant timestamptz := '2026-09-05 00:00+08';
   v_grace        constant interval    := interval '14 days';
+  v_min_bill_amount constant integer := 100;  -- PayMongo's minimum charge; smaller sums roll into a later month
   -- Fix round 1, finding 1: `p_period + interval '1 month'` is a timestamp
   -- WITHOUT time zone, so comparing it to `paid_at timestamptz` used the
   -- calling session's TimeZone GUC (UTC for the service-role connection),
@@ -134,7 +138,7 @@ begin
       insert into public.host_bills (host_id, period, amount, due_at)
       select v_host, p_period, sum(e.service_fee), now() + v_grace
         from eligible e
-      having sum(e.service_fee) > 0
+      having sum(e.service_fee) >= v_min_bill_amount
       on conflict (host_id, period) where status <> 'void' do nothing
       returning *
     ),

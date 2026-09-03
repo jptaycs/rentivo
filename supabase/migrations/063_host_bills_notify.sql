@@ -10,6 +10,7 @@ as $$
 declare
   v_policy_start constant timestamptz := '2026-09-05 00:00+08';
   v_grace        constant interval    := interval '14 days';
+  v_min_bill_amount constant integer := 100;  -- PayMongo's minimum charge; smaller sums roll into a later month
   -- Fix round 1, finding 1: `p_period + interval '1 month'` is a timestamp
   -- WITHOUT time zone, so comparing it to `paid_at timestamptz` used the
   -- calling session's TimeZone GUC (UTC for the service-role connection),
@@ -58,7 +59,7 @@ begin
       insert into public.host_bills (host_id, period, amount, due_at)
       select v_host, p_period, sum(e.service_fee), now() + v_grace
         from eligible e
-      having sum(e.service_fee) > 0
+      having sum(e.service_fee) >= v_min_bill_amount
       on conflict (host_id, period) where status <> 'void' do nothing
       returning *
     ),

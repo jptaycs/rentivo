@@ -186,6 +186,31 @@ try {
   check('voiding a paid bill raises', vPaid.status >= 400 && /paid bill/i.test(vPaid.body?.message ?? ''), `${vPaid.status} ${vPaid.body?.message}`)
   const vAgain = await rpc(SECRET, 'void_host_bill', { p_bill_id: bill2.id, p_reason: 'again' })
   check('voiding a void bill is a no-op with the original reason', vAgain.status === 200 && vAgain.body?.void_reason === 'probe void')
+
+  // ── PayMongo's ₱100 minimum charge (fix round 2) ──
+  // Two 1-day bookings on this ₱1,000/day listing are ₱50 service fee each —
+  // below the floor alone, but their sum clears it once both have rolled
+  // forward into the same period (the existing no-lower-bound rule already
+  // does the rolling; this only adds the floor that makes it necessary).
+  const bBelowFloor1 = await mk('2027-07-10', '2027-07-11')
+  const bBelowFloor2 = await mk('2027-08-10', '2027-08-11')
+  for (const b of [bBelowFloor1, bBelowFloor2]) {
+    const r = await rpc(hostTok, 'confirm_host_qr_payment', { p_booking_id: b.id })
+    if (r.status !== 200) throw new Error('confirm_host_qr_payment (floor probe): ' + JSON.stringify(r.body))
+  }
+  await admin(`bookings?id=eq.${bBelowFloor1.id}`, { method: 'PATCH', body: JSON.stringify({ paid_at: '2030-04-10T10:00:00+08:00' }) })
+  await admin(`bookings?id=eq.${bBelowFloor2.id}`, { method: 'PATCH', body: JSON.stringify({ paid_at: '2030-05-10T10:00:00+08:00' }) })
+  check('below-floor booking fee is ₱50 each', (await feeOf(bBelowFloor1.id)) === 50 && (await feeOf(bBelowFloor2.id)) === 50)
+
+  const gApr = await rpc(SECRET, 'generate_host_bills', { p_period: '2030-04-01' })
+  check('below the ₱100 minimum -> no bill issued for this host', gApr.status === 200 && !gApr.body.some((b) => b.host_id === hostId), `${gApr.status} ${JSON.stringify(gApr.body).slice(0, 100)}`)
+  const { body: aprItems } = await admin(`host_bill_items?select=id&booking_id=eq.${bBelowFloor1.id}`)
+  check('below-floor booking stays un-itemized, ready to roll forward', aprItems.length === 0)
+
+  const gMay = await rpc(SECRET, 'generate_host_bills', { p_period: '2030-05-01' })
+  check('rolled-forward sum clears the minimum -> one ₱100 bill', gMay.status === 200 && gMay.body.length === 1 && gMay.body[0].host_id === hostId && gMay.body[0].amount === 100, `${gMay.status} ${JSON.stringify(gMay.body).slice(0, 100)}`)
+  const { body: mayItems } = await admin(`host_bill_items?select=booking_id&bill_id=eq.${gMay.body[0].id}`)
+  check('rolled-forward bill itemizes both below-floor bookings', mayItems.length === 2 && mayItems.some((i) => i.booking_id === bBelowFloor1.id) && mayItems.some((i) => i.booking_id === bBelowFloor2.id))
 } finally {
   // Bills before bookings: host_bill_items.booking_id has NO cascade, so
   // deleting host_bills first (cascading its items) avoids an FK violation.
