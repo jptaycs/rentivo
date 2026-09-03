@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronLeft, Lock, Loader2, Check, Tag, X, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
@@ -104,6 +104,9 @@ async function createCardPaymentMethod(card: {
 
 export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step3PaymentProps) {
   const { user } = useUser()
+  // No reset needed if the host turns out delinquent: this default can never
+  // be 'host_qr' (it's not in enabledPaymentMethods()) — only clicking the
+  // tile itself sets 'host_qr', and by then the tile is already known-present.
   const [method, setMethod] = useState<PaymentMethod>(
     () => enabledPaymentMethods()[0] ?? 'qrph'
   )
@@ -120,7 +123,28 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
   const [promoError, setPromoError] = useState('')
   const [promoChecking, setPromoChecking] = useState(false)
 
-  const hasHostQr = Boolean(listing.host?.qr_payment_url)
+  // Withhold the direct-QR tile while the host has an overdue commission bill
+  // (host commission billing, 061). The database trigger refuses such a
+  // booking anyway; this just never shows an option that would be refused.
+  // is_host_billing_delinquent is anon-callable and security definer, same
+  // shape as is_host_suspended on /dashboard/rentals.
+  const [hostDelinquent, setHostDelinquent] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    if (!listing.host?.qr_payment_url) return
+    createClient()
+      .rpc('is_host_billing_delinquent', { p_host_id: listing.host_id })
+      .then(({ data }) => {
+        if (!cancelled) setHostDelinquent(Boolean(data))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [listing.host_id, listing.host?.qr_payment_url])
+
+  // hostDelinquent starts false, so hasHostQr can only ever go true -> false
+  // once the RPC resolves, never false -> true after a flash of the tile.
+  const hasHostQr = Boolean(listing.host?.qr_payment_url) && !hostDelinquent
   const methods = (hasHostQr
     ? [...BASE_METHODS, { id: 'host_qr' as const, label: 'GCash/Maya QR (Direct to Host)', logo: '', color: 'border-purple-400', comingSoon: false, unavailable: false }]
     : BASE_METHODS
