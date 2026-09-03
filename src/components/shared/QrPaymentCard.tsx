@@ -62,6 +62,11 @@ export function QrPaymentCard() {
         you&apos;ll confirm receipt yourself once a renter pays.
       </p>
 
+      <p className="text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2">
+        Bookings paid through your QR are billed the 5% service fee monthly.{' '}
+        <a href="/host-terms" target="_blank" rel="noreferrer" className="underline">See Host Terms</a>.
+      </p>
+
       {loading ? (
         <div className="flex justify-center py-4">
           <Loader2 className="w-5 h-5 text-gray-300 animate-spin" />

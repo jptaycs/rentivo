@@ -275,7 +275,7 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
         </div>
         <p className="text-sm text-gray-600 leading-relaxed">
           I confirm that this equipment belongs to me, the information provided is accurate, and I agree to Rentivo&apos;s{' '}
-          <a href="#" className="text-[#003049] hover:underline">Host Terms of Service</a> and{' '}
+          <a href="/host-terms" target="_blank" rel="noreferrer" className="text-[#003049] hover:underline">Host Terms of Service</a> and{' '}
           <a href="#" className="text-[#003049] hover:underline">Equipment Listing Policy</a>.
         </p>
       </label>
