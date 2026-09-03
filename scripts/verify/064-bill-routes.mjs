@@ -57,7 +57,8 @@ check('admin run: 200 as admin, created 0 for a pre-POLICY_START month', goodRun
 // ── pay / verify / webhook ──
 // A real issued bill for the demo host, inserted with admin (generate needs
 // real bookings; the pay route only needs the row).
-const { body: [probeBill] } = await admin('host_bills', { method: 'POST', body: JSON.stringify({ host_id: JSON.parse(Buffer.from(adminCookie.split('base64-')[1].split(';')[0], 'base64url').toString()).user.id, period: '2031-01-01', amount: 123, due_at: new Date(Date.now() + 14 * 864e5).toISOString() }) })
+const demoHostId = JSON.parse(Buffer.from(adminCookie.split('base64-')[1].split(';')[0], 'base64url').toString()).user.id
+const { body: [probeBill] } = await admin('host_bills', { method: 'POST', body: JSON.stringify({ host_id: demoHostId, period: '2031-01-01', amount: 123, due_at: new Date(Date.now() + 14 * 864e5).toISOString() }) })
 try {
   const strangerPay = await fetch(`${APP}/api/bills/${probeBill.id}/pay`, { method: 'POST', headers: { Cookie: renterCookie } })
   check('pay: 404 for a bill that is not yours', strangerPay.status === 404, `${strangerPay.status}`)
@@ -93,6 +94,22 @@ try {
   const verify = await fetch(`${APP}/api/bills/${probeBill.id}/verify-payment`, { method: 'POST', headers: { Cookie: adminCookie } })
   const verifyBody = await verify.json()
   check('verify-payment: unpaid intent reports unpaid/processing', verify.status === 200 && ['unpaid', 'processing'].includes(verifyBody.status), `${verify.status} ${JSON.stringify(verifyBody)}`)
+
+  // Deletion gate (Task 6): while probeBill is still `issued` (it is, at this
+  // point — the webhook replay below is what marks it paid), self-service
+  // account deletion for its host (the demo host, signed in as adminCookie)
+  // must be blocked with the bill wording. NEVER actually delete the demo
+  // host: only run this if the demo host also has an in-flight booking, which
+  // independently blocks the delete route before it can reach deleteAccount()
+  // — so a 400 here can never mean the account was actually removed.
+  const { body: demoHostBookings } = await admin(`bookings?select=id&host_id=eq.${demoHostId}&status=in.(pending,confirmed,active)`)
+  if (demoHostBookings.length > 0) {
+    const delBlocked = await fetch(`${APP}/api/account/delete`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: adminCookie }, body: JSON.stringify({ confirm: 'DELETE' }) })
+    const delBody = await delBlocked.json()
+    check('account delete: 400 while a commission bill is issued', delBlocked.status === 400 && /commission bill/i.test(delBody.error ?? ''), `${delBlocked.status} ${delBody.error}`)
+  } else {
+    console.log('SKIP account delete gate check (demo host has no in-flight booking to make this safe)')
+  }
 
   // Webhook replay: a signed payment.paid event for the bill's intent.
   const { createHmac } = await import('node:crypto')

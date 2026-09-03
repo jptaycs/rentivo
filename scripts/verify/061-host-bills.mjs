@@ -81,6 +81,11 @@ try {
   check('generate #1 -> 200 with one bill', g1.status === 200 && Array.isArray(g1.body) && g1.body.length === 1, `${g1.status} ${JSON.stringify(g1.body).slice(0, 120)}`)
   const bill = g1.body[0]
   check('bill belongs to the probe host, period, status issued', bill?.host_id === hostId && bill?.period === PERIOD && bill?.status === 'issued')
+  // Deletion gate (Task 6): the module is exercised through the admin delete
+  // route in scripts/verify/064-bill-routes.mjs; here we only assert the data
+  // precondition it relies on.
+  const { body: issuedForHost } = await admin(`host_bills?select=id&host_id=eq.${hostId}&status=eq.issued`)
+  check('precondition: host has an issued bill for the deletion gate', issuedForHost.length === 1)
   check('bill amount = in-period booking service_fee', bill?.amount === await feeOf(bInPeriod.id), `${bill?.amount}`)
   const { body: notif } = await admin(`notifications?select=type,title,body,link&user_id=eq.${hostId}&type=eq.bill_issued`)
   check('bill_issued notification written for the host', notif.length === 1 && notif[0].link === '/dashboard/bills' && /January 2030/.test(notif[0].title) && notif[0].body.includes(`₱${bill.amount.toLocaleString('en-PH')}`), JSON.stringify(notif).slice(0, 160))

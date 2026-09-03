@@ -12,7 +12,7 @@ import { checkDeletionEligibility, deleteAccount } from '@/lib/account-deletion'
  * The deletion itself lives in src/lib/account-deletion.ts, shared with the
  * admin delete route. This route owns only the confirm check, the session
  * handling, the HTTP status codes, and the second-person wording a real user
- * sees for the two eligibility gates.
+ * sees for the three eligibility gates.
  */
 export async function POST(req: Request) {
   let body: { confirm?: string }
@@ -42,6 +42,15 @@ export async function POST(req: Request) {
     // could not be performed at all (a failed query — or a malformed uid, which a
     // verified session can't produce) — which this route has always reported as a
     // 500 carrying the raw error message, not a 400.
+    if (eligibility.blocking.issuedBills > 0) {
+      return NextResponse.json(
+        {
+          error:
+            'You have an unpaid commission bill. Please pay it from your Bills page before deleting your account.',
+        },
+        { status: 400 }
+      )
+    }
     if (eligibility.blocking.bookings.length > 0) {
       return NextResponse.json(
         {

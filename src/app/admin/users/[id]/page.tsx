@@ -260,7 +260,7 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
         suspensionReason={suspensionReason}
         eligible={eligibility.ok}
         reason={eligibility.ok ? null : eligibility.reason}
-        blocking={eligibility.ok ? { bookings: [], pendingPayouts: 0 } : eligibility.blocking}
+        blocking={eligibility.ok ? { bookings: [], pendingPayouts: 0, issuedBills: 0 } : eligibility.blocking}
       />
 
       {/* Listings */}

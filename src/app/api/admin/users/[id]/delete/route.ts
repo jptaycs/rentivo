@@ -54,9 +54,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // A *blocked* result always carries a non-empty blocker. An empty one means
     // the check could not be performed (a failed query), and `reason` is then a
     // raw diagnostic — a 500, not a 400 leaking a Postgres string as user copy.
-    // Note also: when bookings block, `pendingPayouts: 0` may mean "unknown"
-    // rather than "none", since the payout query is not short-circuited.
-    if (eligibility.blocking.bookings.length > 0 || eligibility.blocking.pendingPayouts > 0) {
+    // Note also: when bookings block, `pendingPayouts: 0` (or `issuedBills: 0`)
+    // may mean "unknown" rather than "none", since neither query is short-circuited.
+    if (
+      eligibility.blocking.bookings.length > 0 ||
+      eligibility.blocking.pendingPayouts > 0 ||
+      eligibility.blocking.issuedBills > 0
+    ) {
       return NextResponse.json(
         { error: eligibility.reason, blocking: eligibility.blocking },
         { status: 400 }

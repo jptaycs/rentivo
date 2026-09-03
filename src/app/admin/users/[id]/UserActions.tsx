@@ -91,6 +91,11 @@ export function UserActions({
   }
 
   const blockingLines: string[] = []
+  if (blocking.issuedBills > 0) {
+    blockingLines.push(
+      `${blocking.issuedBills} unpaid commission bill${blocking.issuedBills === 1 ? '' : 's'}`
+    )
+  }
   if (blocking.bookings.length > 0) {
     blockingLines.push(
       `${blocking.bookings.length} in-flight booking${blocking.bookings.length === 1 ? '' : 's'} (${blocking.bookings.join(', ')})`
