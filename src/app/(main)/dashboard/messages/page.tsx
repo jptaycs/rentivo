@@ -23,7 +23,6 @@ function MockConversationView({ thread, onBack }: { thread: (typeof MOCK_THREADS
   const messages = thread.messages.map((m) => ({
     id: m.id,
     conversation_id: thread.id,
-    booking_id: thread.id,
     sender_id: m.senderId === 'me' ? 'me' : 'them',
     content: m.text,
     image_url: null,

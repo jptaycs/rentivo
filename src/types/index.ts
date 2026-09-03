@@ -95,9 +95,8 @@ export interface Booking {
 
 export interface Message {
   id: string
-  /** Derived from the message's conversation by a BEFORE INSERT trigger; null
-   * for an inquiry message (a conversation with no booking attached yet). */
-  booking_id: string | null
+  /** The thread's booking, if any, lives on the conversation row
+   * (conversations.booking_id) — messages.booking_id was dropped in 060. */
   conversation_id: string
   sender_id: string
   content: string
