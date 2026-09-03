@@ -34,17 +34,24 @@ const wrong = await fetch(`${APP}/api/cron/host-bills`, { headers: { Authorizati
 check('cron: 401 with wrong secret', wrong.status === 401, `${wrong.status}`)
 const ok = await fetch(`${APP}/api/cron/host-bills`, { headers: { Authorization: `Bearer ${CRON_SECRET}` } })
 const okBody = await ok.json()
-check('cron: 200 with secret, reports previous month', ok.status === 200 && /^\d{4}-\d{2}-01$/.test(okBody.period) && typeof okBody.created === 'number', `${ok.status} ${JSON.stringify(okBody)}`)
+const cronOk = ok.status === 200 && /^\d{4}-\d{2}-01$/.test(okBody.period) && typeof okBody.created === 'number'
+if (cronOk && okBody.created !== 0) {
+  console.log(`WARNING: cron run created real bills — investigate before re-running (period ${okBody.period}, created ${okBody.created})`)
+}
+check('cron: 200 with secret, reports previous month, created 0', cronOk && okBody.created === 0, `${ok.status} ${JSON.stringify(okBody)}`)
 
 // ── admin run route ──
-const anonRun = await fetch(`${APP}/api/admin/bills/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ period: '2030-06' }) })
+const anonRun = await fetch(`${APP}/api/admin/bills/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ period: '2026-01' }) })
 check('admin run: 404 signed out', anonRun.status === 404, `${anonRun.status}`)
-const renterRun = await fetch(`${APP}/api/admin/bills/run`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: renterCookie }, body: JSON.stringify({ period: '2030-06' }) })
+const renterRun = await fetch(`${APP}/api/admin/bills/run`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: renterCookie }, body: JSON.stringify({ period: '2026-01' }) })
 check('admin run: 404 as non-admin', renterRun.status === 404, `${renterRun.status}`)
 const badPeriod = await fetch(`${APP}/api/admin/bills/run`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: adminCookie }, body: JSON.stringify({ period: 'nope' }) })
 check('admin run: 400 on a malformed period', badPeriod.status === 400, `${badPeriod.status}`)
-const goodRun = await fetch(`${APP}/api/admin/bills/run`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: adminCookie }, body: JSON.stringify({ period: '2030-06' }) })
+const futurePeriod = await fetch(`${APP}/api/admin/bills/run`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: adminCookie }, body: JSON.stringify({ period: '2099-01' }) })
+const futureBody = await futurePeriod.json()
+check('admin run: 400 on a future period', futurePeriod.status === 400 && typeof futureBody.error === 'string' && futureBody.error.includes('completed month'), `${futurePeriod.status} ${JSON.stringify(futureBody)}`)
+const goodRun = await fetch(`${APP}/api/admin/bills/run`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: adminCookie }, body: JSON.stringify({ period: '2026-01' }) })
 const goodBody = await goodRun.json()
-check('admin run: 200 as admin, created 0 for an empty far-future month', goodRun.status === 200 && goodBody.period === '2030-06-01' && goodBody.created === 0, `${goodRun.status} ${JSON.stringify(goodBody)}`)
+check('admin run: 200 as admin, created 0 for a pre-POLICY_START month', goodRun.status === 200 && goodBody.period === '2026-01-01' && goodBody.created === 0, `${goodRun.status} ${JSON.stringify(goodBody)}`)
 
 if (!process.env.BILL_ROUTES_CONTINUE) { console.log(fails ? `\n${fails} FAILED` : '\nALL PASSED'); process.exit(fails ? 1 : 0) }

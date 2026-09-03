@@ -569,7 +569,16 @@ export async function notifyHostBillIssued(billId: string) {
   const to = await emailForUser(bill.host_id)
   if (!to) return
   const items = (bill.items ?? []) as unknown as { amount: number; booking: { booking_ref: string; pickup_date: string; return_date: string; rental_fee: number } | null }[]
-  const rows = items
+  // Sort by pickup date, nulls last, so two renders of the same bill match.
+  const sortedItems = [...items].sort((a, b) => {
+    const ad = a.booking?.pickup_date
+    const bd = b.booking?.pickup_date
+    if (!ad && !bd) return 0
+    if (!ad) return 1
+    if (!bd) return -1
+    return ad < bd ? -1 : ad > bd ? 1 : 0
+  })
+  const rows = sortedItems
     .map(
       (i) => `<tr>
         <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;">${escapeHtml(i.booking?.booking_ref ?? '—')}</td>
