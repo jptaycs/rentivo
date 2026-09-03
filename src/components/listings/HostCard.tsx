@@ -1,13 +1,19 @@
+'use client'
+
 import Link from 'next/link'
+import { useState } from 'react'
 import { BadgeCheck, Star, Clock, Calendar, ExternalLink } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { InquiryDialog } from '@/components/listings/InquiryDialog'
 import type { Profile } from '@/types'
 
 interface HostCardProps {
   host: Profile
+  listingId: string
 }
 
-export function HostCard({ host }: HostCardProps) {
+export function HostCard({ host, listingId }: HostCardProps) {
+  const [inquiryOpen, setInquiryOpen] = useState(false)
   const initials = host.full_name
     .split(' ')
     .map((n) => n[0])
@@ -64,12 +70,19 @@ export function HostCard({ host }: HostCardProps) {
         </div>
       </div>
 
-      <Link
-        href="/dashboard/messages"
+      <button
+        type="button"
+        onClick={() => setInquiryOpen(true)}
         className="w-full border border-[#003049] text-[#003049] font-semibold py-2.5 rounded-xl text-sm hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
       >
         Message Host
-      </Link>
+      </button>
+      <InquiryDialog
+        listingId={listingId}
+        hostName={host.full_name}
+        open={inquiryOpen}
+        onClose={() => setInquiryOpen(false)}
+      />
       <Link
         href={`/hosts/${host.id}`}
         className="w-full mt-2 text-center text-xs font-semibold text-gray-400 hover:text-[#003049] transition-colors flex items-center justify-center gap-1 py-1"

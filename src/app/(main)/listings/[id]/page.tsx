@@ -228,7 +228,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
             {listing.host && (
               <section>
                 <h2 className="text-xl font-bold text-[#111827] mb-4">Your Host</h2>
-                <HostCard host={listing.host} />
+                <HostCard host={listing.host} listingId={listing.id} />
               </section>
             )}
           </div>

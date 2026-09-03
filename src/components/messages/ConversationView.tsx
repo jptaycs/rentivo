@@ -89,22 +89,33 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-[#111827] text-sm">{header.otherUser.full_name}</p>
-          <p className="text-xs text-gray-400 truncate">{header.listingTitle} · {header.bookingRef}</p>
+          <p className="text-xs text-gray-400 truncate">
+            {header.bookingRef ? `${header.listingTitle} · ${header.bookingRef}` : header.listingTitle}
+          </p>
         </div>
-        <Link
-          href="/dashboard/bookings"
-          className="flex items-center gap-1.5 text-xs font-medium text-[#003049] border border-blue-200 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
-        >
-          <CalendarDays className="w-3.5 h-3.5" />
-          Booking
-        </Link>
+        {header.bookingId ? (
+          <Link
+            href="/dashboard/bookings"
+            className="flex items-center gap-1.5 text-xs font-medium text-[#003049] border border-blue-200 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <CalendarDays className="w-3.5 h-3.5" />
+            Booking
+          </Link>
+        ) : (
+          <Link
+            href={`/listings/${header.listingId}`}
+            className="flex items-center gap-1.5 text-xs font-medium text-[#003049] border border-blue-200 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            View listing
+          </Link>
+        )}
       </div>
 
       {/* Booking context pill */}
       <div className="px-4 py-2.5 bg-blue-50/60 border-b border-blue-100/60 shrink-0">
         <div className="flex items-center justify-between">
           <p className="text-xs text-[#003049] font-semibold">{header.listingTitle}</p>
-          <span className="text-xs text-gray-400">{header.bookingRef}</span>
+          {header.bookingRef && <span className="text-xs text-gray-400">{header.bookingRef}</span>}
         </div>
       </div>
 

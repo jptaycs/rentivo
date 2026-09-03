@@ -237,10 +237,13 @@ export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) 
 
       {/* CTA buttons */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <button className="flex-1 flex items-center justify-center gap-2 border border-[#003049] text-[#003049] font-bold py-3.5 rounded-xl text-sm hover:bg-blue-50 transition-colors">
+        <Link
+          href={`/dashboard/messages?view=renter&booking=${booking.id}`}
+          className="flex-1 flex items-center justify-center gap-2 border border-[#003049] text-[#003049] font-bold py-3.5 rounded-xl text-sm hover:bg-blue-50 transition-colors"
+        >
           <MessageCircle className="w-4 h-4" />
           Message Host
-        </button>
+        </Link>
         <Link
           href="/dashboard"
           className="flex-1 flex items-center justify-center bg-[#003049] hover:bg-[#002438] text-white font-bold py-3.5 rounded-xl text-sm transition-colors"
