@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { isPayMongoConfigured, getPaymentIntent } from '@/lib/paymongo'
 import { notifyBookingPaid } from '@/lib/email'
 import { Step4Confirmation } from '@/components/booking/Step4Confirmation'
+import { LISTING_COLUMNS, PROFILE_COLUMNS } from '@/lib/listing-columns'
 import type { Booking, Listing } from '@/types'
 
 /**
@@ -19,7 +20,16 @@ interface CompletePageProps {
   searchParams: Promise<{ booking?: string }>
 }
 
-const BOOKING_SELECT = '*, listing:listings!bookings_listing_id_fkey(*, host:profiles!listings_host_id_fkey(*))'
+// The booking row itself is `*` (it is the caller's own booking), but the
+// joined listing and host MUST use the allowlists. This page is a Server
+// Component that hands `booking` straight to <Step4Confirmation>, a client
+// component — so everything selected here is serialised into the RSC payload
+// and shipped to the browser. With `(*)` that included listing.street_address
+// and host.qr_payment_label (the host's real name + mobile number), for every
+// payment method, and Step4Confirmation reads neither. Same class as the
+// documented street_address leak; see src/lib/listing-columns.ts.
+const BOOKING_SELECT =
+  `*, listing:listings!bookings_listing_id_fkey(${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey(${PROFILE_COLUMNS}))`
 
 export default async function BookingCompletePage({ searchParams }: CompletePageProps) {
   const { booking: bookingId } = await searchParams

@@ -2,10 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { LISTING_COLUMNS, PROFILE_COLUMNS } from '@/lib/listing-columns'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import type { Listing } from '@/types'
 
-const HOST_SELECT = '*, host:profiles!listings_host_id_fkey(*)'
+// Scoped to the caller's own listings, so the joined profile is their own and
+// this was never a cross-user leak — but `(*)` is the anti-pattern this repo
+// has been bitten by twice, and only `host.is_verified` is ever read.
+const HOST_SELECT = `${LISTING_COLUMNS}, host:profiles!listings_host_id_fkey(${PROFILE_COLUMNS})`
 
 /** All of the signed-in host's own listings, including paused/draft ones. */
 export function useMyListings() {
@@ -32,7 +36,7 @@ export function useMyListings() {
       .select(HOST_SELECT)
       .eq('host_id', user.id)
       .order('created_at', { ascending: false })
-    if (!error) setListings((data as Listing[]) ?? [])
+    if (!error) setListings((data as unknown as Listing[]) ?? [])
     setLoading(false)
   }, [])
 
