@@ -49,11 +49,35 @@ export function isPayMongoConfigured() {
   return Boolean(process.env.PAYMONGO_SECRET_KEY)
 }
 
-class PayMongoError extends Error {
-  constructor(message: string, public status: number) {
+export class PayMongoError extends Error {
+  /** HTTP status PayMongo answered with (503 when the secret key is missing). */
+  status: number
+  constructor(message: string, status: number) {
     super(message)
     this.name = 'PayMongoError'
+    this.status = status
   }
+}
+
+/**
+ * True when PayMongo rejected the request because the payment method type
+ * isn't activated on this merchant account (gcash/maya/card are pending KYB
+ * approval — see AGENTS.md). PayMongo doesn't publish a stable error code for
+ * this, so it's a wording heuristic over the `errors[].detail` text: a 4xx
+ * whose detail talks about a payment method being not enabled/activated/
+ * allowed/available. Anything that doesn't match falls through to the caller's
+ * generic handling, so a false negative only costs message quality.
+ */
+export function isMethodNotActivatedError(err: unknown): err is PayMongoError {
+  if (!(err instanceof PayMongoError)) return false
+  if (err.status < 400 || err.status >= 500) return false
+  const text = err.message.toLowerCase()
+  const aboutMethod = /payment[_ ]?method|gcash|paymaya|maya|card|qrph|qr ph/.test(text)
+  const rejected =
+    /not (yet )?(activated|enabled|available|allowed|supported|active)|disabled|inactive|unsupported/.test(
+      text
+    )
+  return aboutMethod && rejected
 }
 
 async function pmFetch<T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {

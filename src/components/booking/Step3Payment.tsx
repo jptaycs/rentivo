@@ -5,6 +5,7 @@ import { ChevronLeft, Lock, Loader2, Check, Tag, X, AlertCircle } from 'lucide-r
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { calcPricing } from '@/lib/pricing'
+import { enabledPaymentMethods, isPaymentMethodDisabled } from '@/lib/payment-methods'
 import type { Listing } from '@/types'
 
 type PaymentMethod = 'gcash' | 'maya' | 'card' | 'qrph' | 'apple_pay' | 'google_pay' | 'host_qr'
@@ -39,10 +40,8 @@ const PAYMONGO_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY
 // copy into "Unavailable" vs "Coming soon" just read as two kinds of broken.
 // Clearing the env var re-enables them, but note NEXT_PUBLIC_* is inlined at
 // build time, so it needs a rebuild and redeploy — not just an env edit.
-const DISABLED_METHODS = (process.env.NEXT_PUBLIC_DISABLED_PAYMENT_METHODS ?? '')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean)
+// The list itself lives in src/lib/payment-methods.ts so the checkout route
+// enforces the same thing server-side.
 
 const BASE_METHODS: {
   id: PaymentMethod
@@ -106,7 +105,7 @@ async function createCardPaymentMethod(card: {
 export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step3PaymentProps) {
   const { user } = useUser()
   const [method, setMethod] = useState<PaymentMethod>(
-    () => (['gcash', 'maya', 'card', 'qrph'] as const).find((m) => !DISABLED_METHODS.includes(m)) ?? 'qrph'
+    () => enabledPaymentMethods()[0] ?? 'qrph'
   )
   const [mobileNumber, setMobileNumber] = useState('')
   const [cardNumber, setCardNumber] = useState('')
@@ -125,7 +124,7 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
   const methods = (hasHostQr
     ? [...BASE_METHODS, { id: 'host_qr' as const, label: 'GCash/Maya QR (Direct to Host)', logo: '', color: 'border-purple-400', comingSoon: false, unavailable: false }]
     : BASE_METHODS
-  ).map((m) => (DISABLED_METHODS.includes(m.id) ? { ...m, comingSoon: true, unavailable: true } : m))
+  ).map((m) => (isPaymentMethodDisabled(m.id) ? { ...m, comingSoon: true, unavailable: true } : m))
 
   async function applyPromo() {
     const code = promoInput.trim().toUpperCase()

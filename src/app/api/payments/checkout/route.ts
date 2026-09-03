@@ -8,7 +8,9 @@ import {
   createQrPhPaymentMethod,
   attachPaymentIntent,
   paymentErrorMessage,
+  isMethodNotActivatedError,
 } from '@/lib/paymongo'
+import { isPaymentMethodDisabled, unavailableMethodMessage } from '@/lib/payment-methods'
 import { notifyBookingPaid } from '@/lib/email'
 import type { Booking } from '@/types'
 
@@ -50,6 +52,15 @@ export async function POST(req: Request) {
       { error: 'This payment method is not available yet. Please choose GCash, Maya, Card, or QR Ph.' },
       { status: 400 }
     )
+  }
+
+  // Methods PayMongo hasn't activated for this account yet (KYB pending).
+  // Step3Payment hides these tiles, but the server is the gate: reject here,
+  // by name, BEFORE a booking row exists — otherwise PayMongo rejects the
+  // attach later and the renter sees a generic "Payment failed" plus an
+  // orphaned unpaid booking.
+  if (isPaymentMethodDisabled(body.method)) {
+    return NextResponse.json({ error: unavailableMethodMessage(body.method) }, { status: 400 })
   }
 
   // ── 1. Create the booking (or reuse the one from a failed attempt) ──
@@ -220,6 +231,16 @@ export async function POST(req: Request) {
         )
     }
   } catch (err) {
+    // The env list above can lag PayMongo's actual account state (it's
+    // maintained by hand). If PayMongo itself says the method isn't activated,
+    // still surface the specific message rather than its raw error text.
+    if (isMethodNotActivatedError(err)) {
+      console.warn('[checkout] PayMongo rejected inactive method', body.method, err.message)
+      return NextResponse.json(
+        { error: unavailableMethodMessage(body.method), bookingId: booking.id },
+        { status: 400 }
+      )
+    }
     const message = err instanceof Error ? err.message : 'Payment failed. Please try again.'
     return NextResponse.json({ error: message, bookingId: booking.id }, { status: 502 })
   }
