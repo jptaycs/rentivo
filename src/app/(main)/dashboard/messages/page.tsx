@@ -1,12 +1,13 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { MessageSquare, Loader2 } from 'lucide-react'
 import { MOCK_THREADS } from '@/lib/mock-messages'
 import { useThreads } from '@/hooks/useThreads'
 import { useConversation } from '@/hooks/useConversation'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { createClient } from '@/lib/supabase/client'
 import { ThreadList } from '@/components/messages/ThreadList'
 import { ConversationView } from '@/components/messages/ConversationView'
 
@@ -55,10 +56,24 @@ function MessagesPageInner() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list')
 
+  // Tracks the last `?conversation=`/`?booking=` param we actually resolved
+  // into an activeId. useThreads() subscribes to every message INSERT and
+  // reloads, which changes `threads`' identity on unrelated activity — without
+  // this guard, this effect (which depends on `threads` so it can resolve a
+  // deep link once threads finish loading) would re-fire on every such reload
+  // and yank the user back to the deep-linked thread even after they'd
+  // manually switched away and started typing elsewhere.
+  const resolvedParamRef = useRef<string | null>(null)
+
   useEffect(() => {
     const conversationParam = searchParams.get('conversation')
     const bookingParam = searchParams.get('booking')
+    const paramKey = conversationParam ? `c:${conversationParam}` : bookingParam ? `b:${bookingParam}` : null
+
+    if (paramKey && paramKey === resolvedParamRef.current) return
+
     if (conversationParam) {
+      resolvedParamRef.current = paramKey
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sync selected thread to URL param; no test suite to safely verify a rewrite (see AGENTS.md)
       setActiveId(conversationParam)
       setMobileView('chat')
@@ -67,10 +82,36 @@ function MessagesPageInner() {
     if (bookingParam) {
       const match = threads.find((t) => t.bookingId === bookingParam)
       if (match) {
+        resolvedParamRef.current = paramKey
         setActiveId(match.conversationId)
         setMobileView('chat')
+        return
       }
-      return
+      // Every booking gets a conversation at insert time (migrations 052/055),
+      // but useThreads() deliberately drops booking threads with zero
+      // messages — so a fresh booking's conversation (the common case right
+      // after a booking is made, before either party has said anything) won't
+      // be in `threads` yet. Resolve it directly instead of leaving the deep
+      // link dead. Do NOT "fix" this by dropping the zero-message filter in
+      // useThreads — that would surface empty booking threads to every user.
+      if (!live) return
+      let cancelled = false
+      ;(async () => {
+        const supabase = createClient()
+        const { data } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('booking_id', bookingParam)
+          .maybeSingle()
+        if (!cancelled && data) {
+          resolvedParamRef.current = paramKey
+          setActiveId(data.id)
+          setMobileView('chat')
+        }
+      })()
+      return () => {
+        cancelled = true
+      }
     }
     if (!live && !activeId) {
       setActiveId(MOCK_THREADS[0]?.id ?? null)

@@ -109,7 +109,7 @@ export function useConversation(conversationId: string | null) {
     if (!conversationId || !isSupabaseConfigured()) return
     const supabase = createClient()
     const channel = supabase
-      .channel(`conversation:${conversationId}`)
+      .channel(`conversation:${conversationId}:${crypto.randomUUID()}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },

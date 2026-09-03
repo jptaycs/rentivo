@@ -31,7 +31,7 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
   const [pendingImage, setPendingImage] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const activeBookingId = useRef(header.bookingId)
+  const activeConversationId = useRef(header.conversationId)
   const previewUrl = useMemo(
     () => (pendingImage ? URL.createObjectURL(pendingImage) : null),
     [pendingImage]
@@ -43,13 +43,13 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
   }, [previewUrl])
 
   useEffect(() => {
-    activeBookingId.current = header.bookingId
+    activeConversationId.current = header.conversationId
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset composer state on thread change; no test suite to safely verify a rewrite (see AGENTS.md)
     setInput('')
     setError('')
     setPendingImage(null)
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-  }, [header.bookingId])
+  }, [header.conversationId])
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -61,13 +61,13 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
     const text = input.trim()
     const image = pendingImage
     if ((!text && !image) || sending) return
-    const sentFrom = header.bookingId
+    const sentFrom = header.conversationId
     setSending(true)
     setError('')
     setInput('')
     setPendingImage(null)
     const err = await onSend(text, image ?? undefined)
-    if (err && activeBookingId.current === sentFrom) {
+    if (err && activeConversationId.current === sentFrom) {
       setError(err)
       setInput(text)
       setPendingImage(image)
