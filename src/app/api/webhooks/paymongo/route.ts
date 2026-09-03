@@ -43,12 +43,27 @@ export async function POST(req: Request) {
         .select('id, payment_status')
         .eq('paymongo_ref', intentId)
         .maybeSingle()
-      if (booking && booking.payment_status !== 'paid') {
-        await admin.rpc('mark_booking_paid', {
-          p_booking_id: booking.id,
-          p_paymongo_ref: intentId,
-        })
-        notifyBookingPaid(booking.id).catch((e) => console.error('[email] notifyBookingPaid failed', e))
+      if (booking) {
+        if (booking.payment_status !== 'paid') {
+          await admin.rpc('mark_booking_paid', {
+            p_booking_id: booking.id,
+            p_paymongo_ref: intentId,
+          })
+          notifyBookingPaid(booking.id).catch((e) => console.error('[email] notifyBookingPaid failed', e))
+        }
+      } else {
+        // Not a booking: a host commission bill paid via QR Ph (the pay route
+        // stores the intent id on host_bills.paymongo_ref). Idempotent RPC, so
+        // a replayed event is harmless. No email on bill payment — the Bills
+        // page flips to Paid and that is the receipt.
+        const { data: bill } = await admin
+          .from('host_bills')
+          .select('id, status')
+          .eq('paymongo_ref', intentId)
+          .maybeSingle()
+        if (bill && bill.status === 'issued') {
+          await admin.rpc('mark_host_bill_paid', { p_bill_id: bill.id, p_paymongo_ref: intentId })
+        }
       }
     }
   }

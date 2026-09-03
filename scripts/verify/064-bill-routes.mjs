@@ -54,4 +54,48 @@ const goodRun = await fetch(`${APP}/api/admin/bills/run`, { method: 'POST', head
 const goodBody = await goodRun.json()
 check('admin run: 200 as admin, created 0 for a pre-POLICY_START month', goodRun.status === 200 && goodBody.period === '2026-01-01' && goodBody.created === 0, `${goodRun.status} ${JSON.stringify(goodBody)}`)
 
-if (!process.env.BILL_ROUTES_CONTINUE) { console.log(fails ? `\n${fails} FAILED` : '\nALL PASSED'); process.exit(fails ? 1 : 0) }
+// ── pay / verify / webhook ──
+// A real issued bill for the demo host, inserted with admin (generate needs
+// real bookings; the pay route only needs the row).
+const { body: [probeBill] } = await admin('host_bills', { method: 'POST', body: JSON.stringify({ host_id: JSON.parse(Buffer.from(adminCookie.split('base64-')[1].split(';')[0], 'base64url').toString()).user.id, period: '2031-01-01', amount: 123, due_at: new Date(Date.now() + 14 * 864e5).toISOString() }) })
+try {
+  const strangerPay = await fetch(`${APP}/api/bills/${probeBill.id}/pay`, { method: 'POST', headers: { Cookie: renterCookie } })
+  check('pay: 404 for a bill that is not yours', strangerPay.status === 404, `${strangerPay.status}`)
+  const anonPay = await fetch(`${APP}/api/bills/${probeBill.id}/pay`, { method: 'POST' })
+  check('pay: 401 signed out', anonPay.status === 401, `${anonPay.status}`)
+  const pay = await fetch(`${APP}/api/bills/${probeBill.id}/pay`, { method: 'POST', headers: { Cookie: adminCookie } })
+  const payBody = await pay.json()
+  check('pay: 200 with a QR image for the owner (test-mode PayMongo)', pay.status === 200 && typeof payBody.qrImage === 'string' && payBody.qrImage.startsWith('data:image/'), `${pay.status} ${JSON.stringify(payBody).slice(0, 100)}`)
+  const { body: [afterPay] } = await admin(`host_bills?select=paymongo_ref,status&id=eq.${probeBill.id}`)
+  check('pay: paymongo_ref stored, still issued', /^pi_/.test(afterPay.paymongo_ref ?? '') && afterPay.status === 'issued', JSON.stringify(afterPay))
+
+  const verify = await fetch(`${APP}/api/bills/${probeBill.id}/verify-payment`, { method: 'POST', headers: { Cookie: adminCookie } })
+  const verifyBody = await verify.json()
+  check('verify-payment: unpaid intent reports unpaid/processing', verify.status === 200 && ['unpaid', 'processing'].includes(verifyBody.status), `${verify.status} ${JSON.stringify(verifyBody)}`)
+
+  // Webhook replay: a signed payment.paid event for the bill's intent.
+  const { createHmac } = await import('node:crypto')
+  const whsec = (readFileSync('.env.local', 'utf8').match(/^PAYMONGO_WEBHOOK_SECRET=(.+)$/m) ?? [])[1]?.trim()
+  if (whsec) {
+    const raw = JSON.stringify({ data: { attributes: { type: 'payment.paid', data: { attributes: { payment_intent_id: afterPay.paymongo_ref } } } } })
+    const ts = Math.floor(Date.now() / 1000)
+    const sig = createHmac('sha256', whsec).update(`${ts}.${raw}`).digest('hex')
+    const wh = await fetch(`${APP}/api/webhooks/paymongo`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'paymongo-signature': `t=${ts},te=${sig},li=` }, body: raw })
+    check('webhook: signed payment.paid accepted', wh.status === 200, `${wh.status}`)
+    const { body: [afterWh] } = await admin(`host_bills?select=status,paid_at,paymongo_ref&id=eq.${probeBill.id}`)
+    check('webhook: bill marked paid via paymongo_ref match', afterWh.status === 'paid' && afterWh.paid_at && afterWh.paymongo_ref === afterPay.paymongo_ref, JSON.stringify(afterWh))
+    const payAgain = await fetch(`${APP}/api/bills/${probeBill.id}/pay`, { method: 'POST', headers: { Cookie: adminCookie } })
+    check('pay: 400 on a paid bill', payAgain.status === 400, `${payAgain.status}`)
+  } else {
+    console.log('SKIP webhook replay (no PAYMONGO_WEBHOOK_SECRET locally) — mark paid via RPC instead')
+    await admin('rpc/mark_host_bill_paid', { method: 'POST', body: JSON.stringify({ p_bill_id: probeBill.id, p_paymongo_ref: afterPay.paymongo_ref }) })
+    const payAgain = await fetch(`${APP}/api/bills/${probeBill.id}/pay`, { method: 'POST', headers: { Cookie: adminCookie } })
+    check('pay: 400 on a paid bill', payAgain.status === 400, `${payAgain.status}`)
+  }
+} finally {
+  await admin(`host_bills?id=eq.${probeBill.id}`, { method: 'DELETE' })
+  const { body: gone } = await admin(`host_bills?select=id&id=eq.${probeBill.id}`)
+  check('cleanup: probe bill deleted', gone.length === 0)
+}
+console.log(fails ? `\n${fails} FAILED` : '\nALL PASSED')
+process.exit(fails ? 1 : 0)
