@@ -40,6 +40,8 @@ if (!listing) throw new Error('no usable listing')
 const pickupDate = '2027-03-10', returnDate = '2027-03-12'
 
 const before = (await admin(`bookings?select=id&renter_id=eq.${renterId}`)).body.length
+const notifsBefore = (await admin('notifications?select=id')).body.length
+const runStart = new Date().toISOString()
 
 async function checkout(method) {
   const res = await fetch(`${APP}/api/payments/checkout`, {
@@ -66,6 +68,10 @@ check('qrph control returns status "qr" with an image', ok.body.status === 'qr' 
 if (ok.body.bookingId) {
   const del = await admin(`bookings?id=eq.${ok.body.bookingId}`, { method: 'DELETE' })
   check('control booking deleted', del.status === 200 && del.body.length === 1)
+  // create_booking's trigger notified the host ('/dashboard/bookings', no id) — remove it too.
+  await admin(`notifications?user_id=eq.${listing.host_id}&created_at=gte.${runStart}`, { method: 'DELETE' })
+  const notifsAfter = (await admin('notifications?select=id')).body.length
+  check('notifications back at baseline', notifsAfter === notifsBefore, `${notifsBefore} -> ${notifsAfter}`)
 }
 const after = (await admin(`bookings?select=id&renter_id=eq.${renterId}`)).body.length
 check('booking count back at baseline', after === before, `${before} -> ${after}`)

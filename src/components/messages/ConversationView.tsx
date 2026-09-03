@@ -208,6 +208,7 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), send())}
+            maxLength={4000}
             placeholder="Type a message…"
             className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none"
           />
