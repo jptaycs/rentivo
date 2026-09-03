@@ -95,7 +95,7 @@ export default async function AdminReportsPage() {
 
       {/* ── Commission ── */}
       <section>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Earned</p>
             <p className="mt-1 text-3xl font-bold text-[#003049]">{peso(commission.earned)}</p>
@@ -119,6 +119,20 @@ export default async function AdminReportsPage() {
             <p className="mt-1 text-3xl font-bold text-amber-800">{peso(commission.uncollected)}</p>
             <p className="mt-2 text-xs text-amber-800">
               Earned on host-QR and test bookings — this money never reached Rentivo.
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Billed</p>
+            <p className="mt-1 text-3xl font-bold text-[#003049]">{peso(commission.billed)}</p>
+            <p className="mt-2 text-xs text-gray-500">
+              Commission bills issued or paid to hosts for host-QR bookings since 5 Sep 2026.
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Bill Payments</p>
+            <p className="mt-1 text-3xl font-bold text-[#003049]">{peso(commission.billPayments)}</p>
+            <p className="mt-2 text-xs text-gray-500">
+              Collected through commission bills. Uncollected minus this is what is still owed.
             </p>
           </div>
         </div>

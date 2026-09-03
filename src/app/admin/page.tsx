@@ -33,18 +33,33 @@ async function userCounts() {
   }
 }
 
+// `host_bills` has no `pending` status (pendingCount above only fits a
+// `status = 'pending'` filter), so this gets its own helper: issued bills
+// past their due date, mirroring isOverdue()'s definition server-side.
+async function overdueBillsCount() {
+  const admin = createAdminClient()
+  const { count } = await admin
+    .from('host_bills')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'issued')
+    .lt('due_at', new Date().toISOString())
+  return count ?? 0
+}
+
 export default async function AdminOverviewPage() {
-  const [verifications, payoutAccounts, payoutRequests, users] = await Promise.all([
+  const [verifications, payoutAccounts, payoutRequests, users, overdueBills] = await Promise.all([
     pendingCount('verification_requests'),
     pendingCount('payout_accounts'),
     pendingCount('payout_requests'),
     userCounts(),
+    overdueBillsCount(),
   ])
 
   const cards = [
     { label: 'Pending identity verifications', count: verifications, href: '/admin/verifications' },
     { label: 'Payout accounts awaiting review', count: payoutAccounts, href: '/admin/payouts' },
     { label: 'Pending payout requests', count: payoutRequests, href: '/admin/payouts' },
+    { label: 'Overdue commission bills', count: overdueBills, href: '/admin/bills?status=overdue' },
     { label: 'Total users', count: users.total, href: '/admin/users' },
     { label: 'Suspended users', count: users.suspended, href: '/admin/users?status=suspended' },
   ]
@@ -52,7 +67,7 @@ export default async function AdminOverviewPage() {
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold text-gray-900">Overview</h1>
-      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
         {cards.map((c) => (
           <Link
             key={c.label}

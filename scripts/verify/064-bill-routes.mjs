@@ -111,6 +111,18 @@ try {
     console.log('SKIP account delete gate check (demo host has no in-flight booking to make this safe)')
   }
 
+  // Void route (Task 8): a second, separate probe bill so the pay flow's
+  // bill above stays `issued` for the webhook-replay section below.
+  const { body: [voidBill] } = await admin('host_bills', { method: 'POST', body: JSON.stringify({ host_id: probeBill.host_id, period: '2031-03-01', amount: 45, due_at: new Date(Date.now() + 864e5).toISOString() }) })
+  const vAnon = await fetch(`${APP}/api/admin/bills/${voidBill.id}/void`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: 'x' }) })
+  check('void route: 404 signed out', vAnon.status === 404, `${vAnon.status}`)
+  const vNoReason = await fetch(`${APP}/api/admin/bills/${voidBill.id}/void`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: adminCookie }, body: JSON.stringify({ reason: ' ' }) })
+  check('void route: 400 without a reason', vNoReason.status === 400, `${vNoReason.status}`)
+  const vOk = await fetch(`${APP}/api/admin/bills/${voidBill.id}/void`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: adminCookie }, body: JSON.stringify({ reason: 'probe void via route' }) })
+  const vOkBody = await vOk.json()
+  check('void route: 200 as admin, bill void with reason', vOk.status === 200 && vOkBody.bill?.status === 'void' && vOkBody.bill?.void_reason === 'probe void via route', `${vOk.status} ${JSON.stringify(vOkBody).slice(0, 100)}`)
+  await admin(`host_bills?id=eq.${voidBill.id}`, { method: 'DELETE' })
+
   // Webhook replay: a signed payment.paid event for the bill's intent.
   const { createHmac } = await import('node:crypto')
   const whsec = (readFileSync('.env.local', 'utf8').match(/^PAYMONGO_WEBHOOK_SECRET=(.+)$/m) ?? [])[1]?.trim()

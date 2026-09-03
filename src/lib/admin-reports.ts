@@ -104,6 +104,19 @@ export interface CommissionTotals {
   earned: number
   collected: number
   uncollected: number
+  /**
+   * Sum of `host_bills.amount` for bills in `issued` or `paid` status — the
+   * uncollected commission that has actually been turned into a bill a host
+   * owes (as opposed to `uncollected` above, which is every host-QR/test
+   * booking's service fee regardless of whether a bill exists for it yet:
+   * `generate_host_bills` only bills bookings paid at or after
+   * POLICY_START, and only in ₱100+ monthly batches, so `billed` is always
+   * <= `uncollected`, never equal). Void bills are excluded — they were
+   * corrected or waived, not owed.
+   */
+  billed: number
+  /** Sum of `host_bills.amount` for bills in `paid` status — commission that was uncollected at checkout but has since actually reached Rentivo via a bill payment. */
+  billPayments: number
 }
 
 /**
@@ -171,7 +184,15 @@ export async function getCommissionTotals(): Promise<CommissionTotals> {
   const rows = await paidBookings()
   const earned = rows.reduce((s, b) => s + b.service_fee, 0)
   const collected = rows.filter((b) => isPaymongoMethod(b.payment_method)).reduce((s, b) => s + b.service_fee, 0)
-  return { earned, collected, uncollected: earned - collected }
+
+  const admin = createAdminClient()
+  const { data: billRows, error: billError } = await admin.from('host_bills').select('amount, status')
+  if (billError) throw new Error(`Failed to load host_bills: ${billError.message}`)
+  const bills = (billRows ?? []) as { amount: number; status: string }[]
+  const billed = bills.filter((b) => b.status === 'issued' || b.status === 'paid').reduce((s, b) => s + b.amount, 0)
+  const billPayments = bills.filter((b) => b.status === 'paid').reduce((s, b) => s + b.amount, 0)
+
+  return { earned, collected, uncollected: earned - collected, billed, billPayments }
 }
 
 /**
