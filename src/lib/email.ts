@@ -1,6 +1,7 @@
 import 'server-only'
 import { Resend } from 'resend'
 import { createAdminClient } from './supabase/admin'
+import { periodLabel } from '@/lib/billing'
 
 export function isEmailConfigured() {
   return Boolean(process.env.RESEND_API_KEY)
@@ -549,5 +550,54 @@ export async function notifyAccountReinstated(userId: string) {
       ctaPath: '/login',
       ctaLabel: 'Sign In',
     })
+  )
+}
+
+/**
+ * Commission bill issued (host commission billing). Not gated by any
+ * notify_* preference: it is a bill, not a courtesy. Fired by the cron route
+ * and the admin run route for each bill generate_host_bills() returns.
+ */
+export async function notifyHostBillIssued(billId: string) {
+  const admin = createAdminClient()
+  const { data: bill } = await admin
+    .from('host_bills')
+    .select('id, host_id, period, amount, due_at, items:host_bill_items(amount, booking:bookings!host_bill_items_booking_id_fkey(booking_ref, pickup_date, return_date, rental_fee))')
+    .eq('id', billId)
+    .maybeSingle()
+  if (!bill) return
+  const to = await emailForUser(bill.host_id)
+  if (!to) return
+  const items = (bill.items ?? []) as unknown as { amount: number; booking: { booking_ref: string; pickup_date: string; return_date: string; rental_fee: number } | null }[]
+  const rows = items
+    .map(
+      (i) => `<tr>
+        <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;">${escapeHtml(i.booking?.booking_ref ?? '—')}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;">${i.booking ? `${fmtDate(i.booking.pickup_date)} – ${fmtDate(i.booking.return_date)}` : '—'}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;text-align:right;">${i.booking ? fmtPeso(i.booking.rental_fee) : '—'}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #f3f4f6;text-align:right;"><strong>${fmtPeso(i.amount)}</strong></td>
+      </tr>`
+    )
+    .join('')
+  const label = periodLabel(bill.period)
+  await send(
+    to,
+    `Your Rentivo commission bill for ${label}`,
+    layout(
+      `Commission bill for ${label}: ${fmtPeso(bill.amount)}`,
+      `<h2 style="margin:0 0 12px;color:#003049;">Commission bill — ${escapeHtml(label)}</h2>
+       <p style="margin:0 0 16px;color:#4b5563;font-size:14px;line-height:1.6;">
+         Renters paid <strong>${fmtPeso(bill.amount)}</strong> in Rentivo service fees directly into your GCash/Maya account on the bookings below.
+         This bill collects that 5% commission. It is due <strong>${fmtDate(bill.due_at)}</strong>.
+       </p>
+       <table style="width:100%;border-collapse:collapse;font-size:13px;color:#111827;">
+         <thead><tr style="color:#6b7280;font-size:12px;"><th align="left" style="padding:6px 8px;">Booking</th><th align="left" style="padding:6px 8px;">Dates</th><th align="right" style="padding:6px 8px;">Rental</th><th align="right" style="padding:6px 8px;">Fee</th></tr></thead>
+         <tbody>${rows}</tbody>
+       </table>
+       ${button(`${APP_URL}/dashboard/bills`, 'View and pay bill')}
+       <p style="margin:16px 0 0;color:#6b7280;font-size:12px;line-height:1.6;">
+         If the bill is still unpaid after the due date, the direct GCash/Maya QR option is withheld on your listings until it is settled. Your listings stay live and bookable through Rentivo's other payment methods.
+       </p>`
+    )
   )
 }
