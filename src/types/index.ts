@@ -162,6 +162,31 @@ export interface PayoutRequest {
   items?: PayoutItem[]
 }
 
+export interface HostBillItem {
+  id: string
+  bill_id: string
+  booking_id: string
+  amount: number
+  /** Embedded by useHostBills for the breakdown; not a column. */
+  booking?: Pick<Booking, 'booking_ref' | 'pickup_date' | 'return_date' | 'rental_fee' | 'paid_at'> | null
+}
+
+export interface HostBill {
+  id: string
+  host_id: string
+  /** First day of the billed month, 'YYYY-MM-DD'. */
+  period: string
+  amount: number
+  status: 'issued' | 'paid' | 'void'
+  issued_at: string
+  due_at: string
+  paid_at: string | null
+  paymongo_ref: string | null
+  void_reason: string | null
+  created_at: string
+  items?: HostBillItem[]
+}
+
 export interface Notification {
   id: string
   user_id: string
@@ -174,6 +199,7 @@ export interface Notification {
     | 'review_received'
     | 'verification_approved'
     | 'verification_rejected'
+    | 'bill_issued'
   title: string
   body: string
   link: string | null

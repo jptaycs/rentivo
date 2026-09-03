@@ -82,6 +82,8 @@ try {
   const bill = g1.body[0]
   check('bill belongs to the probe host, period, status issued', bill?.host_id === hostId && bill?.period === PERIOD && bill?.status === 'issued')
   check('bill amount = in-period booking service_fee', bill?.amount === await feeOf(bInPeriod.id), `${bill?.amount}`)
+  const { body: notif } = await admin(`notifications?select=type,title,body,link&user_id=eq.${hostId}&type=eq.bill_issued`)
+  check('bill_issued notification written for the host', notif.length === 1 && notif[0].link === '/dashboard/bills' && /January 2030/.test(notif[0].title) && notif[0].body.includes(`₱${bill.amount.toLocaleString('en-PH')}`), JSON.stringify(notif).slice(0, 160))
   check('due_at ≈ issued_at + 14 days', Math.abs(new Date(bill.due_at) - new Date(bill.issued_at) - 14 * 864e5) < 60e3)
   const { body: items1 } = await admin(`host_bill_items?select=booking_id,amount&bill_id=eq.${bill.id}`)
   check('exactly one item, the in-period booking', items1.length === 1 && items1[0].booking_id === bInPeriod.id)

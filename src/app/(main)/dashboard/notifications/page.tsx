@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CheckCircle2, Star, CalendarDays, DollarSign, XCircle, Loader2, Bell, ShieldCheck, ShieldX } from 'lucide-react'
+import { CheckCircle2, Star, CalendarDays, DollarSign, XCircle, Loader2, Bell, ShieldCheck, ShieldX, Receipt } from 'lucide-react'
 import { useNotifications } from '@/hooks/useNotifications'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import type { Notification } from '@/types'
@@ -22,6 +22,7 @@ const ICONS: Record<string, { icon: typeof Bell; color: string }> = {
   review_received: { icon: Star, color: 'text-yellow-500 bg-yellow-50' },
   verification_approved: { icon: ShieldCheck, color: 'text-green-600 bg-green-50' },
   verification_rejected: { icon: ShieldX, color: 'text-red-500 bg-red-50' },
+  bill_issued: { icon: Receipt, color: 'text-[#003049] bg-blue-50' },
 }
 
 function timeAgo(iso: string) {
