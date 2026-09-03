@@ -1,3 +1,4 @@
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import type { MessageThread } from '@/hooks/useThreads'
 
 interface ThreadListProps {
@@ -32,12 +33,19 @@ export function ThreadList({ threads, activeId, onSelect }: ThreadListProps) {
               activeId === t.conversationId ? 'bg-blue-50/60' : ''
             }`}
           >
-            {/* Avatar */}
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
-              activeId === t.conversationId ? 'bg-[#003049] text-white' : 'bg-gray-100 text-gray-600'
-            }`}>
-              {t.otherUser.full_name.charAt(0).toUpperCase()}
-            </div>
+            {/* Avatar — the profile photo when there is one, initials otherwise.
+                This page rendered initials unconditionally for its whole history
+                even though avatar_url has always been available on otherUser, so
+                a host with a photo showed a blank-looking letter here while the
+                navbar and sidebar showed their real picture. */}
+            <Avatar className="w-10 h-10 shrink-0">
+              <AvatarImage src={t.otherUser.avatar_url ?? ''} alt={t.otherUser.full_name} />
+              <AvatarFallback className={`font-bold text-sm ${
+                activeId === t.conversationId ? 'bg-[#003049] text-white' : 'bg-gray-100 text-gray-600'
+              }`}>
+                {t.otherUser.full_name.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
 
             {/* Content */}
             <div className="flex-1 min-w-0">

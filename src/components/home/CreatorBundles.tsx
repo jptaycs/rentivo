@@ -32,7 +32,7 @@ export async function CreatorBundles() {
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute top-3 left-3 bg-[#FDF0D5] text-white text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+              <div className="absolute top-3 left-3 bg-[#FDF0D5] text-[#003049] text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
                 <Package className="w-3 h-3" />
                 Bundle
               </div>

@@ -135,8 +135,16 @@ export function useThreads() {
   useEffect(() => {
     if (!isSupabaseConfigured() || !userId) return
     const supabase = createClient()
+    // Topic MUST be unique per mount. supabase-js dedupes channels by topic, so
+    // a second concurrent mount calling .on() against the already-subscribed
+    // channel throws "cannot add postgres_changes callbacks ... after
+    // subscribe()" and takes the whole page down via the error boundary.
+    // This was latent while /dashboard/messages was the only consumer; adding
+    // the real unread badge to DashboardSidebar (which renders on every
+    // dashboard route) made it a second concurrent mount and it crashed
+    // immediately. useNotifications hit the identical bug and uses the same fix.
     const channel = supabase
-      .channel(`threads:${userId}`)
+      .channel(`threads:${userId}:${crypto.randomUUID()}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => reload())
       .subscribe()
     return () => {

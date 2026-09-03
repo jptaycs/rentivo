@@ -10,13 +10,14 @@ import {
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useUser, initials } from '@/hooks/useUser'
+import { useThreads } from '@/hooks/useThreads'
 
 const HOST_NAV = [
   { label: 'Overview', href: '/dashboard/overview', icon: LayoutDashboard },
   { label: 'My Listings', href: '/dashboard/listings', icon: Package },
   { label: 'Bookings', href: '/dashboard/bookings', icon: CalendarDays },
   { label: 'Calendar', href: '/dashboard/calendar', icon: CalendarDays },
-  { label: 'Messages', href: '/dashboard/messages?view=host', icon: MessageCircle, badge: 3 },
+  { label: 'Messages', href: '/dashboard/messages?view=host', icon: MessageCircle, unread: true },
   { label: 'Earnings', href: '/dashboard/earnings', icon: DollarSign },
   { label: 'Reviews', href: '/dashboard/reviews?view=host', icon: Star },
   { label: 'Analytics', href: '/dashboard/analytics', icon: BarChart2 },
@@ -26,7 +27,7 @@ const HOST_NAV = [
 
 const RENTER_NAV = [
   { label: 'My Rentals', href: '/dashboard/rentals', icon: ShoppingBag },
-  { label: 'Messages', href: '/dashboard/messages?view=renter', icon: MessageCircle, badge: 1 },
+  { label: 'Messages', href: '/dashboard/messages?view=renter', icon: MessageCircle, unread: true },
   { label: 'Wishlist', href: '/dashboard/wishlist', icon: Heart },
   { label: 'Receipts', href: '/dashboard/receipts', icon: Receipt },
   { label: 'Reviews', href: '/dashboard/reviews?view=renter', icon: Star },
@@ -43,6 +44,7 @@ export function DashboardSidebar({ isHost = true, onClose }: DashboardSidebarPro
   const pathname = usePathname()
   const nav = isHost ? HOST_NAV : RENTER_NAV
   const { user, signOut } = useUser()
+  const { totalUnread } = useThreads()
 
   return (
     <aside className="flex flex-col h-full bg-white border-r border-gray-100">
@@ -79,7 +81,7 @@ export function DashboardSidebar({ isHost = true, onClose }: DashboardSidebarPro
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-        {nav.map(({ label, href, icon: Icon, badge }) => {
+        {nav.map(({ label, href, icon: Icon, unread }) => {
           const hrefPath = href.split('?')[0]
           const active = pathname === hrefPath || pathname.startsWith(hrefPath + '/')
           return (
@@ -95,9 +97,15 @@ export function DashboardSidebar({ isHost = true, onClose }: DashboardSidebarPro
             >
               <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-[#003049]' : 'text-gray-400'}`} />
               <span className="flex-1">{label}</span>
-              {badge ? (
-                <span className="min-w-[18px] h-[18px] bg-[#FDF0D5] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                  {badge}
+              {/* Real unread count. This was a hardcoded `badge: 3` (host) /
+                  `badge: 1` (renter) — every user saw the same invented number,
+                  contradicting the "0 unread" the messages panel itself showed.
+                  It was also bg-[#FDF0D5] with text-white: white on the cream
+                  accent, i.e. unreadable — the accent-on-light contrast bug this
+                  repo has hit repeatedly. Now the actual count, in primary blue. */}
+              {unread && totalUnread > 0 ? (
+                <span className="min-w-[18px] h-[18px] bg-[#003049] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                  {totalUnread > 99 ? '99+' : totalUnread}
                 </span>
               ) : null}
             </Link>

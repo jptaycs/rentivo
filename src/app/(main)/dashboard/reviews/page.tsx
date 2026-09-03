@@ -1,7 +1,7 @@
 'use client'
 
 import { Star, Loader2 } from 'lucide-react'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useMyReviews } from '@/hooks/useMyReviews'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 
@@ -21,6 +21,7 @@ export default function ReviewsPage() {
         id: r.id,
         reviewer: r.reviewer?.full_name ?? 'Rentivo user',
         initial: (r.reviewer?.full_name ?? '?').charAt(0).toUpperCase(),
+        avatarUrl: r.reviewer?.avatar_url ?? null,
         rating: r.rating,
         date: r.created_at,
         equipment: r.listing?.title ?? null,
@@ -82,6 +83,9 @@ export default function ReviewsPage() {
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="w-9 h-9">
+                      {/* avatar_url was already fetched via PROFILE_COLUMNS and
+                          then discarded — only the fallback was rendered. */}
+                      <AvatarImage src={'avatarUrl' in r ? r.avatarUrl ?? '' : ''} alt={r.reviewer} />
                       <AvatarFallback className="bg-[#003049]/10 text-[#003049] text-xs font-bold">{r.initial}</AvatarFallback>
                     </Avatar>
                     <div>

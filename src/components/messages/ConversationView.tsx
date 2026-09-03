@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect, useMemo } from 'react'
 import { Send, ArrowLeft, CalendarDays, ImagePlus, X } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
 import type { ConversationHeader } from '@/hooks/useConversation'
 import type { Message } from '@/types'
@@ -84,9 +85,12 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
             <ArrowLeft className="w-4 h-4 text-gray-600" />
           </button>
         )}
-        <div className="w-9 h-9 rounded-full bg-[#003049]/10 flex items-center justify-center font-bold text-[#003049] text-sm shrink-0">
-          {header.otherUser.full_name.charAt(0).toUpperCase()}
-        </div>
+        <Avatar className="w-9 h-9 shrink-0">
+          <AvatarImage src={header.otherUser.avatar_url ?? ''} alt={header.otherUser.full_name} />
+          <AvatarFallback className="bg-[#003049]/10 font-bold text-[#003049] text-sm">
+            {header.otherUser.full_name.charAt(0).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-[#111827] text-sm">{header.otherUser.full_name}</p>
           <p className="text-xs text-gray-400 truncate">

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { MessageCircle, Check, X, Calendar, MapPin, Loader2, AlertCircle, Star } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useHostBookings, type BookingWithRefs } from '@/hooks/useBookings'
 import { useReviewedBookings } from '@/hooks/useReviewedBookings'
 import { ReviewModal } from '@/components/shared/ReviewModal'
@@ -106,11 +107,12 @@ export default function BookingsPage() {
             <div className="p-5">
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#003049]/10 flex items-center justify-center shrink-0">
-                    <span className="text-[#003049] font-bold text-sm">
+                  <Avatar className="w-10 h-10 shrink-0">
+                    <AvatarImage src={b.renter?.avatar_url ?? ''} alt={b.renter?.full_name ?? 'Renter'} />
+                    <AvatarFallback className="bg-[#003049]/10 text-[#003049] font-bold text-sm">
                       {(b.renter?.full_name || '?').charAt(0).toUpperCase()}
-                    </span>
-                  </div>
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
                     <p className="font-bold text-[#111827] text-sm">{b.renter?.full_name}</p>
                     <p className="text-xs text-gray-500">{b.booking_ref}</p>
