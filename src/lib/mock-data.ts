@@ -1,5 +1,9 @@
 import type { Listing } from '@/types'
 
+// delivery_fee mirrors the schema's three states (038) so the delivery
+// checkout path is exercisable in mock mode: null = pickup only (the tile is
+// hidden — most listings), 0 = free delivery (ids 2, 7), >0 = flat fee added
+// to the renter's total (ids 1, 3, 5, 10). Bundles stay pickup-only.
 export const MOCK_LISTINGS: Listing[] = [
   {
     id: '1',
@@ -14,7 +18,7 @@ export const MOCK_LISTINGS: Listing[] = [
     weekly_price: 15000,
     monthly_price: 50000,
     security_deposit: 10000,
-    delivery_fee: null,
+    delivery_fee: 350,
     city: 'Manila',
     province: 'Metro Manila',
     is_instant_book: true,
@@ -40,7 +44,7 @@ export const MOCK_LISTINGS: Listing[] = [
     weekly_price: 13000,
     monthly_price: 45000,
     security_deposit: 9000,
-    delivery_fee: null,
+    delivery_fee: 0,
     city: 'Makati',
     province: 'Metro Manila',
     is_instant_book: false,
@@ -66,7 +70,7 @@ export const MOCK_LISTINGS: Listing[] = [
     weekly_price: 7000,
     monthly_price: 24000,
     security_deposit: 5000,
-    delivery_fee: null,
+    delivery_fee: 150,
     city: 'BGC',
     province: 'Metro Manila',
     is_instant_book: true,
@@ -118,7 +122,7 @@ export const MOCK_LISTINGS: Listing[] = [
     weekly_price: 27000,
     monthly_price: 90000,
     security_deposit: 20000,
-    delivery_fee: null,
+    delivery_fee: 500,
     city: 'Pasig',
     province: 'Metro Manila',
     is_instant_book: false,
@@ -170,7 +174,7 @@ export const MOCK_LISTINGS: Listing[] = [
     weekly_price: 19000,
     monthly_price: 62000,
     security_deposit: 14000,
-    delivery_fee: null,
+    delivery_fee: 0,
     city: 'Makati',
     province: 'Metro Manila',
     is_instant_book: true,
@@ -248,7 +252,7 @@ export const MOCK_LISTINGS: Listing[] = [
     weekly_price: 21000,
     monthly_price: 70000,
     security_deposit: 16000,
-    delivery_fee: null,
+    delivery_fee: 300,
     city: 'BGC',
     province: 'Metro Manila',
     is_instant_book: false,
