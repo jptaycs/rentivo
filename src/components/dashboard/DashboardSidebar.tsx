@@ -19,6 +19,7 @@ const HOST_NAV = [
   { label: 'Calendar', href: '/dashboard/calendar', icon: CalendarDays },
   { label: 'Messages', href: '/dashboard/messages?view=host', icon: MessageCircle, unread: true },
   { label: 'Earnings', href: '/dashboard/earnings', icon: DollarSign },
+  { label: 'Bills', href: '/dashboard/bills', icon: Receipt },
   { label: 'Reviews', href: '/dashboard/reviews?view=host', icon: Star },
   { label: 'Analytics', href: '/dashboard/analytics', icon: BarChart2 },
   { label: 'Payout Settings', href: '/dashboard/payouts', icon: CreditCard },
