@@ -5,11 +5,12 @@ import {
   getTopListings,
   getTopHosts,
   getTopRenters,
+  getUnrequestedPayouts,
   type RankedRow,
 } from '@/lib/admin-reports'
 import { requireAdminPage } from '@/lib/admin'
 import { SERVICE_FEE_RATE } from '@/lib/pricing'
-import { ExportRevenueButton, ExportInFlightButton, ExportRankedButton } from './ReportExports'
+import { ExportRevenueButton, ExportInFlightButton, ExportRankedButton, ExportUnrequestedButton } from './ReportExports'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,13 +73,14 @@ export default async function AdminReportsPage() {
   // Defense in depth: see the matching comment in /admin/users/page.tsx.
   await requireAdminPage()
 
-  const [commission, monthly, inFlight, topListings, topHosts, topRenters] = await Promise.all([
+  const [commission, monthly, inFlight, topListings, topHosts, topRenters, unrequested] = await Promise.all([
     getCommissionTotals(),
     getMonthlyRevenue(),
     getInFlightRentals(),
     getTopListings(),
     getTopHosts(),
     getTopRenters(),
+    getUnrequestedPayouts(),
   ])
 
   return (
@@ -143,8 +145,8 @@ export default async function AdminReportsPage() {
           Revenue excludes refundable security deposits — see Deposits Held for the money Rentivo is holding, not
           earning. Payouts Paid is bucketed by the month a payout was actually settled, not the month it was
           requested. Payouts Pending counts only payouts hosts have <em>requested</em> and that are still open — it
-          is not total liability to hosts, since eligible earnings a host hasn&apos;t yet requested appear nowhere on
-          this page.
+          is not total liability to hosts; eligible earnings a host hasn&apos;t yet requested are in Unrequested
+          Payouts below.
         </p>
         <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
           <table className="w-full text-left text-sm">
@@ -180,6 +182,79 @@ export default async function AdminReportsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      {/* ── Unrequested payouts ──
+          The other half of host liability. "Payouts Pending" above only
+          counts money a host has asked for; this is money request_payout()
+          WOULD pay today that nobody has asked for. Together they are what
+          the platform owes hosts. Eligibility mirrors request_payout()'s CTE
+          — see getUnrequestedPayouts() for the rule and the drift warning. */}
+      <section>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <h2 className="text-xl font-bold text-gray-900">Unrequested Payouts</h2>
+          <ExportUnrequestedButton rows={unrequested.hosts} />
+        </div>
+        <p className="mb-4 text-xs text-gray-500">
+          Completed, paid, payout-eligible bookings not yet claimed by any payout request — what Request Payout would
+          pay each host right now. Host-QR and test bookings are excluded, exactly as <code>request_payout()</code>{' '}
+          excludes them. Blocker says why the host can&apos;t request yet, when the data can tell.
+        </p>
+        <div className="mb-4 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Owed, Unrequested</p>
+            <p className="mt-1 text-3xl font-bold text-[#003049]">{peso(unrequested.total)}</p>
+            <p className="mt-2 text-xs text-gray-500">
+              {`Across ${unrequested.bookings} eligible ${unrequested.bookings === 1 ? 'booking' : 'bookings'} and ${unrequested.hosts.length} ${unrequested.hosts.length === 1 ? 'host' : 'hosts'}.`}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Total Owed To Hosts</p>
+            <p className="mt-1 text-3xl font-bold text-[#003049]">
+              {peso(unrequested.total + monthly.reduce((s, m) => s + m.payoutsRequestedPending, 0))}
+            </p>
+            <p className="mt-2 text-xs text-gray-500">
+              Unrequested plus the requested-and-still-pending payouts in the table above.
+            </p>
+          </div>
+        </div>
+        <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
+          {unrequested.hosts.length === 0 ? (
+            <p className="p-6 text-center text-sm text-gray-500">Nothing owed that hasn&apos;t been requested.</p>
+          ) : (
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-xs text-gray-500">
+                  <th className="px-4 py-3">Host</th>
+                  <th className="px-4 py-3">Eligible Bookings</th>
+                  <th className="px-4 py-3">Owed</th>
+                  <th className="px-4 py-3">Blocker</th>
+                </tr>
+              </thead>
+              <tbody>
+                {unrequested.hosts.map((h) => (
+                  <tr key={h.hostId} className="border-b border-gray-50">
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-gray-900">{h.hostName}</p>
+                      {h.sublabel && <p className="text-xs text-gray-500">{h.sublabel}</p>}
+                    </td>
+                    <td className="px-4 py-3">{h.bookings}</td>
+                    <td className="px-4 py-3 font-semibold">{peso(h.amount)}</td>
+                    <td className="px-4 py-3">
+                      {h.blocker ? (
+                        <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                          {h.blocker}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-500">None — not yet requested</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
 

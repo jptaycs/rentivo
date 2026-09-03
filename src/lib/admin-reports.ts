@@ -59,7 +59,8 @@ export interface MonthlyRevenue {
    * This is NOT total liability to hosts. A host only appears here once they
    * have actively asked for their money; completed, paid, payout-eligible
    * bookings whose host has not yet clicked Request Payout are owed all the
-   * same and appear nowhere on this page. The field is named
+   * same — that figure is getUnrequestedPayouts(), shown in its own section
+   * on the reports page since 2026-09-04. The field is named
    * `payoutsRequestedPending`, not `payoutsOwed`, precisely so the identifier
    * cannot be read as the broader figure — see the on-page caption too.
    */
@@ -105,6 +106,37 @@ export interface CommissionTotals {
   uncollected: number
 }
 
+/**
+ * One host's payout-eligible earnings that no payout request has claimed.
+ * See getUnrequestedPayouts() for the eligibility definition.
+ */
+export interface UnrequestedPayoutRow {
+  hostId: string
+  hostName: string
+  /** City, or the deleted-account disambiguator — same shape as RankedRow.sublabel. */
+  sublabel: string
+  /** Eligible, unclaimed bookings behind `amount`. */
+  bookings: number
+  /** Sum of rental_fee + delivery_fee over those bookings — what request_payout() would pay. */
+  amount: number
+  /**
+   * Why this money is still sitting here, when it can be told from the data:
+   * the host has no payout account, theirs isn't verified yet, was rejected,
+   * they're suspended (046 blocks request_payout), or they already have a
+   * pending request (only one at a time; these bookings would join the next
+   * one). `null` means nothing is stopping them — they just haven't asked.
+   */
+  blocker: string | null
+}
+
+export interface UnrequestedPayouts {
+  /** Platform-wide total owed to hosts that nobody has requested yet. */
+  total: number
+  bookings: number
+  /** Per host, largest amount first. */
+  hosts: UnrequestedPayoutRow[]
+}
+
 const MONEY_SELECT =
   'service_fee, rental_fee, delivery_fee, security_deposit, total_amount, payment_method, created_at'
 
@@ -140,6 +172,121 @@ export async function getCommissionTotals(): Promise<CommissionTotals> {
   const earned = rows.reduce((s, b) => s + b.service_fee, 0)
   const collected = rows.filter((b) => isPaymongoMethod(b.payment_method)).reduce((s, b) => s + b.service_fee, 0)
   return { earned, collected, uncollected: earned - collected }
+}
+
+/**
+ * Host earnings that are eligible for a payout but that no host has requested.
+ *
+ * This is the figure "Payouts Pending" deliberately does NOT include (see
+ * MonthlyRevenue.payoutsRequestedPending): liability the platform carries
+ * whether or not anyone has clicked Request Payout. The eligibility rule is a
+ * line-for-line mirror of the `eligible` CTE in request_payout() — 046 is the
+ * authoritative body — minus its `host_id = auth.uid()` scope:
+ *   status = 'completed' and payment_status = 'paid'
+ *   and payment_method is distinct from 'host_qr'   (029: paid to the host directly)
+ *   and payment_method is distinct from 'test_skip' (033: never charged)
+ *   and not itemized in a payout_request whose status is 'pending' or 'paid'
+ *   payable = rental_fee + delivery_fee                (038)
+ * If request_payout()'s CTE changes, change this in the same commit — the
+ * whole value of the number is that it predicts what request_payout() would
+ * pay, and the one prior enumeration-style figure on this page drifted from
+ * create_booking exactly this way (see MonthlyRevenue.revenue's doc).
+ *
+ * A `failed` payout request releases its bookings (they are NOT in the
+ * exclusion), matching request_payout(): a host whose payout bounced is owed
+ * that money again.
+ */
+export async function getUnrequestedPayouts(): Promise<UnrequestedPayouts> {
+  const admin = createAdminClient()
+
+  const [{ data: bookingData, error: bookingError }, { data: itemData, error: itemError }] =
+    await Promise.all([
+      admin
+        .from('bookings')
+        .select(
+          `id, host_id, rental_fee, delivery_fee,
+           host:profiles!bookings_host_id_fkey(${PROFILE_COLUMNS})`
+        )
+        .eq('status', 'completed')
+        .eq('payment_status', 'paid')
+        // PostgREST has no `is distinct from`; `payment_method` is nullable
+        // and a null method (pre-payment-method bookings) IS eligible in the
+        // RPC, so build the same truth table explicitly: null, or not one of
+        // the two excluded values.
+        .or('payment_method.is.null,payment_method.not.in.(host_qr,test_skip)'),
+      admin
+        .from('payout_items')
+        .select('booking_id, request:payout_requests!payout_items_payout_request_id_fkey(status)'),
+    ])
+  if (bookingError) throw new Error(`Failed to load completed bookings: ${bookingError.message}`)
+  if (itemError) throw new Error(`Failed to load payout_items: ${itemError.message}`)
+
+  const claimed = new Set(
+    ((itemData ?? []) as unknown as { booking_id: string; request: { status: string } | null }[])
+      .filter((i) => i.request?.status === 'pending' || i.request?.status === 'paid')
+      .map((i) => i.booking_id)
+  )
+
+  type Row = {
+    id: string
+    host_id: string
+    rental_fee: number
+    delivery_fee: number
+    host: { full_name: string; city: string | null } | null
+  }
+  const eligible = ((bookingData ?? []) as unknown as Row[]).filter((b) => !claimed.has(b.id))
+
+  const byHost = new Map<string, UnrequestedPayoutRow>()
+  for (const b of eligible) {
+    let row = byHost.get(b.host_id)
+    if (!row) {
+      const name = b.host?.full_name ?? 'Unknown host'
+      row = {
+        hostId: b.host_id,
+        hostName: name,
+        sublabel: deletedSublabel(name, b.host_id, b.host?.city ?? null),
+        bookings: 0,
+        amount: 0,
+        blocker: null,
+      }
+      byHost.set(b.host_id, row)
+    }
+    row.bookings += 1
+    row.amount += b.rental_fee + b.delivery_fee
+  }
+
+  // Explain, where the data can, why each host hasn't requested. Only
+  // fetched for the hosts that actually appear — usually a handful.
+  const hostIds = [...byHost.keys()]
+  if (hostIds.length > 0) {
+    const [{ data: accounts }, { data: pendingRequests }, { data: profiles }] = await Promise.all([
+      admin.from('payout_accounts').select('user_id, status').in('user_id', hostIds),
+      admin.from('payout_requests').select('host_id').eq('status', 'pending').in('host_id', hostIds),
+      admin.from('profiles').select('id, suspended_at').in('id', hostIds),
+    ])
+    const accountStatus = new Map((accounts ?? []).map((a) => [a.user_id as string, a.status as string]))
+    const hasPending = new Set((pendingRequests ?? []).map((r) => r.host_id as string))
+    const suspended = new Set(
+      (profiles ?? []).filter((p) => p.suspended_at !== null).map((p) => p.id as string)
+    )
+    // Order matches request_payout()'s own guard order, so the blocker shown
+    // is the one the host would actually hit first.
+    for (const row of byHost.values()) {
+      const status = accountStatus.get(row.hostId)
+      if (suspended.has(row.hostId)) row.blocker = 'Suspended — payouts on hold'
+      else if (!status) row.blocker = 'No payout account'
+      else if (status === 'pending') row.blocker = 'Payout account awaiting review'
+      else if (status === 'rejected') row.blocker = 'Payout account rejected'
+      else if (hasPending.has(row.hostId)) row.blocker = 'Has a pending request — joins the next one'
+    }
+  }
+
+  const hosts = [...byHost.values()].sort((a, b) => b.amount - a.amount)
+  return {
+    total: hosts.reduce((s, h) => s + h.amount, 0),
+    bookings: eligible.length,
+    hosts,
+  }
 }
 
 /**
