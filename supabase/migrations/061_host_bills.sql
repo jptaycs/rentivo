@@ -25,11 +25,18 @@ create table if not exists public.host_bills (
   paid_at       timestamptz,
   paymongo_ref  text,
   void_reason   text,
-  created_at    timestamptz not null default now(),
-  unique (host_id, period)
+  created_at    timestamptz not null default now()
 );
 create index if not exists host_bills_host_idx on public.host_bills(host_id, period desc);
-create index if not exists host_bills_paymongo_ref_idx on public.host_bills(paymongo_ref);
+-- A voided bill must free its (host_id, period) slot so a correction can be
+-- rebilled in the SAME period (fix round 1, finding 2) — so the "one bill per
+-- host per period" rule is a PARTIAL unique index over non-void rows, not a
+-- table-level UNIQUE. generate_host_bills' ON CONFLICT targets this index.
+create unique index if not exists host_bills_active_period_key
+  on public.host_bills(host_id, period) where status <> 'void';
+-- Two bills must never share a PayMongo intent id; null (unpaid) is exempt.
+create unique index if not exists host_bills_paymongo_ref_idx
+  on public.host_bills(paymongo_ref) where paymongo_ref is not null;
 create index if not exists host_bills_overdue_idx on public.host_bills(host_id) where status = 'issued';
 
 alter table public.host_bills enable row level security;
@@ -68,8 +75,10 @@ grant select on public.host_bill_items to authenticated;
 --   paid_at < period + 1 month, not already itemized.
 -- No lower bound inside the period on purpose: a booking marked paid after
 -- its own month was billed is picked up by the next run, not lost.
--- Idempotent: unique (host_id, period) + unique booking_id. Returns only
--- the bills created by THIS call.
+-- Idempotent: the partial unique index on (host_id, period) where status <>
+-- 'void', plus unique booking_id. Returns only the bills created by THIS
+-- call. A void bill's slot is free for a rerun to fill (see the index
+-- comment above and void_host_bill's p_rebill=true mode).
 create or replace function public.generate_host_bills(p_period date)
 returns setof public.host_bills
 language plpgsql security definer set search_path = public
@@ -77,6 +86,14 @@ as $$
 declare
   v_policy_start constant timestamptz := '2026-09-05 00:00+08';
   v_grace        constant interval    := interval '14 days';
+  -- Fix round 1, finding 1: `p_period + interval '1 month'` is a timestamp
+  -- WITHOUT time zone, so comparing it to `paid_at timestamptz` used the
+  -- calling session's TimeZone GUC (UTC for the service-role connection),
+  -- not the +08 POLICY_START is anchored to — a booking paid ~03:00 Manila
+  -- on the 1st could land on the wrong month depending on who's connected.
+  -- Hoisted once here and used in BOTH predicates below so they cannot drift.
+  -- Month edges are Manila-local because POLICY_START is.
+  v_period_end   constant timestamptz := (p_period + interval '1 month')::timestamp at time zone 'Asia/Manila';
   v_host         uuid;
   v_bill         public.host_bills;
 begin
@@ -91,10 +108,15 @@ begin
        and b.payment_status = 'paid'
        and b.status <> 'cancelled'
        and b.paid_at >= v_policy_start
-       and b.paid_at < (p_period + interval '1 month')
+       and b.paid_at < v_period_end
        and b.service_fee > 0
        and not exists (select 1 from public.host_bill_items i where i.booking_id = b.id)
-       and not exists (select 1 from public.host_bills hb where hb.host_id = b.host_id and hb.period = p_period)
+       -- Fix round 1, finding 2: only an ACTIVE (non-void) bill for this
+       -- period blocks a rerun — a voided bill's slot must be refillable.
+       and not exists (
+         select 1 from public.host_bills hb
+          where hb.host_id = b.host_id and hb.period = p_period and hb.status <> 'void'
+       )
   loop
     with eligible as (
       select b.id, b.service_fee
@@ -104,7 +126,7 @@ begin
          and b.payment_status = 'paid'
          and b.status <> 'cancelled'
          and b.paid_at >= v_policy_start
-         and b.paid_at < (p_period + interval '1 month')
+         and b.paid_at < v_period_end
          and b.service_fee > 0
          and not exists (select 1 from public.host_bill_items i where i.booking_id = b.id)
     ),
@@ -113,7 +135,7 @@ begin
       select v_host, p_period, sum(e.service_fee), now() + v_grace
         from eligible e
       having sum(e.service_fee) > 0
-      on conflict (host_id, period) do nothing
+      on conflict (host_id, period) where status <> 'void' do nothing
       returning *
     ),
     new_items as (
@@ -161,9 +183,19 @@ revoke execute on function public.mark_host_bill_paid(uuid, text) from public, a
 grant  execute on function public.mark_host_bill_paid(uuid, text) to service_role;
 
 -- ── void_host_bill ─────────────────────────────────────────────────────────
--- Admin's only correction/waiver tool. Releases the items so a rerun bills
--- the bookings again. Paid bills cannot be voided.
-create or replace function public.void_host_bill(p_bill_id uuid, p_reason text)
+-- Admin's only correction/waiver tool, with two distinct modes (fix round 1,
+-- finding 2 — the original single mode did neither honestly):
+--   p_rebill = true  (default) — CORRECTION. The bill itself was wrong (e.g.
+--     issued against the wrong host or amount). Its items are released, so
+--     the next generate_host_bills run — even for the SAME period, since a
+--     void bill's slot in host_bills_active_period_key is free — bills those
+--     bookings again on a fresh bill.
+--   p_rebill = false — WAIVER. The bookings really were billed correctly but
+--     the host paid Rentivo outside the app (bank transfer, in person, etc).
+--     Items stay attached to the voided bill so those bookings are NEVER
+--     re-billed by a later run.
+-- Paid bills can never be voided either way.
+create or replace function public.void_host_bill(p_bill_id uuid, p_reason text, p_rebill boolean default true)
 returns public.host_bills
 language plpgsql security definer set search_path = public
 as $$
@@ -177,7 +209,9 @@ begin
   if v_bill.status = 'void' then return v_bill; end if;
   if v_bill.status = 'paid' then raise exception 'A paid bill cannot be voided.'; end if;
 
-  delete from public.host_bill_items where bill_id = p_bill_id;
+  if p_rebill then
+    delete from public.host_bill_items where bill_id = p_bill_id;
+  end if;
   update public.host_bills
      set status = 'void', void_reason = trim(p_reason)
    where id = p_bill_id
@@ -186,8 +220,9 @@ begin
 end;
 $$;
 
-revoke execute on function public.void_host_bill(uuid, text) from public, anon, authenticated;
-grant  execute on function public.void_host_bill(uuid, text) to service_role;
+drop function if exists public.void_host_bill(uuid, text);
+revoke execute on function public.void_host_bill(uuid, text, boolean) from public, anon, authenticated;
+grant  execute on function public.void_host_bill(uuid, text, boolean) to service_role;
 
 -- ── is_host_billing_delinquent ─────────────────────────────────────────────
 -- security definer so the answer never depends on what the caller may read

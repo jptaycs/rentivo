@@ -4,7 +4,6 @@
 import { URL as SUPABASE_URL, ANON, SECRET, admin, asUser, signIn } from './env.mjs'
 
 const FORBIDDEN_HOST = 'c38111b3-9922-4d18-9ae9-a12c8ffb9c68'
-const POLICY_START = '2026-09-05T00:00:00+08:00'
 let fails = 0
 const check = (name, ok, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${extra ? ' — ' + extra : ''}`); if (!ok) fails++ }
 const rpc = async (tok, fn, args = {}) => {
@@ -15,7 +14,6 @@ const rpc = async (tok, fn, args = {}) => {
   const text = await res.text()
   return { status: res.status, body: text ? JSON.parse(text) : null }
 }
-const sub = (tok) => JSON.parse(Buffer.from(tok.split('.')[1], 'base64url').toString()).sub
 const denied = (r) => r.status === 401 || r.status === 403 || /permission denied/.test(JSON.stringify(r.body))
 
 // ── throwaway accounts (auth admin API) ──
@@ -75,6 +73,9 @@ try {
   await admin(`bookings?id=eq.${bPrePolicy.id}`, { method: 'PATCH', body: JSON.stringify({ paid_at: '2026-09-01T10:00:00+08:00' }) })
   const feeOf = async (id) => (await admin(`bookings?select=service_fee&id=eq.${id}`)).body[0].service_fee
 
+  const badPeriod = await rpc(SECRET, 'generate_host_bills', { p_period: '2030-01-15' })
+  check('generate_host_bills rejects a non-month-start period', badPeriod.status >= 400 && /first day/i.test(badPeriod.body?.message ?? ''), `${badPeriod.status} ${JSON.stringify(badPeriod.body)}`)
+
   // ── generate: once, then again ──
   const g1 = await rpc(SECRET, 'generate_host_bills', { p_period: PERIOD })
   check('generate #1 -> 200 with one bill', g1.status === 200 && Array.isArray(g1.body) && g1.body.length === 1, `${g1.status} ${JSON.stringify(g1.body).slice(0, 120)}`)
@@ -104,6 +105,10 @@ try {
   check('renter reads zero bills', other.status === 200 && other.body.length === 0)
   const otherItems = await asUser(renterTok, `host_bill_items?select=id`)
   check('renter reads zero items', otherItems.status === 200 && otherItems.body.length === 0)
+  const anonBills = await asUser(null, `host_bills?select=id`)
+  check('anon reads zero rows from host_bills (or denied)', (anonBills.status === 200 && anonBills.body.length === 0) || denied(anonBills), `${anonBills.status}`)
+  const anonItems = await asUser(null, `host_bill_items?select=id`)
+  check('anon reads zero rows from host_bill_items (or denied)', (anonItems.status === 200 && anonItems.body.length === 0) || denied(anonItems), `${anonItems.status}`)
   const ins = await asUser(hostTok, 'host_bills', { method: 'POST', body: JSON.stringify({ host_id: hostId, period: '2031-01-01', amount: 1, due_at: new Date().toISOString() }) })
   check('host cannot insert a bill (privilege)', denied(ins), `${ins.status}`)
   const upd = await asUser(hostTok, `host_bills?id=eq.${bill.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'paid' }) })
@@ -116,6 +121,8 @@ try {
   check('generate_host_bills denied to authenticated', denied(rpcAsHost), `${rpcAsHost.status}`)
   const markAsHost = await rpc(hostTok, 'mark_host_bill_paid', { p_bill_id: bill.id, p_paymongo_ref: 'pi_x' })
   check('mark_host_bill_paid denied to authenticated', denied(markAsHost), `${markAsHost.status}`)
+  const voidAsHost = await rpc(hostTok, 'void_host_bill', { p_bill_id: bill.id, p_reason: 'nope' })
+  check('void_host_bill denied to authenticated', denied(voidAsHost), `${voidAsHost.status}`)
 
   // ── delinquency + enforcement trigger ──
   const d0 = await rpc(null, 'is_host_billing_delinquent', { p_host_id: hostId })
@@ -140,22 +147,46 @@ try {
   check('host_qr booking allowed again after payment', allowed.status === 200, `${allowed.status} ${allowed.body?.message ?? ''}`)
   if (allowed.body?.id) bookingIds.push(allowed.body.id)
 
-  // ── void ──
+  // ── void: two modes (fix round 1, finding 2) ──
   const bill2 = g3.body[0]
   const vNoReason = await rpc(SECRET, 'void_host_bill', { p_bill_id: bill2.id, p_reason: '  ' })
-  check('void without a reason raises', vNoReason.status >= 400)
+  check('void without a reason raises', vNoReason.status >= 400 && /reason/i.test(vNoReason.body?.message ?? ''), `${vNoReason.status} ${vNoReason.body?.message}`)
+
+  // Correction (p_rebill defaults true): releases the items.
   const v1 = await rpc(SECRET, 'void_host_bill', { p_bill_id: bill2.id, p_reason: 'probe void' })
-  check('void -> status void with reason', v1.status === 200 && v1.body?.status === 'void' && v1.body?.void_reason === 'probe void')
+  check('correction-void -> status void with reason', v1.status === 200 && v1.body?.status === 'void' && v1.body?.void_reason === 'probe void')
   const { body: itemsAfterVoid } = await admin(`host_bill_items?select=id&bill_id=eq.${bill2.id}`)
-  check('void released the items', itemsAfterVoid.length === 0)
+  check('correction-void released the items', itemsAfterVoid.length === 0)
+
+  // The voided bill's (host_id, period) slot is free — a rerun of the SAME
+  // period rebills the released booking rather than waiting for the next one.
+  const g3b = await rpc(SECRET, 'generate_host_bills', { p_period: '2030-02-01' })
+  check('same-period rerun after correction-void creates one new bill', g3b.status === 200 && g3b.body.length === 1, `${g3b.status} ${JSON.stringify(g3b.body).slice(0, 100)}`)
+  const bill2b = g3b.body[0]
+  const { body: items2b } = await admin(`host_bill_items?select=booking_id&bill_id=eq.${bill2b.id}`)
+  check('rebilled bill holds the late-paid booking again', items2b.length === 1 && items2b[0].booking_id === bLate.id)
+  const { body: feb2030Rows } = await admin(`host_bills?select=id,status&host_id=eq.${hostId}&period=eq.2030-02-01`)
+  check('host now has two rows for 2030-02 (one void, one issued)', feb2030Rows.length === 2 && feb2030Rows.some((r) => r.status === 'void') && feb2030Rows.some((r) => r.status === 'issued'))
+
+  const markVoid = await rpc(SECRET, 'mark_host_bill_paid', { p_bill_id: bill2.id, p_paymongo_ref: 'pi_should_fail' })
+  check('mark_host_bill_paid on a void bill raises', markVoid.status >= 400 && /void/i.test(markVoid.body?.message ?? ''), `${markVoid.status} ${markVoid.body?.message}`)
+
+  // Waiver (p_rebill: false): the host paid Rentivo outside the app, so the
+  // items stay attached — the booking must never be re-billed again.
+  const vWaive = await rpc(SECRET, 'void_host_bill', { p_bill_id: bill2b.id, p_reason: 'waived — paid outside app', p_rebill: false })
+  check('waiver void -> status void', vWaive.status === 200 && vWaive.body?.status === 'void' && vWaive.body?.void_reason === 'waived — paid outside app')
+  const { body: itemsAfterWaive } = await admin(`host_bill_items?select=id&bill_id=eq.${bill2b.id}`)
+  check('waiver void keeps the items attached', itemsAfterWaive.length === 1)
   const g4 = await rpc(SECRET, 'generate_host_bills', { p_period: '2030-03-01' })
-  check('rerun re-bills the released booking on a new bill', g4.status === 200 && g4.body.length === 1 && g4.body[0].id !== bill2.id)
+  check('rerun never re-bills a waived booking', g4.status === 200 && !g4.body.some((b) => b.host_id === hostId), `${g4.status} ${JSON.stringify(g4.body).slice(0, 100)}`)
+
   const vPaid = await rpc(SECRET, 'void_host_bill', { p_bill_id: bill.id, p_reason: 'should fail' })
-  check('voiding a paid bill raises', vPaid.status >= 400)
+  check('voiding a paid bill raises', vPaid.status >= 400 && /paid bill/i.test(vPaid.body?.message ?? ''), `${vPaid.status} ${vPaid.body?.message}`)
   const vAgain = await rpc(SECRET, 'void_host_bill', { p_bill_id: bill2.id, p_reason: 'again' })
   check('voiding a void bill is a no-op with the original reason', vAgain.status === 200 && vAgain.body?.void_reason === 'probe void')
 } finally {
-  // Cleanup: bills (items cascade), bookings, listing, profiles rows are anonymised by auth delete cascade? No — profiles.id -> auth.users cascades, so deleting the auth user removes the profile row and, via bookings FK without cascade, would FAIL. Delete in dependency order instead.
+  // Bills before bookings: host_bill_items.booking_id has NO cascade, so
+  // deleting host_bills first (cascading its items) avoids an FK violation.
   await admin(`host_bills?host_id=eq.${hostId}`, { method: 'DELETE' })
   await admin(`notifications?user_id=eq.${hostId}`, { method: 'DELETE' })
   await admin(`notifications?user_id=eq.${renterId}`, { method: 'DELETE' })
