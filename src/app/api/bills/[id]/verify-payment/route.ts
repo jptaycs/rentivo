@@ -22,6 +22,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     .maybeSingle()
   if (!bill) return NextResponse.json({ error: 'Bill not found.' }, { status: 404 })
   if (bill.status === 'paid') return NextResponse.json({ status: 'paid' })
+  // A void bill is never payable — mirrors the webhook's issued-only guard,
+  // and avoids mark_host_bill_paid raising "Cannot mark a void bill as paid."
+  if (bill.status === 'void') return NextResponse.json({ status: 'unpaid' })
   if (!bill.paymongo_ref || !isPayMongoConfigured()) return NextResponse.json({ status: 'unpaid' })
 
   try {

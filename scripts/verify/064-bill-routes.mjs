@@ -69,6 +69,27 @@ try {
   const { body: [afterPay] } = await admin(`host_bills?select=paymongo_ref,status&id=eq.${probeBill.id}`)
   check('pay: paymongo_ref stored, still issued', /^pi_/.test(afterPay.paymongo_ref ?? '') && afterPay.status === 'issued', JSON.stringify(afterPay))
 
+  // Confirm the intent PayMongo actually holds matches the bill: right
+  // amount, and metadata carries the bill id (the webhook's stale-intent
+  // fallback depends on this).
+  const pmRes = await fetch(`https://api.paymongo.com/v1/payment_intents/${afterPay.paymongo_ref}`, {
+    headers: { Authorization: `Basic ${Buffer.from(`${process.env.PAYMONGO_SECRET_KEY}:`).toString('base64')}` },
+  })
+  const pmBody = await pmRes.json()
+  check(
+    'pay: PayMongo intent amount and metadata match the bill',
+    pmBody.data?.attributes?.amount === 123 * 100 && pmBody.data?.attributes?.metadata?.host_bill_id === probeBill.id,
+    JSON.stringify(pmBody.data?.attributes?.metadata)
+  )
+
+  // Finding 2(a): a second click on the same still-issued bill must reuse
+  // the live intent (same QR), not mint a fresh one that orphans the first.
+  const pay2 = await fetch(`${APP}/api/bills/${probeBill.id}/pay`, { method: 'POST', headers: { Cookie: adminCookie } })
+  const pay2Body = await pay2.json()
+  check('pay: second click on a still-issued bill returns 200 with a QR (reuse path)', pay2.status === 200 && typeof pay2Body.qrImage === 'string' && pay2Body.qrImage.startsWith('data:image/'), `${pay2.status} ${JSON.stringify(pay2Body).slice(0, 100)}`)
+  const { body: [afterPay2] } = await admin(`host_bills?select=paymongo_ref&id=eq.${probeBill.id}`)
+  check('pay: reuse path did not mint a new intent — paymongo_ref unchanged', afterPay2.paymongo_ref === afterPay.paymongo_ref, `${afterPay2.paymongo_ref} vs ${afterPay.paymongo_ref}`)
+
   const verify = await fetch(`${APP}/api/bills/${probeBill.id}/verify-payment`, { method: 'POST', headers: { Cookie: adminCookie } })
   const verifyBody = await verify.json()
   check('verify-payment: unpaid intent reports unpaid/processing', verify.status === 200 && ['unpaid', 'processing'].includes(verifyBody.status), `${verify.status} ${JSON.stringify(verifyBody)}`)
