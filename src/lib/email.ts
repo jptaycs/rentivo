@@ -185,7 +185,7 @@ function hostCancelledByRenterHtml(ctx: EmailContext, refunded: boolean, isHostQ
   )
 }
 
-function newMessageHtml(ctx: { senderName: string; listingTitle: string; preview: string; bookingId: string }) {
+function newMessageHtml(ctx: { senderName: string; listingTitle: string; preview: string; conversationId: string }) {
   const senderName = escapeHtml(ctx.senderName)
   const listingTitle = escapeHtml(ctx.listingTitle)
   const preview = escapeHtml(ctx.preview)
@@ -198,7 +198,7 @@ function newMessageHtml(ctx: { senderName: string; listingTitle: string; preview
      <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;font-style:italic;">
        "${preview}"
      </p>
-     ${button(`${APP_URL}/dashboard/messages?booking=${escapeHtml(ctx.bookingId)}`, 'Reply')}`
+     ${button(`${APP_URL}/dashboard/messages?conversation=${escapeHtml(ctx.conversationId)}`, 'Reply')}`
   )
 }
 
@@ -360,24 +360,24 @@ export async function notifyNewMessage(messageId: string) {
   const admin = createAdminClient()
   const { data: message } = await admin
     .from('messages')
-    .select('booking_id, sender_id, content, image_url')
+    .select('conversation_id, sender_id, content, image_url')
     .eq('id', messageId)
     .maybeSingle()
   if (!message) return
 
-  const { data: booking } = await admin
-    .from('bookings')
+  const { data: conversation } = await admin
+    .from('conversations')
     .select('renter_id, host_id, listing:listings(title)')
-    .eq('id', message.booking_id)
+    .eq('id', message.conversation_id)
     .maybeSingle()
-  const bookingRow = booking as unknown as {
+  const convoRow = conversation as unknown as {
     renter_id: string
     host_id: string
     listing: { title: string } | null
   } | null
-  if (!bookingRow) return
+  if (!convoRow) return
 
-  const recipientId = message.sender_id === bookingRow.renter_id ? bookingRow.host_id : bookingRow.renter_id
+  const recipientId = message.sender_id === convoRow.renter_id ? convoRow.host_id : convoRow.renter_id
 
   const [{ data: senderProfile }, { data: recipientProfile }, recipientUser] = await Promise.all([
     admin.from('profiles').select('full_name').eq('id', message.sender_id).single(),
@@ -398,9 +398,9 @@ export async function notifyNewMessage(messageId: string) {
     `New message from ${senderProfile?.full_name || 'a Rentivo user'}`,
     newMessageHtml({
       senderName: senderProfile?.full_name || 'A Rentivo user',
-      listingTitle: bookingRow.listing?.title ?? 'a listing',
+      listingTitle: convoRow.listing?.title ?? 'a listing',
       preview,
-      bookingId: message.booking_id,
+      conversationId: message.conversation_id,
     })
   )
 }
