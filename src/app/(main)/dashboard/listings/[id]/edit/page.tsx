@@ -48,6 +48,14 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
   const [city, setCity] = useState('')
   const [province, setProvince] = useState('')
   const [point, setPoint] = useState<{ lat: number; lng: number } | null>(null)
+  // Whether `point` is a host-PLACED pin, distinct from `point` merely being
+  // set (which also happens for a city-centre backfill — see the load()
+  // comment below). Only when this is true does a save write
+  // location_is_exact: true or touch latitude/longitude at all; the review
+  // that added this flag exists precisely because that distinction was
+  // previously not made, silently promoting a backfilled city centre into a
+  // claimed exact pin on any unrelated save.
+  const [pinPlaced, setPinPlaced] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
@@ -102,11 +110,20 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
     // the coordinates being set) — so `coords?.[0]` alone is truthy and
     // Number(null) would silently become 0, treating "no pin" as "pinned
     // at Null Island". Require both values to actually be non-null.
+    //
+    // These coordinates are the SAME row for every listing regardless of
+    // location_is_exact — for a listing that only ever got the 065 backfill,
+    // this is the city centre, not a placed pin. Seed `point` from it either
+    // way so the map opens centred on the right place, but `pinPlaced` (what
+    // actually gates the save below and the "set" copy) tracks
+    // `location_is_exact` from LISTING_COLUMNS, not merely whether a
+    // coordinate exists.
     const { data: coords } = await supabase.rpc('get_listing_coordinates', { p_listing_id: id })
     const row = coords?.[0]
     if (row && row.latitude != null && row.longitude != null) {
       setPoint({ lat: Number(row.latitude), lng: Number(row.longitude) })
     }
+    setPinPlaced(data.location_is_exact === true)
 
     setLoading(false)
   }, [id])
@@ -137,7 +154,11 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
         security_deposit: Number(deposit || 0),
         delivery_fee: deliveryFee === '' ? null : Number(deliveryFee),
         is_instant_book: isInstantBook,
-        ...(point ? { latitude: point.lat, longitude: point.lng, location_is_exact: true } : {}),
+        // Only a host-PLACED pin (this session, or already location_is_exact
+        // from load) writes coordinates / the exact flag. A save that never
+        // touched the map — e.g. just editing the price — must leave a
+        // city-centre backfill exactly as it was: not exact, and untouched.
+        ...(pinPlaced && point ? { latitude: point.lat, longitude: point.lng, location_is_exact: true } : {}),
       })
       .eq('id', id)
     setSaving(false)
@@ -306,7 +327,8 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
             city={city}
             province={province}
             value={point}
-            onChange={setPoint}
+            exact={pinPlaced}
+            onChange={(c) => { setPoint(c); setPinPlaced(true) }}
           />
         </section>
 

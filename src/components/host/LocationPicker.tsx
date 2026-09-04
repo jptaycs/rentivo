@@ -17,9 +17,17 @@ interface Props {
   province: string
   value: { lat: number; lng: number } | null
   onChange: (c: { lat: number; lng: number }) => void
+  // Whether `value` represents a host-PLACED pin, as opposed to merely being
+  // a coordinate to centre the map on (e.g. a city-centre backfill that has
+  // never actually been confirmed by the host — see the edit page, which is
+  // the one caller that seeds `value` in that second case). Defaults to
+  // `value != null`, which is exactly right for every other caller: those
+  // only ever set `value` once the host has placed a pin.
+  exact?: boolean
 }
 
-export function LocationPicker({ city, province, value, onChange }: Props) {
+export function LocationPicker({ city, province, value, onChange, exact }: Props) {
+  const isPlaced = exact ?? (value != null)
   return (
     <div className="rounded-2xl overflow-hidden border border-gray-200 bg-white">
       {/* Remount when the city changes so the map re-centres there. */}
@@ -27,7 +35,7 @@ export function LocationPicker({ city, province, value, onChange }: Props) {
       <div className="flex items-start gap-2 px-4 py-3 border-t border-gray-100">
         <MapPin className="w-4 h-4 text-[#003049] shrink-0 mt-0.5" />
         <p className="text-sm text-gray-600">
-          {value
+          {isPlaced
             ? 'Pickup point set. Drag the pin or tap the map to adjust.'
             : 'Tap the map to mark exactly where renters collect the gear.'}
           {' '}Renters see an approximate area until a booking is confirmed.

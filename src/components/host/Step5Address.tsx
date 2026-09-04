@@ -34,7 +34,7 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-[#111827]">Pickup location</h2>
-        <p className="text-gray-500 text-sm mt-1">Renters will see city and province only. The exact address is shared after booking.</p>
+        <p className="text-gray-500 text-sm mt-1">Renters see an approximate area on the map until a booking is confirmed. The exact address is shared after booking.</p>
       </div>
 
       {/* Province */}
@@ -42,7 +42,14 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
         <label className={label}>Province / Region <span className="text-red-400">*</span></label>
         <select
           value={data.province}
-          onChange={e => onChange({ ...data, province: e.target.value, city: '' })}
+          // Clear city AND the placed pin in the SAME onChange({...data, ...})
+          // call — two separate set() calls would each spread the same stale
+          // `data` prop and the second would silently discard the first
+          // (this exact bug has been fixed twice already in this codebase).
+          // Without also clearing lat/lng here, LocationPickerLeaflet prefers
+          // `value` over the city centre, so changing province would leave
+          // the map — and a submittable listing — pinned in the OLD province.
+          onChange={e => onChange({ ...data, province: e.target.value, city: '', lat: null, lng: null })}
           className={field}
         >
           <option value="">Select province</option>
