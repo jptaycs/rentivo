@@ -1,5 +1,6 @@
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getCityCoordinates } from '@/lib/ph-locations'
 
 /**
  * Shared account-deletion logic, called by BOTH the self-service route
@@ -230,6 +231,31 @@ export async function deleteAccount(uid: string): Promise<{ ok: true } | { ok: f
     .eq('host_id', uid)
   if (listingsError) {
     return { ok: false, error: listingsError.message }
+  }
+
+  // Reset exact pickup coordinates (065/066) to the listing's city centre —
+  // latitude/longitude are NOT NULL as of 066, so they can't be nulled the way
+  // street_address is above. This is the same value a listing had before its
+  // host ever placed a pin, and location_is_exact goes back to false so no UI
+  // may keep claiming precision for it. Kept in this same block, right after
+  // the address scrub above, so a reader finds one place where a host's
+  // location is cleared rather than two.
+  const { data: ownedListings, error: ownedListingsError } = await admin
+    .from('listings')
+    .select('id, city, province')
+    .eq('host_id', uid)
+  if (ownedListingsError) {
+    return { ok: false, error: ownedListingsError.message }
+  }
+  for (const listing of ownedListings ?? []) {
+    const { lat, lng } = getCityCoordinates(listing.city ?? '', listing.province ?? '')
+    const { error: coordsError } = await admin
+      .from('listings')
+      .update({ latitude: lat, longitude: lng, location_is_exact: false })
+      .eq('id', listing.id)
+    if (coordsError) {
+      return { ok: false, error: coordsError.message }
+    }
   }
 
   // Null the delivery address the user typed at checkout. The eligibility gate above
