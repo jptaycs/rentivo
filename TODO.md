@@ -85,12 +85,19 @@ real queue. Each was recorded as a "deferred, minor" aside inside a Status entry
   than the leak, which is bucket bloat with no user-visible effect.
 - [ ] **10 of 83 province centers sit 31–48 km from their nearest listed city.** A
   coarse-fallback precision question, not a correctness one.
-- [ ] **`ReviewsList.tsx` falls back to mock reviews when its `reviews` prop is
-  `undefined`.** Safe today — its only call site always passes real reviews when Supabase
-  is configured — but fragile the moment a second caller omits the prop.
-- [ ] **`InquiryDialog` doesn't restore focus to the "Message Host" button on close** (it
-  goes to `body`), because that button is a plain `<button>` toggling state rather than a
-  `DialogTrigger`. a11y polish.
+- [x] **`ReviewsList.tsx` fell back to mock reviews on an omitted prop** (fixed
+  2026-09-04). The fallback is now gated on `isSupabaseConfigured()`, matching the pattern
+  every other mock-importing file in this repo already uses: with a real backend an
+  omitted prop renders the empty state, never invented reviews on someone's real listing.
+  No behaviour change today — the only call site already passes `undefined` solely in mock
+  mode — so this closes the footgun rather than fixing a live bug.
+- [x] **`InquiryDialog` didn't restore focus to the "Message Host" button on close**
+  (fixed 2026-09-04). base-ui sends focus to `<body>` because the trigger is a plain
+  `<button>` toggling state rather than a `DialogTrigger`. `HostCard` now holds a ref to
+  it and refocuses on the next animation frame — after base-ui's own focus handling, or it
+  would be overwritten. Verified in a browser on a real session: dialog opens, focus starts
+  inside it, Escape closes it, and `document.activeElement === ` the trigger button by
+  element identity.
 
 **A decision, not a task:** `/dashboard/earnings` still counts only `rental_fee` for
 `host_qr` bookings, though the host actually received the full `total_amount` directly.

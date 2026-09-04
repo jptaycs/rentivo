@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { BadgeCheck, Star, Clock, Calendar, ExternalLink } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { InquiryDialog } from '@/components/listings/InquiryDialog'
@@ -14,6 +14,14 @@ interface HostCardProps {
 
 export function HostCard({ host, listingId }: HostCardProps) {
   const [inquiryOpen, setInquiryOpen] = useState(false)
+  // base-ui returns focus to <body> on close, since this trigger is a plain
+  // button rather than a DialogTrigger. Put focus back where the user left it,
+  // on the next frame so it lands after the dialog's own focus handling.
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const closeInquiry = () => {
+    setInquiryOpen(false)
+    requestAnimationFrame(() => triggerRef.current?.focus())
+  }
   const initials = host.full_name
     .split(' ')
     .map((n) => n[0])
@@ -72,6 +80,7 @@ export function HostCard({ host, listingId }: HostCardProps) {
 
       <button
         type="button"
+        ref={triggerRef}
         onClick={() => setInquiryOpen(true)}
         className="w-full border border-[#003049] text-[#003049] font-semibold py-2.5 rounded-xl text-sm hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
       >
@@ -81,7 +90,7 @@ export function HostCard({ host, listingId }: HostCardProps) {
         listingId={listingId}
         hostName={host.full_name}
         open={inquiryOpen}
-        onClose={() => setInquiryOpen(false)}
+        onClose={closeInquiry}
       />
       <Link
         href={`/hosts/${host.id}`}

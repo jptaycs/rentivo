@@ -1,5 +1,6 @@
 import { Star } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { isSupabaseConfigured } from '@/lib/supabase/config'
 import type { Review } from '@/types'
 
 const MOCK_REVIEWS = [
@@ -29,7 +30,11 @@ const MOCK_REVIEWS = [
 interface ReviewsListProps {
   rating: number | null
   reviewCount: number
-  /** Live reviews from the database; when undefined the mock set is shown */
+  /**
+   * Live reviews from the database. When undefined, the mock set is shown ONLY
+   * in mock mode (no Supabase configured) — with a real backend an omitted prop
+   * renders the empty state, never invented reviews on someone's real listing.
+   */
   reviews?: Review[]
 }
 
@@ -51,7 +56,9 @@ export function ReviewsList({ rating, reviewCount, reviews }: ReviewsListProps) 
           date: new Date(r.created_at).toLocaleDateString('en-PH', { month: 'long', year: 'numeric' }),
           comment: r.comment,
         }))
-      : MOCK_REVIEWS
+      : isSupabaseConfigured()
+        ? []
+        : MOCK_REVIEWS
 
   const avg = rating ?? (items.length > 0 ? items.reduce((s, r) => s + r.rating, 0) / items.length : null)
 
