@@ -71,10 +71,18 @@ real queue. Each was recorded as a "deferred, minor" aside inside a Status entry
   notice tracks actual degradation, not a flag that is always on.
   **Still open:** whether to vendor the ~11 MB no-SIMD pair so those devices get a real
   check rather than a manual-review fallback. That is a size/benefit call, not a bug.
-- [ ] **Listing-wizard photo re-uploads orphan storage objects.** The dedupe map is keyed
-  by `File` object identity, so going back to Step 1 after a failed submit and re-adding a
-  removed photo re-uploads it and strands the earlier object in `listing-images`. Bucket
-  bloat only — no duplicate-listing risk.
+- [x] **Listing-wizard photo re-uploads orphaned storage objects** (fixed 2026-09-04).
+  `uploadedImagesRef` was a `Map<File, string>`, so it matched on object identity — and
+  re-picking a photo after a failed submit produces a brand-new `File` instance, so the
+  dedupe missed, the photo uploaded a second time, and the first copy was stranded in
+  `listing-images`. Now keyed by `name:size:lastModified`. Verified in a real browser that
+  the same file picked twice yields an identical key while a genuinely different file
+  yields a distinct one, so the reuse is real and nothing is wrongly deduped.
+  **Residual, deliberate:** a photo uploaded on a failed attempt and then *removed* before
+  the successful retry is still orphaned — nothing references it, and nothing deletes it.
+  Fixing that means deleting objects from the bucket inside the wizard's five-write submit
+  sequence, which is the most failure-sensitive path in this codebase; that risk is worse
+  than the leak, which is bucket bloat with no user-visible effect.
 - [ ] **10 of 83 province centers sit 31–48 km from their nearest listed city.** A
   coarse-fallback precision question, not a correctness one.
 - [ ] **`ReviewsList.tsx` falls back to mock reviews when its `reviews` prop is

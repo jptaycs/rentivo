@@ -43,7 +43,14 @@ export function ListingWizard() {
   // in the same mount always sees the latest values.
   const submittingRef = useRef(false)
   const listingIdRef = useRef<string | null>(null)
-  const uploadedImagesRef = useRef<Map<File, string>>(new Map())
+  // Keyed by name+size+lastModified, NOT by the File object. Re-picking the
+  // same photo after a failed submit produces a brand-new File instance, so
+  // object identity missed it and re-uploaded, stranding the first copy in the
+  // bucket. Three matching attributes means the same file in every realistic
+  // case; a collision would only reuse one of the host's own photos in their
+  // own listing, which is cheaper than the leak it prevents.
+  const uploadedImagesRef = useRef<Map<string, string>>(new Map())
+  const photoKey = (f: File) => `${f.name}:${f.size}:${f.lastModified}`
   const [warning, setWarning] = useState('')
   const [hostVerified, setHostVerified] = useState(true)
 
@@ -94,7 +101,8 @@ export function ListingWizard() {
       for (const { file } of state.photos) {
         // Already uploaded on an earlier attempt — reuse it rather than
         // orphaning a second copy in the bucket.
-        const existing = uploadedImagesRef.current.get(file)
+        const key = photoKey(file)
+        const existing = uploadedImagesRef.current.get(key)
         if (existing) { imageUrls.push(existing); continue }
 
         const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
@@ -104,7 +112,7 @@ export function ListingWizard() {
           .upload(path, file, { contentType: file.type })
         if (uploadError) throw new Error(`Photo upload failed: ${uploadError.message}`)
         const url = supabase.storage.from('listing-images').getPublicUrl(path).data.publicUrl
-        uploadedImagesRef.current.set(file, url)
+        uploadedImagesRef.current.set(key, url)
         imageUrls.push(url)
       }
 
