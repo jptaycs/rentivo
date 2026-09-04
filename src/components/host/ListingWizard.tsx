@@ -17,7 +17,7 @@ interface WizardState {
   details: { category: string; brand: string; model: string; serialNumber: string; condition: string; description: string; accessories: string[] }
   pricing: { dailyPrice: string; weeklyPrice: string; monthlyPrice: string; securityDeposit: string; deliveryFee: string }
   blockedDates: string[]
-  address: { streetAddress: string; city: string; province: string; isInstantBook: boolean }
+  address: { streetAddress: string; city: string; province: string; isInstantBook: boolean; lat: number | null; lng: number | null }
   verify: VerifyData
 }
 
@@ -26,7 +26,7 @@ const INITIAL: WizardState = {
   details: { category: '', brand: '', model: '', serialNumber: '', condition: '', description: '', accessories: [] },
   pricing: { dailyPrice: '', weeklyPrice: '', monthlyPrice: '', securityDeposit: '', deliveryFee: '' },
   blockedDates: [],
-  address: { streetAddress: '', city: '', province: '', isInstantBook: false },
+  address: { streetAddress: '', city: '', province: '', isInstantBook: false, lat: null, lng: null },
   verify: { idFile: null, selfieFile: null, agreed: false, idCode: null, selfieCode: null, degraded: false, autoCheckFailed: false, autoCheckDetail: null, idAttempts: 0, selfieAttempts: 0, override: false },
 }
 
@@ -135,6 +135,9 @@ export function ListingWizard() {
         province: address.province,
         street_address: address.streetAddress || null,
         is_instant_book: address.isInstantBook,
+        latitude: address.lat,
+        longitude: address.lng,
+        location_is_exact: true,
         images: imageUrls,
         accessories: details.accessories,
       }

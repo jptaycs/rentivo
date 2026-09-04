@@ -2,12 +2,15 @@
 
 import { ChevronLeft, ChevronRight, MapPin, Zap } from 'lucide-react'
 import { PH_PROVINCES } from '@/lib/ph-locations'
+import { LocationPicker } from './LocationPicker'
 
 interface AddressData {
   streetAddress: string
   city: string
   province: string
   isInstantBook: boolean
+  lat: number | null
+  lng: number | null
 }
 
 interface Step5AddressProps {
@@ -22,7 +25,7 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
     onChange({ ...data, [key]: value })
   }
 
-  const canContinue = data.city && data.province
+  const canContinue = Boolean(data.province && data.city && data.lat != null && data.lng != null)
 
   const field = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100 transition-all bg-white'
   const label = 'block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5'
@@ -56,6 +59,20 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
           placeholder="Enter your city"
           className={field}
         />
+      </div>
+
+      {/* Exact pickup point */}
+      <div>
+        <label className={label}>Pickup Point <span className="text-red-400">*</span></label>
+        <LocationPicker
+          city={data.city}
+          province={data.province}
+          value={data.lat != null && data.lng != null ? { lat: data.lat, lng: data.lng } : null}
+          onChange={(c) => onChange({ ...data, lat: c.lat, lng: c.lng })}
+        />
+        {(data.lat == null || data.lng == null) && (
+          <p className="text-sm text-amber-700 mt-2">Mark your pickup point on the map to continue.</p>
+        )}
       </div>
 
       {/* Street address */}
