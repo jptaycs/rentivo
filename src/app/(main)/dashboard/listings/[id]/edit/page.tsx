@@ -95,11 +95,17 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
     setProvince(data.province ?? '')
 
     // Exact coordinates never come through LISTING_COLUMNS (migration 064
-    // revoked table-level SELECT on listings) — the RPC is the only path,
-    // and it returns zero rows rather than raising for a non-host caller.
+    // revoked table-level SELECT on listings) — the RPC is the only path.
+    // It returns zero rows for a non-host caller, but for an entitled host
+    // whose listing simply has no pin yet it returns ONE row shaped
+    // {latitude: null, longitude: null} (it filters on ownership, not on
+    // the coordinates being set) — so `coords?.[0]` alone is truthy and
+    // Number(null) would silently become 0, treating "no pin" as "pinned
+    // at Null Island". Require both values to actually be non-null.
     const { data: coords } = await supabase.rpc('get_listing_coordinates', { p_listing_id: id })
-    if (coords?.[0]) {
-      setPoint({ lat: Number(coords[0].latitude), lng: Number(coords[0].longitude) })
+    const row = coords?.[0]
+    if (row && row.latitude != null && row.longitude != null) {
+      setPoint({ lat: Number(row.latitude), lng: Number(row.longitude) })
     }
 
     setLoading(false)
