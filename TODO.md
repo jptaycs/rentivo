@@ -31,6 +31,16 @@ Nothing above can be worked on without PayMongo or an owner decision, so these a
 real queue. Each was recorded as a "deferred, minor" aside inside a Status entry in
 `AGENTS.md` rather than tracked here, which is why they were easy to lose.
 
+- [x] **`/dashboard/earnings`' CSV export had two defects** (fixed 2026-09-04). It carried
+  its own `toCsv()` that interpolated fields into a template string: no formula-injection
+  guard, so a host-authored listing title beginning `=`/`+`/`-`/`@` executed as a formula
+  when a host opened their own export in Excel — the issue already fixed for `/admin`'s
+  exports — and **no quote escaping at all**, so a renter name or title containing `"`
+  corrupted the file structurally. Now uses the shared `src/lib/csv.ts`, which is the only
+  CSV writer in the app again; `csv.ts`'s own note recording this as an outstanding bug was
+  updated, since it no longer is. Verified against the real module: `Juan "JD" Dela Cruz` →
+  `"Juan ""JD"" Dela Cruz"`, `=HYPERLINK(…)` → `'=HYPERLINK(…)`, and a numeric `-350` left
+  alone rather than becoming `'-350`.
 - [ ] **`Step3Payment`'s `canPay` doesn't gate on the selected method being unavailable.**
   Unreachable with the currently shipped env value, but the `?? 'qrph'` fallback would
   select a flagged-unavailable method and still let the Pay button submit — which is

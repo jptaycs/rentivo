@@ -3,6 +3,7 @@
 import { DollarSign, TrendingUp, Clock, Download, Loader2 } from 'lucide-react'
 import { useHostBookings } from '@/hooks/useBookings'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { toCsv } from '@/lib/csv'
 
 const MOCK_MONTHLY = [
   { month: 'Jan', amount: 18400 },
@@ -15,12 +16,6 @@ const MOCK_MONTHLY = [
 ]
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-function toCsv(rows: { date: string; renter: string; equipment: string; amount: number; status: string }[]) {
-  const header = 'Date,Renter,Equipment,Amount (PHP),Status'
-  const lines = rows.map((r) => `${r.date},"${r.renter}","${r.equipment}",${r.amount},${r.status}`)
-  return [header, ...lines].join('\n')
-}
 
 export default function EarningsPage() {
   const live = isSupabaseConfigured()
@@ -64,14 +59,20 @@ export default function EarningsPage() {
     .slice(0, 10)
 
   function exportCsv() {
-    const rows = transactions.map((t) => ({
-      date: t.paid_at ?? t.created_at,
-      renter: t.renter?.full_name ?? '',
-      equipment: t.listing?.title ?? '',
-      amount: t.rental_fee + t.delivery_fee,
-      status: t.status,
-    }))
-    const blob = new Blob([toCsv(rows)], { type: 'text/csv' })
+    // Shared src/lib/csv.ts, not a local helper: `renter` and `equipment` are
+    // user-authored, so they need both quote escaping and the formula-injection
+    // guard — a host opens this file on their own machine.
+    const csv = toCsv(
+      ['Date', 'Renter', 'Equipment', 'Amount (PHP)', 'Status'],
+      transactions.map((t) => [
+        t.paid_at ?? t.created_at,
+        t.renter?.full_name ?? '',
+        t.listing?.title ?? '',
+        t.rental_fee + t.delivery_fee,
+        t.status,
+      ])
+    )
+    const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

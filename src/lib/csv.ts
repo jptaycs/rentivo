@@ -18,10 +18,11 @@
  * Numbers are exempt — they're produced by this codebase, never by a user, and
  * a negative amount must not become the string "'-350".
  *
- * NOTE: `/dashboard/earnings` has its own older toCsv() that quotes only some
- * fields, does not escape embedded quotes, and has no formula guard. That is a
- * real (pre-existing) bug in that page, deliberately left alone here rather
- * than pulled into this change's scope — but do not copy its approach.
+ * `/dashboard/earnings` used to carry its own weaker toCsv() — it quoted only
+ * some fields, never escaped embedded quotes, and had no formula guard. It was
+ * switched onto this module on 2026-09-04, so this is now the only CSV writer
+ * in the app. Keep it that way: a second local helper is how the first one
+ * ended up shipping both defects.
  */
 const FORMULA_LEAD = /^[=+\-@]/
 
