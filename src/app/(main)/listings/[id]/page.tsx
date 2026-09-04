@@ -163,7 +163,14 @@ export default async function ListingPage({ params }: ListingPageProps) {
             {/* Pickup Location */}
             <section>
               <h2 className="text-xl font-bold text-[#111827] mb-4">Pickup Location</h2>
-              <PickupMap city={listing.city} province={listing.province} />
+              <PickupMap
+                city={listing.city}
+                province={listing.province}
+                title={listing.title}
+                imageUrl={listing.images?.[0]}
+                approxLat={listing.approx_latitude}
+                approxLng={listing.approx_longitude}
+              />
             </section>
 
             <Separator />

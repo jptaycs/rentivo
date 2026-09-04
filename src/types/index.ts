@@ -59,6 +59,13 @@ export interface Listing {
   images: string[]
   accessories: string[]
   created_at: string
+  // Public approximation only (065) — rounded to 2dp, ~775m of slop. Exact
+  // latitude/longitude are never exposed on this type; they live behind a
+  // confirmed-booking-gated RPC. Optional/nullable: absent on mock data and
+  // on any row backfilled before a host ever placed a pin.
+  approx_latitude?: number | null
+  approx_longitude?: number | null
+  location_is_exact?: boolean
   host?: Profile
 }
 

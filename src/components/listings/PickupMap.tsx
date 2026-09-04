@@ -6,6 +6,10 @@ import { MapPin, Loader2 } from 'lucide-react'
 interface PickupMapProps {
   city: string
   province: string
+  title: string
+  imageUrl?: string
+  approxLat?: number | null
+  approxLng?: number | null
 }
 
 const LeafletMap = dynamic(() => import('./PickupMapLeaflet'), {
@@ -17,15 +21,22 @@ const LeafletMap = dynamic(() => import('./PickupMapLeaflet'), {
   ),
 })
 
-export function PickupMap({ city, province }: PickupMapProps) {
+export function PickupMap({ city, province, title, imageUrl, approxLat, approxLng }: PickupMapProps) {
   return (
     <div className="rounded-2xl overflow-hidden border border-gray-100 bg-white">
-      <LeafletMap city={city} province={province} />
+      <LeafletMap
+        city={city}
+        province={province}
+        title={title}
+        imageUrl={imageUrl}
+        approxLat={approxLat}
+        approxLng={approxLng}
+      />
       <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100">
         <MapPin className="w-4 h-4 text-[#003049] shrink-0" />
         <p className="text-sm text-gray-600">
           <span className="font-semibold text-[#111827]">{city}, {province}</span>
-          {' — '}exact pickup address is shared after your booking is confirmed.
+          {' — approximate area. '}The exact pickup point is shared once your booking is confirmed.
         </p>
       </div>
     </div>

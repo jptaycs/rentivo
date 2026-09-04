@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import 'leaflet/dist/leaflet.css'
 import { MAP_TILE_URL, MAP_TILE_OPTIONS } from '@/lib/map-tiles'
 import { getCityCoordinates } from '@/lib/ph-locations'
+import { escapeHtml } from '@/lib/html-escape'
 import type { Listing } from '@/types'
 // Bundled locally so the marker serves from 'self' — next.config.ts's CSP
 // img-src does not (and should not) allow unpkg.com; these are Next
@@ -22,15 +23,6 @@ function assetSrc(mod: string | { src: string }): string {
 
 interface SearchMapLeafletProps {
   listings: Listing[]
-}
-
-// Escapes for text content and double-quoted attributes — all generated HTML attributes must stay double-quoted
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }
 
 export default function SearchMapLeaflet({ listings }: SearchMapLeafletProps) {
