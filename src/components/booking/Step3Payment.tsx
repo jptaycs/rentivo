@@ -197,6 +197,12 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
 
   const canPay =
     agreed &&
+    // The selected method must actually be available. The initial state above
+    // falls back to 'qrph' when enabledPaymentMethods() is empty, so without
+    // this a fully-disabled list (a PayMongo outage, say) would select a
+    // tile rendered "Unavailable" and still let Pay submit — the checkout
+    // route would then reject it with a 400 the renter can't act on.
+    !isPaymentMethodDisabled(method) &&
     ((isWallet && mobileNumber.replace(/\D/g, '').length === 11) ||
       (isCard && cardNumber.replace(/\s/g, '').length === 16 && cardExpiry && cardCvv.length >= 3 && cardName) ||
       isHostQr ||

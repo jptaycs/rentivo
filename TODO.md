@@ -41,10 +41,19 @@ real queue. Each was recorded as a "deferred, minor" aside inside a Status entry
   updated, since it no longer is. Verified against the real module: `Juan "JD" Dela Cruz` →
   `"Juan ""JD"" Dela Cruz"`, `=HYPERLINK(…)` → `'=HYPERLINK(…)`, and a numeric `-350` left
   alone rather than becoming `'-350`.
-- [ ] **`Step3Payment`'s `canPay` doesn't gate on the selected method being unavailable.**
-  Unreachable with the currently shipped env value, but the `?? 'qrph'` fallback would
-  select a flagged-unavailable method and still let the Pay button submit — which is
-  exactly what happens if `qrph` ever joins the disabled list during a PayMongo outage.
+- [x] **`Step3Payment`'s `canPay` didn't gate on the selected method being unavailable**
+  (fixed 2026-09-04). The `?? 'qrph'` fallback in the initial state means an empty
+  `enabledPaymentMethods()` — every method disabled, e.g. during a PayMongo outage —
+  selects `qrph` even though its tile renders "Coming soon", and `canPay`'s `|| isQrph`
+  branch then let Pay submit; the checkout route would reject it with a 400 the renter
+  can't act on. `canPay` now also requires `!isPaymentMethodDisabled(method)`.
+  Proven with a before/after pair rather than by reading: built with
+  `NEXT_PUBLIC_DISABLED_PAYMENT_METHODS=gcash,maya,card,qrph` (the value is inlined at
+  build time, so this needs its own build) and walked to the payment step in mock mode,
+  which makes `/book` reachable with no session. With the fix removed, the agreement
+  ticked and Pay read `payDisabled: false`; with it in place, `payDisabled: true` — the
+  checkbox genuinely ticked in both runs, so the difference is the guard, not the
+  agreement.
 - [ ] **MediaPipe's no-SIMD fallback isn't vendored.** Older iOS (<16.4) and Android
   WebViews request `vision_wasm_nosimd_internal.*`, 404 on it, and get a silent
   `degraded` (unchecked) ID verification pass. Honest at the database layer — the row is
