@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeft, Save, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { SERVICE_FEE_RATE } from '@/lib/pricing'
+import { LISTING_COLUMNS } from '@/lib/listing-columns'
 
 // Values must match the listings table's equipment_category / listing_condition
 // enums (001_initial_schema.sql) — same options the host wizard's Step2Details uses.
@@ -63,7 +64,10 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
     // empty-looking form.
     const { data, error: loadError } = await supabase
       .from('listings')
-      .select('*')
+      // Explicit columns, not '*': migration 064 revoked table-level SELECT on
+      // listings, so a bare select('*') now 403s on street_address /
+      // serial_number / latitude / longitude. This page never used them.
+      .select(LISTING_COLUMNS)
       .eq('id', id)
       .eq('host_id', user.id)
       .maybeSingle()
