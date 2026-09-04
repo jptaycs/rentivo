@@ -6,20 +6,6 @@ import { MAP_TILE_URL, MAP_TILE_OPTIONS } from '@/lib/map-tiles'
 import { getCityCoordinates } from '@/lib/ph-locations'
 import { escapeHtml } from '@/lib/html-escape'
 import type { Listing } from '@/types'
-// Bundled locally so the marker serves from 'self' — next.config.ts's CSP
-// img-src does not (and should not) allow unpkg.com; these are Next
-// static-asset imports (resolve to hashed URLs under /_next/static/media).
-import markerIconUrl from 'leaflet/dist/images/marker-icon.png'
-import markerIconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
-import markerShadowUrl from 'leaflet/dist/images/marker-shadow.png'
-
-// Next's webpack image loader returns a `StaticImageData` object (`.src`);
-// Turbopack's dev-mode loader for a plain (non-`next/image`) import instead
-// returns the resolved URL string directly. Handle both so the bundled
-// marker works identically under `next dev` and `next build`.
-function assetSrc(mod: string | { src: string }): string {
-  return typeof mod === 'string' ? mod : mod.src
-}
 
 interface SearchMapLeafletProps {
   listings: Listing[]
@@ -37,27 +23,6 @@ export default function SearchMapLeaflet({ listings }: SearchMapLeafletProps) {
     import('leaflet').then((L) => {
       if (cancelled || !containerRef.current) return
 
-      // Group listings by city — city-level coords mean same-city listings share one point
-      const groups = new Map<string, { city: string; province: string; items: Listing[] }>()
-      for (const listing of listings) {
-        const key = `${listing.city}|${listing.province}`
-        const group = groups.get(key) ?? { city: listing.city, province: listing.province, items: [] }
-        group.items.push(listing)
-        groups.set(key, group)
-      }
-
-      // Default marker icon assets don't resolve under Next's bundler as
-      // Leaflet ships them — import them as Next static assets instead so
-      // they're bundled and served from 'self' (the CSP doesn't, and
-      // shouldn't, allow a marker-image CDN).
-      const icon = L.icon({
-        iconUrl: assetSrc(markerIconUrl),
-        iconRetinaUrl: assetSrc(markerIconRetinaUrl),
-        shadowUrl: assetSrc(markerShadowUrl),
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-      })
-
       const map = L.map(containerRef.current, {
         scrollWheelZoom: true,
         attributionControl: true,
@@ -65,39 +30,48 @@ export default function SearchMapLeaflet({ listings }: SearchMapLeafletProps) {
 
       L.tileLayer(MAP_TILE_URL, MAP_TILE_OPTIONS).addTo(map)
 
+      // One floating card per listing, at its approximate pickup point —
+      // falling back to the city centre for a listing with no coordinates
+      // yet (pre-065 backfill, or mock data). Deliberately no collision
+      // handling or clustering: cards will overlap where listings cluster
+      // (mostly Metro Manila) — that's an accepted product decision, not a
+      // gap. The mouseover/mouseout z-index bump below is legibility only,
+      // keeping an overlapped card clickable, not de-collision.
       const coords: [number, number][] = []
-      for (const group of groups.values()) {
-        const { lat, lng } = getCityCoordinates(group.city, group.province)
+      for (const item of listings) {
+        const { lat, lng } =
+          item.approx_latitude != null && item.approx_longitude != null
+            ? { lat: item.approx_latitude, lng: item.approx_longitude }
+            : getCityCoordinates(item.city, item.province)
         coords.push([lat, lng])
 
-        const rows = group.items
-          .slice(0, 5)
-          .map((item) => {
-            const thumb = item.images[0]
-              ? `<img src="${escapeHtml(item.images[0])}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'" />`
-              : `<span style="width:40px;height:40px;border-radius:8px;background:#F1F5F9;flex-shrink:0"></span>`
-            return `<a href="/listings/${escapeHtml(item.id)}" style="display:flex;align-items:center;gap:8px;padding:6px 0;text-decoration:none;color:#111827">
-              ${thumb}
-              <span style="min-width:0">
-                <span style="display:block;font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">${escapeHtml(item.title)}</span>
-                <span style="display:block;color:#003049;font-weight:700;font-size:12px">₱${item.daily_price.toLocaleString('en-PH')}/day</span>
-              </span>
-            </a>`
-          })
-          .join('')
+        // Same card markup/styling as PickupMapLeaflet.tsx's listing-detail
+        // pin, plus the price and a link wrapper. Title and image URL are
+        // host-authored and go straight into innerHTML, so both are
+        // escaped — as is the listing id used in the href.
+        const thumb = item.images[0]
+          ? `<img src="${escapeHtml(item.images[0])}" alt="" style="width:36px;height:36px;border-radius:8px;object-fit:cover"
+              onerror="this.style.display='none'" />`
+          : ''
+        const html = `<a href="/listings/${escapeHtml(item.id)}" style="display:flex;align-items:center;gap:8px;background:#fff;border-radius:12px;
+            box-shadow:0 4px 14px rgba(0,0,0,.18);padding:6px 10px 6px 6px;white-space:nowrap;text-decoration:none;color:#111827">
+            ${thumb}
+            <span style="min-width:0">
+              <span style="display:block;font-weight:600;font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis">${escapeHtml(item.title)}</span>
+              <span style="display:block;color:#003049;font-weight:700;font-size:12px">₱${item.daily_price.toLocaleString('en-PH')}/day</span>
+            </span>
+          </a>`
 
-        const more =
-          group.items.length > 5
-            ? `<p style="margin:4px 0 0;font-size:11px;color:#6B7280">+${group.items.length - 5} more listings</p>`
-            : ''
+        const card = L.divIcon({
+          className: '',
+          html,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+        })
 
-        const html = `<div style="min-width:220px">
-          <p style="margin:0 0 4px;font-weight:700;font-size:13px;color:#111827">${escapeHtml(group.city)}, ${escapeHtml(group.province)}</p>
-          ${rows}
-          ${more}
-        </div>`
-
-        L.marker([lat, lng], { icon }).addTo(map).bindPopup(html, { maxWidth: 280 })
+        const marker = L.marker([lat, lng], { icon: card }).addTo(map)
+        marker.on('mouseover', () => marker.setZIndexOffset(1000))
+        marker.on('mouseout', () => marker.setZIndexOffset(0))
       }
 
       if (coords.length === 1) {
