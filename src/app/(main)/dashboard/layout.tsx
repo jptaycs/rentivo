@@ -4,6 +4,7 @@ import { Suspense, useState } from 'react'
 import { Menu } from 'lucide-react'
 import { DashboardSidebar } from '@/components/dashboard/DashboardSidebar'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { useProfile } from '@/hooks/useProfile'
 
 interface SidebarsProps {
   sidebarOpen: boolean
@@ -25,13 +26,23 @@ function DashboardSidebars({ sidebarOpen, onCloseMobile }: SidebarsProps) {
   // — matching this app's original behavior for any link this doesn't
   // yet cover.
   const view = searchParams.get('view')
+  // With no ?view= param this used to fall back to the renter-only path list
+  // and default to HOST for everything else — so a renter who bookmarked or
+  // deep-linked /dashboard/messages, /reviews or /settings got a host sidebar
+  // offering My Listings, Earnings and Payout Settings, none of which apply to
+  // them. Fall back to the account's own is_host flag instead. `profile` is
+  // null while loading, so the host default is preserved until it resolves,
+  // which keeps a host from flashing the renter nav on first paint.
+  const { profile } = useProfile()
+  const accountIsRenterOnly = profile ? !profile.is_host : false
   const isRenterSection =
     view === 'renter' ||
     (view !== 'host' &&
       (pathname.startsWith('/dashboard/rentals') ||
         pathname.startsWith('/dashboard/wishlist') ||
         pathname.startsWith('/dashboard/receipts') ||
-        pathname.startsWith('/dashboard/notifications')))
+        pathname.startsWith('/dashboard/notifications') ||
+        accountIsRenterOnly))
 
   return (
     <>
