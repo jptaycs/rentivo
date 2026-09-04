@@ -104,9 +104,13 @@ async function createCardPaymentMethod(card: {
 
 export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step3PaymentProps) {
   const { user } = useUser()
-  // No reset needed if the host turns out delinquent: this default can never
-  // be 'host_qr' (it's not in enabledPaymentMethods()) — only clicking the
-  // tile itself sets 'host_qr', and by then the tile is already known-present.
+  // This default can never be 'host_qr' (it's not in enabledPaymentMethods()).
+  // Selecting 'host_qr' only ever happens by clicking the tile — but the tile
+  // renders OPTIMISTICALLY (hostDelinquent below starts false, before the
+  // delinquency RPC resolves), so a user CAN select it in that window even if
+  // the host turns out delinquent a moment later. Harmless either way: the
+  // database trigger is the real enforcement, regardless of what the client
+  // believed when the tile was clicked.
   const [method, setMethod] = useState<PaymentMethod>(
     () => enabledPaymentMethods()[0] ?? 'qrph'
   )
@@ -126,8 +130,14 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
   // Withhold the direct-QR tile while the host has an overdue commission bill
   // (host commission billing, 061). The database trigger refuses such a
   // booking anyway; this just never shows an option that would be refused.
-  // is_host_billing_delinquent is anon-callable and security definer, same
-  // shape as is_host_suspended on /dashboard/rentals.
+  // is_host_billing_delinquent is anon-callable and security definer, but
+  // unlike is_host_suspended on /dashboard/rentals (which fails SAFE — an
+  // RPC error is treated as suspended), this check fails OPEN: `.then(({data})
+  // => ...)` ignores `error`, so an unanswerable call leaves `data`
+  // undefined, `Boolean(undefined)` is false, and the tile stays visible.
+  // Acceptable here — this is a UX nicety, not the enforcement; the trigger
+  // blocks the actual booking server-side regardless of what this client
+  // believes.
   const [hostDelinquent, setHostDelinquent] = useState(false)
   useEffect(() => {
     let cancelled = false

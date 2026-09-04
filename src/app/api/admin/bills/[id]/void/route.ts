@@ -37,5 +37,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (error || !bill) {
     return NextResponse.json({ error: error?.message ?? 'Void failed.' }, { status: 400 })
   }
+
+  // Audit trail: every comparable admin money/moderation action (suspend,
+  // unsuspend, delete) writes an admin_actions row. Voiding a bill forgives
+  // real money owed to Rentivo (and in waiver mode, permanently exempts
+  // those bookings from ever being billed), so it needs the same record.
+  // target_user_id has no FK — the bill row itself isn't a user, so this
+  // names the host the bill belongs to, matching how every other row here
+  // names a user. Non-fatal, matching the suspend route's pattern: the void
+  // has already succeeded, and a logging failure must not undo it.
+  const { error: auditError } = await admin.from('admin_actions').insert({
+    admin_email: gate.email ?? 'unknown',
+    action: 'void_bill',
+    target_user_id: bill.host_id,
+    detail: { bill_id: bill.id, period: bill.period, amount: bill.amount, reason, rebill },
+  })
+  if (auditError) {
+    console.error('[admin] void_bill audit insert failed', auditError)
+  }
+
   return NextResponse.json({ bill })
 }

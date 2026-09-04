@@ -5,6 +5,11 @@ import { notifyHostBillIssued } from '@/lib/email'
 import { normalizePeriod, previousPeriod } from '@/lib/billing'
 import type { HostBill } from '@/types'
 
+// Same reasoning as src/app/api/cron/host-bills/route.ts: this route also
+// awaits every host's notification email before responding, so the default
+// function timeout must not freeze it mid-send.
+export const maxDuration = 60
+
 export async function POST(req: Request) {
   const gate = await requireAdminApi()
   if (gate instanceof NextResponse) return gate

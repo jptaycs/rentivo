@@ -13,7 +13,7 @@ This is a **temporary** mechanism for the period in which QR Ph is the only PayM
 
 | Question | Decision | Why |
 |---|---|---|
-| What is billed | The 5% `service_fee` already charged on each host-QR booking in the month | The renter already paid it into the host's wallet; the bill asks for Rentivo's share back. Same rate as every other method. ₱0 months produce no bill. |
+| What is billed | The 5% `service_fee` already charged on each host-QR booking in the month | The renter already paid it into the host's wallet; the bill asks for Rentivo's share back. Same rate as every other method. A month whose eligible total falls under PayMongo's ₱100 minimum charge produces no bill — those bookings roll forward and bill on a later month once the rolled-forward sum clears ₱100. |
 | How the host pays | In-app, QR Ph through PayMongo | The one active PayMongo method. The existing webhook marks it paid; no admin bookkeeping. |
 | Unpaid bill | After a 14-day grace period, withhold the **host-QR payment option** on that host's listings | Removes exactly the thing that created the debt. Listings stay live and bookable via PayMongo methods. |
 | Delivery | Email + in-app notification, both linking to a new `/dashboard/bills` page | Reuses the two channels booking events already use. A Rentivo-to-host *message thread* was considered and rejected: conversations are always a renter and a host on a listing, so it would need a system account, a new conversation shape and admin UI to write into it, and a thread is a poor place for a Pay button. |
@@ -46,7 +46,7 @@ Migration **061** (`061_host_bills.sql`) — tables, RLS, RPCs, helper, trigger.
 | `void_reason` | text | required by `void_host_bill` |
 | `created_at` | timestamptz not null default now() | |
 
-Unique `(host_id, period)`.
+Unique `(host_id, period)` **where `status <> 'void'`** — a PARTIAL unique index, not a plain table-level unique constraint. The partiality is load-bearing: it frees a voided bill's `(host_id, period)` slot so a correction can be rebilled in the *same* period. An unconditional unique constraint would block that rerun outright, since the voided row would still occupy the slot.
 
 ### `host_bill_items`
 
@@ -57,7 +57,7 @@ Unique `(host_id, period)`.
 | `booking_id` | uuid not null → `bookings(id)` | **unique** — a booking is billed at most once, ever, across all bills |
 | `amount` | integer not null | the booking's `service_fee` at billing time |
 
-Void releases items: `void_host_bill` deletes the bill's items (not the bill), so those bookings return to the eligible pool and a rerun bills them again. The unique `booking_id` therefore only ever blocks a booking that is on an `issued` or `paid` bill.
+Void releases items **conditionally**, via `void_host_bill`'s `p_rebill` parameter (default `true`): in correction mode (`p_rebill = true`) it deletes the bill's items (not the bill), so those bookings return to the eligible pool and a rerun bills them again; in waiver mode (`p_rebill = false`, for a bill the host settled outside the app) the items stay attached to the voided bill, so those bookings are never billed again. The unique `booking_id` therefore blocks a booking that is on an `issued` or `paid` bill, or on a voided bill that was waived.
 
 ### Eligibility (the one definition, inside `generate_host_bills`)
 
@@ -73,9 +73,9 @@ Note the **absence** of a lower bound on `paid_at` within the period: a booking 
 
 ### RPCs (all `security definer`, `set search_path = public`)
 
-- `generate_host_bills(p_period date) returns setof host_bills` — **service_role only**. For each host with billable bookings: insert the bill with `amount = sum(service_fee)`, `due_at = now() + 14 days`, insert one item per booking, then (063) insert a `bill_issued` notification. `on conflict (host_id, period) do nothing` on the bill and the unique `booking_id` on items make a rerun a no-op; the function returns only the bills it created this call. Hosts whose billable total is ₱0 get no row. One CTE per host so amount and items come from one snapshot (the 021 lesson).
+- `generate_host_bills(p_period date) returns setof host_bills` — **service_role only**. For each host with billable bookings: insert the bill with `amount = sum(service_fee)`, `due_at = now() + 14 days`, insert one item per booking, then (063) insert a `bill_issued` notification — but only when that sum reaches PayMongo's ₱100 minimum charge; hosts whose eligible sum falls short get no bill this run, and those bookings stay un-itemized so a later run's larger rolled-forward sum can clear the floor. `on conflict (host_id, period) where status <> 'void' do nothing` on the bill and the unique `booking_id` on items make a rerun a no-op; the function returns only the bills it created this call. One CTE per host so amount and items come from one snapshot (the 021 lesson).
 - `mark_host_bill_paid(p_bill_id uuid, p_paymongo_ref text) returns host_bills` — **service_role only**, idempotent: `issued → paid` sets `paid_at = now()` and `paymongo_ref`; already `paid` returns the row unchanged; `void` raises.
-- `void_host_bill(p_bill_id uuid, p_reason text) returns host_bills` — **service_role only**. `issued → void`, stores the reason (required, non-empty), deletes the bill's items. `paid` raises ("a paid bill cannot be voided"); already `void` returns unchanged.
+- `void_host_bill(p_bill_id uuid, p_reason text, p_rebill boolean default true) returns host_bills` — **service_role only**. `issued → void`, stores the reason (required, non-empty). `p_rebill = true` (default, correction mode) deletes the bill's items, releasing them for the next run to re-bill — even within the same period, since the voided bill's slot in the partial unique index is now free. `p_rebill = false` (waiver mode, for a bill the host paid outside the app) leaves the items attached, so those bookings are never billed again. `paid` raises ("a paid bill cannot be voided"); already `void` returns unchanged (regardless of the `p_rebill` passed on the repeat call — the first call's mode already took effect).
 - `is_host_billing_delinquent(p_host_id uuid) returns boolean` — `security definer`, **granted to anon and authenticated**, `stable`. True when the host has any bill with `status = 'issued' and due_at < now()`. Same shape and reasoning as `is_host_suspended()` (046): the answer must not depend on what the caller may read from `host_bills`.
 
 ### Enforcement trigger
@@ -106,7 +106,7 @@ Note the **absence** of a lower bound on `paid_at` within the period: a booking 
 
 ## Paying a bill
 
-- `POST /api/bills/[id]/pay` — cookie session. Loads the bill through the **user's** client (RLS scopes it to the host's own bills; a stranger's bill is a 404), refuses unless `status = 'issued'` (400), then through the service-role client: `createPaymentIntent({ amountCentavos: amount * 100, description: 'Rentivo commission — {Month YYYY}', metadata: { host_bill_id } })`, update `paymongo_ref` on the bill, `createQrPhPaymentMethod()`, `attachPaymentIntent(...)`. Returns `{ qrImage, billId }` from the `code.image_url` branch. A second click creates a fresh intent and overwrites `paymongo_ref`; the earlier intent simply never pays. Any non-QR `next_action` shape or a failed attach → 502 with `paymentErrorMessage`, matching the checkout route.
+- `POST /api/bills/[id]/pay` — cookie session. Loads the bill through the **user's** client (RLS scopes it to the host's own bills; a stranger's bill is a 404), refuses unless `status = 'issued'` (400). A second click reuses rather than replaces: if the bill already has a `paymongo_ref` for a still-usable intent, the route re-fetches that intent from PayMongo — if it already succeeded, the bill is marked paid directly and the route returns `{ status: 'paid', billId }` with no QR image; otherwise the *same* intent's QR is returned again (`{ qrImage, billId }`), so no earlier intent is ever orphaned by a repeat click. Only when there's no usable existing intent does the route mint a fresh one: `createPaymentIntent({ amountCentavos: amount * 100, description: 'Rentivo commission — {Month YYYY}', metadata: { host_bill_id } })`, update `paymongo_ref` on the bill, `createQrPhPaymentMethod()`, `attachPaymentIntent(...)`, returning `{ qrImage, billId }` from the `code.image_url` branch. Any non-QR `next_action` shape or a failed attach → 502 with `paymentErrorMessage`, matching the checkout route.
 - **Webhook.** `POST /api/webhooks/paymongo`, `payment.paid` branch: after the existing booking lookup by `paymongo_ref`, **if no booking matched**, look up `host_bills` by `paymongo_ref` and call `mark_host_bill_paid(bill.id, intentId)`. Both RPCs are idempotent, so a replayed event is harmless. Signature verification unchanged. Because a bill intent's `paymongo_ref` is on the bill row, the metadata is informational only.
 - **Polling.** `/dashboard/bills` polls the bill's `status` every 3 s while its QR is shown (RLS read, the host's own row), exactly as `BookingWizard` polls a booking's `payment_status`, and flips the row to Paid when the webhook lands. `/book/complete` is not involved.
 - **Enforcement release.** The moment `mark_host_bill_paid` runs, `is_host_billing_delinquent` returns false; nothing else needs to happen.
@@ -119,7 +119,7 @@ Sidebar entry **Bills** (icon `Receipt`) after Earnings in the host nav. Page: a
 
 ### Admin — `/admin/bills`
 
-Nav link **Bills**. Top: a month picker defaulting to last month and a **Run billing** button → `POST /api/admin/bills/run`, showing *Created n bills* (or *Nothing to bill*). Below: a table filtered by `?status=issued|overdue|paid|void|all` (default `issued`): host (name, link to `/admin/users/[id]`), period, amount, issued, due, paid date, PayMongo ref, and a **Void** action with a required reason → `POST /api/admin/bills/[id]/void`. `/admin` overview gains a fourth card, **Overdue bills**, linking to `?status=overdue`. `/admin/reports` gains **Billed** and **Bill payments** figures beside Uncollected (sum of `issued+paid` bill amounts; sum of `paid`), so Uncollected − Bill payments is what is still actually owed. `getUnrequestedPayouts()` is untouched.
+Nav link **Bills**. Top: a month picker defaulting to last month and a **Run billing** button → `POST /api/admin/bills/run`, showing *Created n bills* (or *Nothing to bill*). Below: a table filtered by `?status=issued|overdue|paid|void|all` (default `issued`): host (name, link to `/admin/users/[id]`), period, amount, issued, due, paid date, PayMongo ref, and a **Void** action with a required reason → `POST /api/admin/bills/[id]/void`. `/admin` overview gains a fourth card, **Overdue bills**, linking to `?status=overdue`. `/admin/reports` gains **Billed** and **Bill payments** figures beside Uncollected (sum of `issued+paid` bill amounts; sum of `paid`), so **Billed − Bill payments** is what is still actually owed — not Uncollected − Bill payments, which overstates it: Uncollected includes fees that can never be billed at all (`test_skip` bookings, pre-`POLICY_START` bookings, and any sub-₱100 balance still rolling forward), so subtracting bill payments from it does not land on a true "still owed" figure. `getUnrequestedPayouts()` is untouched.
 
 ### Policy copy
 

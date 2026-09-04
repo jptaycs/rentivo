@@ -1,7 +1,7 @@
 // Verifies the billing HTTP routes against a dev server on :3100 and the
 // hosted database. Run: node scripts/verify/064-bill-routes.mjs
 import { readFileSync } from 'node:fs'
-import { URL as SUPABASE_URL, ANON, admin } from './env.mjs'
+import { URL as SUPABASE_URL, ANON, admin, assertNoRealEligibleHostBillingBookings } from './env.mjs'
 
 const APP = process.argv[2] ?? 'http://localhost:3100'
 const REF = new URL(SUPABASE_URL).hostname.split('.')[0]
@@ -26,6 +26,13 @@ export { APP, check, signInFull, cookieHeaderFor, admin }
 
 const adminCookie = cookieHeaderFor(await signInFull('demo@demo.rentivo.ph', 'DemoRentivo1'))
 const renterCookie = cookieHeaderFor(await signInFull('renter@demo.rentivo.ph', 'DemoRentivo1'))
+
+// Safety: the cron route below runs the REAL cron route for the REAL
+// previous month and emails every host it bills. Abort rather than risk a
+// real send. Must run before that fetch (and before the admin-run route
+// below, cheaply — those probes use pre-policy/future periods and are safe
+// either way, but there is no reason not to be covered from here on).
+await assertNoRealEligibleHostBillingBookings()
 
 // ── cron route ──
 const noSecret = await fetch(`${APP}/api/cron/host-bills`)
@@ -113,15 +120,29 @@ try {
 
   // Void route (Task 8): a second, separate probe bill so the pay flow's
   // bill above stays `issued` for the webhook-replay section below.
-  const { body: [voidBill] } = await admin('host_bills', { method: 'POST', body: JSON.stringify({ host_id: probeBill.host_id, period: '2031-03-01', amount: 45, due_at: new Date(Date.now() + 864e5).toISOString() }) })
-  const vAnon = await fetch(`${APP}/api/admin/bills/${voidBill.id}/void`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: 'x' }) })
-  check('void route: 404 signed out', vAnon.status === 404, `${vAnon.status}`)
-  const vNoReason = await fetch(`${APP}/api/admin/bills/${voidBill.id}/void`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: adminCookie }, body: JSON.stringify({ reason: ' ' }) })
-  check('void route: 400 without a reason', vNoReason.status === 400, `${vNoReason.status}`)
-  const vOk = await fetch(`${APP}/api/admin/bills/${voidBill.id}/void`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: adminCookie }, body: JSON.stringify({ reason: 'probe void via route' }) })
-  const vOkBody = await vOk.json()
-  check('void route: 200 as admin, bill void with reason', vOk.status === 200 && vOkBody.bill?.status === 'void' && vOkBody.bill?.void_reason === 'probe void via route', `${vOk.status} ${JSON.stringify(vOkBody).slice(0, 100)}`)
-  await admin(`host_bills?id=eq.${voidBill.id}`, { method: 'DELETE' })
+  // Creation-through-deletion is its own try/finally (mirroring the outer
+  // try/finally around probeBill below) — without it, a throw from any
+  // fetch/.json() call in this section would leave voidBill uncleaned.
+  let voidBill
+  try {
+    voidBill = (await admin('host_bills', { method: 'POST', body: JSON.stringify({ host_id: probeBill.host_id, period: '2031-03-01', amount: 45, due_at: new Date(Date.now() + 864e5).toISOString() }) })).body[0]
+    const vAnon = await fetch(`${APP}/api/admin/bills/${voidBill.id}/void`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: 'x' }) })
+    check('void route: 404 signed out', vAnon.status === 404, `${vAnon.status}`)
+    const vNoReason = await fetch(`${APP}/api/admin/bills/${voidBill.id}/void`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: adminCookie }, body: JSON.stringify({ reason: ' ' }) })
+    check('void route: 400 without a reason', vNoReason.status === 400, `${vNoReason.status}`)
+    const vOk = await fetch(`${APP}/api/admin/bills/${voidBill.id}/void`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: adminCookie }, body: JSON.stringify({ reason: 'probe void via route' }) })
+    const vOkBody = await vOk.json()
+    check('void route: 200 as admin, bill void with reason', vOk.status === 200 && vOkBody.bill?.status === 'void' && vOkBody.bill?.void_reason === 'probe void via route', `${vOk.status} ${JSON.stringify(vOkBody).slice(0, 100)}`)
+
+    // Fix round (final review, finding 5): the void route now writes an
+    // admin_actions audit row. Verify it landed, then clean it up — it has
+    // no FK to host_bills, so nothing else removes it.
+    const { body: audit } = await admin(`admin_actions?select=action,target_user_id,detail&action=eq.void_bill&detail->>bill_id=eq.${voidBill.id}`)
+    check('void route: writes an admin_actions audit row', audit.length === 1 && audit[0].target_user_id === voidBill.host_id && audit[0].detail?.reason === 'probe void via route', JSON.stringify(audit))
+  } finally {
+    await admin(`admin_actions?action=eq.void_bill&detail->>bill_id=eq.${voidBill?.id}`, { method: 'DELETE' })
+    if (voidBill) await admin(`host_bills?id=eq.${voidBill.id}`, { method: 'DELETE' })
+  }
 
   // Webhook replay: a signed payment.paid event for the bill's intent.
   const { createHmac } = await import('node:crypto')

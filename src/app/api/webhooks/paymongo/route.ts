@@ -64,6 +64,17 @@ export async function POST(req: Request) {
         if (bill) {
           if (bill.status === 'issued') {
             await admin.rpc('mark_host_bill_paid', { p_bill_id: bill.id, p_paymongo_ref: intentId })
+          } else {
+            // A host scanned a QR for a bill that's since been voided or
+            // already paid (e.g. an admin voided it in correction mode while
+            // the host's QR was still live) and the payment landed anyway.
+            // Nothing records it anywhere — log so it's at least discoverable
+            // in Vercel logs rather than silently lost.
+            console.error('[webhook] payment.paid matched a non-issued host_bill — payment unrecorded', {
+              intentId,
+              billId: bill.id,
+              billStatus: bill.status,
+            })
           }
         } else {
           // Fix round 1, finding 2(b): a stale intent — no row currently has
@@ -84,9 +95,21 @@ export async function POST(req: Request) {
                 .eq('id', billId)
                 .maybeSingle()
               if (staleBill && staleBill.status === 'issued') {
+                // mark_host_bill_paid coalesces paymongo_ref, but a non-null
+                // p_paymongo_ref (always the case here) always wins — this
+                // overwrites whatever ref the bill currently holds. Could
+                // orphan a newer intent if the host pays a fresh QR for the
+                // same bill between this stale intent being minted and it
+                // finally resolving; accepted as a narrow edge case.
                 await admin.rpc('mark_host_bill_paid', {
                   p_bill_id: staleBill.id,
                   p_paymongo_ref: intentId,
+                })
+              } else {
+                console.error('[webhook] payment.paid matched a non-issued host_bill via stale-intent metadata — payment unrecorded', {
+                  intentId,
+                  billId,
+                  billStatus: staleBill?.status ?? 'not_found',
                 })
               }
             }

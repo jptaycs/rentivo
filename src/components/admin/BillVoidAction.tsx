@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-export function BillVoidAction({ billId, amount }: { billId: string; amount: string }) {
+export function BillVoidAction({ billId, amount, hasPaymentAttempt }: { billId: string; amount: string; hasPaymentAttempt?: boolean }) {
   const router = useRouter()
   const [reason, setReason] = useState('')
   const [waive, setWaive] = useState(false)
@@ -12,9 +12,13 @@ export function BillVoidAction({ billId, amount }: { billId: string; amount: str
 
   async function voidBill() {
     if (!reason.trim()) { setError('A reason is required to void a bill.'); return }
-    const message = waive
-      ? `Void this ${amount} bill? This bill will be voided and its bookings will NOT be billed again.`
-      : `Void this ${amount} bill? This bill will be voided and its bookings will become billable again on the next run.`
+    const message =
+      (waive
+        ? `Void this ${amount} bill? This bill will be voided and its bookings will NOT be billed again.`
+        : `Void this ${amount} bill? This bill will be voided and its bookings will become billable again on the next run.`) +
+      (hasPaymentAttempt
+        ? ' This bill has an active payment QR — if the host pays it after voiding, that payment will not be recorded automatically.'
+        : '')
     if (!confirm(message)) return
     setBusy(true)
     setError(null)

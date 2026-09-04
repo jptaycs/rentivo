@@ -1,7 +1,12 @@
 // Verifies migration 061 (host commission billing ledger) against the hosted
 // database. Real sessions for every authorisation claim; admin only for
 // setup, independent re-reads and cleanup. Throwaway accounts only.
-import { URL as SUPABASE_URL, ANON, SECRET, admin, asUser, signIn } from './env.mjs'
+import { URL as SUPABASE_URL, ANON, SECRET, admin, asUser, signIn, assertNoRealEligibleHostBillingBookings } from './env.mjs'
+
+// Safety: generate_host_bills has no lower bound on paid_at, so a probe-period
+// run below (period 2030-01 etc.) would sweep in any real eligible booking.
+// Abort rather than risk it. Must run before the first generate_host_bills call.
+await assertNoRealEligibleHostBillingBookings()
 
 const FORBIDDEN_HOST = 'c38111b3-9922-4d18-9ae9-a12c8ffb9c68'
 let fails = 0

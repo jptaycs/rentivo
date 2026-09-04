@@ -78,7 +78,7 @@ export default async function AdminBillsPage({ searchParams }: { searchParams: P
                   </td>
                   <td className="px-4 py-3">{date(r.paid_at)}</td>
                   <td className="px-4 py-3 text-xs text-gray-500">{r.paymongo_ref ?? '—'}</td>
-                  <td className="px-4 py-3">{r.status === 'issued' && <BillVoidAction billId={r.id} amount={peso(r.amount)} />}</td>
+                  <td className="px-4 py-3">{r.status === 'issued' && <BillVoidAction billId={r.id} amount={peso(r.amount)} hasPaymentAttempt={Boolean(r.paymongo_ref)} />}</td>
                 </tr>
               ))}
             </tbody>

@@ -54,6 +54,36 @@ export async function signIn(email, password) {
   return json.access_token
 }
 
+/**
+ * Safety guard for any script that calls generate_host_bills (globally, no
+ * host filter) or the real cron/admin-run billing routes against probe or
+ * completed-month periods. generate_host_bills has no lower bound on
+ * paid_at — it bills every eligible unbilled host_qr booking regardless of
+ * age — so a probe-period run would sweep in any REAL host's eligible
+ * booking, permanently itemize it against a fake bill, and (via the cron
+ * route) email that host. Call this once, before the first such call, and
+ * treat any hit as a hard stop, not a warning.
+ */
+export async function assertNoRealEligibleHostBillingBookings() {
+  const POLICY_START = '2026-09-05T00:00:00+08:00'
+  const { body: candidates } = await admin(
+    `bookings?select=id&payment_method=eq.host_qr&payment_status=eq.paid&status=neq.cancelled&paid_at=gte.${encodeURIComponent(POLICY_START)}&service_fee=gt.0`
+  )
+  if (!candidates.length) return
+  const ids = candidates.map((c) => c.id)
+  const { body: itemized } = await admin(`host_bill_items?select=booking_id&booking_id=in.(${ids.join(',')})`)
+  const billedIds = new Set(itemized.map((i) => i.booking_id))
+  const realEligible = ids.filter((id) => !billedIds.has(id))
+  if (realEligible.length > 0) {
+    console.log(
+      `ABORTING: ${realEligible.length} real host_qr booking(s) eligible for billing (paid_at >= POLICY_START, unbilled): ${realEligible.join(', ')}. ` +
+        'This script runs generate_host_bills globally / calls the real cron or admin-run billing route, and would sweep them into a probe bill or ' +
+        'trigger a real billing run that emails a real host. Investigate before running.'
+    )
+    process.exit(1)
+  }
+}
+
 let failures = 0
 export function check(label, pass, detail = '') {
   console.log(`${pass ? 'PASS' : 'FAIL'}  ${label}${detail ? ` — ${detail}` : ''}`)

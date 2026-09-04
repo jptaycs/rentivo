@@ -28,7 +28,7 @@ export default function HostTermsPage() {
             When a renter pays you through your own GCash or Maya QR code, the full amount — including Rentivo&apos;s 5% service fee — goes straight to your account. That fee is collected from you afterwards:
           </p>
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 leading-relaxed">
-            <li>On the 1st of each month, Rentivo issues you a bill for the 5% service fee on every direct-QR booking you confirmed as paid in the previous month. Months with no such bookings are not billed.</li>
+            <li>Each month, Rentivo bills you the 5% service fee on your unbilled direct-QR bookings once they total at least ₱100 — smaller amounts roll into a later bill automatically, and a booking is only ever billed once.</li>
             <li>Bills are due {GRACE_DAYS} days after they are issued and are paid in-app via QR Ph from your <Link href="/dashboard/bills" className="text-[#003049] underline">Bills page</Link>. You&apos;ll get an email and an in-app notification when one is issued.</li>
             <li>If a bill is still unpaid after its due date, renters can no longer pay you by direct QR until it is settled. Your listings stay live and bookable through Rentivo&apos;s other payment methods.</li>
             <li>This applies to bookings confirmed as paid on or after {POLICY_START_LABEL}.</li>
