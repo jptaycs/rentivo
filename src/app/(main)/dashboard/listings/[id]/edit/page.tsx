@@ -7,6 +7,7 @@ import { ChevronLeft, Save, Loader2, CheckCircle2, AlertCircle } from 'lucide-re
 import { createClient } from '@/lib/supabase/client'
 import { SERVICE_FEE_RATE } from '@/lib/pricing'
 import { LISTING_COLUMNS } from '@/lib/listing-columns'
+import { LocationPicker } from '@/components/host/LocationPicker'
 
 // Values must match the listings table's equipment_category / listing_condition
 // enums (001_initial_schema.sql) — same options the host wizard's Step2Details uses.
@@ -44,6 +45,9 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
   const [deliveryFee, setDeliveryFee] = useState('')
   const [isInstantBook, setIsInstantBook] = useState(false)
   const [isActive, setIsActive] = useState(true)
+  const [city, setCity] = useState('')
+  const [province, setProvince] = useState('')
+  const [point, setPoint] = useState<{ lat: number; lng: number } | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
@@ -87,6 +91,17 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
     setDeliveryFee(data.delivery_fee != null ? String(data.delivery_fee) : '')
     setIsInstantBook(data.is_instant_book ?? false)
     setIsActive(data.is_active ?? true)
+    setCity(data.city ?? '')
+    setProvince(data.province ?? '')
+
+    // Exact coordinates never come through LISTING_COLUMNS (migration 064
+    // revoked table-level SELECT on listings) — the RPC is the only path,
+    // and it returns zero rows rather than raising for a non-host caller.
+    const { data: coords } = await supabase.rpc('get_listing_coordinates', { p_listing_id: id })
+    if (coords?.[0]) {
+      setPoint({ lat: Number(coords[0].latitude), lng: Number(coords[0].longitude) })
+    }
+
     setLoading(false)
   }, [id])
 
@@ -116,6 +131,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
         security_deposit: Number(deposit || 0),
         delivery_fee: deliveryFee === '' ? null : Number(deliveryFee),
         is_instant_book: isInstantBook,
+        ...(point ? { latitude: point.lat, longitude: point.lng, location_is_exact: true } : {}),
       })
       .eq('id', id)
     setSaving(false)
@@ -272,6 +288,20 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
             />
             <p className="text-xs text-gray-400 mt-1">{description.length} characters</p>
           </div>
+        </section>
+
+        {/* Pickup location */}
+        <section className="bg-white rounded-2xl border border-gray-100 p-6 space-y-3">
+          <div>
+            <p className="font-bold text-[#111827]">Pickup Point</p>
+            <p className="text-sm text-gray-500 mt-0.5">Drag the pin or tap the map to move exactly where renters collect the gear.</p>
+          </div>
+          <LocationPicker
+            city={city}
+            province={province}
+            value={point}
+            onChange={setPoint}
+          />
         </section>
 
         {/* Pricing */}
