@@ -12,7 +12,7 @@
 // wrong, the figures would not move when it is refunded.
 //
 // Usage: node --experimental-strip-types scripts/verify/reports-refund-exclusion.mjs [appUrl]
-import { URL as SUPABASE_URL, ANON, SECRET, admin, asUser, signIn } from './env.mjs'
+import { URL as SUPABASE_URL, ANON, SECRET, admin, signIn } from './env.mjs'
 
 const APP = process.argv[2] ?? 'http://localhost:3100'
 const REF = new URL(SUPABASE_URL).hostname.split('.')[0]

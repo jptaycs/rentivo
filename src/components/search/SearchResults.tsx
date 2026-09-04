@@ -2,6 +2,7 @@
 
 import { ListingCard } from '@/components/shared/ListingCard'
 import { SlidersHorizontal, LayoutGrid, Map as MapIcon } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { FilterSidebar } from './FilterSidebar'
 import { SearchMap } from './SearchMap'
@@ -28,7 +29,24 @@ function sortListings(listings: Listing[], sort: SortKey): Listing[] {
 export function SearchResults({ query, listings }: SearchResultsProps) {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [sort, setSort] = useState<SortKey>('recommended')
-  const [view, setView] = useState<'list' | 'map'>('list')
+  // View is mirrored into ?view= so a search link shared while in map view
+  // opens in map view. Written with history.replaceState rather than
+  // router.replace on purpose: /search is a dynamic route that re-queries the
+  // database on every server render, so routing through Next would refetch the
+  // whole result set on each toggle click. replaceState also keeps Back
+  // leaving the page instead of stepping through view changes.
+  const searchParams = useSearchParams()
+  const [view, setViewState] = useState<'list' | 'map'>(
+    searchParams.get('view') === 'map' ? 'map' : 'list'
+  )
+  const setView = (next: 'list' | 'map') => {
+    setViewState(next)
+    const p = new URLSearchParams(window.location.search)
+    if (next === 'map') p.set('view', 'map')
+    else p.delete('view')
+    const qs = p.toString()
+    window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
+  }
 
   const results = useMemo(() => sortListings(listings, sort), [listings, sort])
 
