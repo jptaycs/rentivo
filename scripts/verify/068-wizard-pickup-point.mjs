@@ -17,7 +17,7 @@
 // was checked separately in a real browser — see task-5-report.md.
 //
 // Usage: node --experimental-strip-types scripts/verify/068-wizard-pickup-point.mjs
-import { URL as SUPABASE_URL, ANON, SECRET, admin, asUser, signIn, check, done } from './env.mjs'
+import { URL as SUPABASE_URL, SECRET, admin, asUser, signIn, check, done } from './env.mjs'
 
 const FORBIDDEN_HOST = 'c38111b3-9922-4d18-9ae9-a12c8ffb9c68'
 const FORBIDDEN_BOOKING_CODE = 'RNT-A4DA55'
