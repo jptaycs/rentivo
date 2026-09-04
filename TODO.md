@@ -99,12 +99,20 @@ real queue. Each was recorded as a "deferred, minor" aside inside a Status entry
   province with two far-apart cities is now worse, not better — Zamboanga del Sur is 90.8
   km from both Zamboanga City and Pagadian (181.6 km apart), and Surigao del Sur 48.6 km
   from Bislig and Tandag. Those two are the only ones above 30 km.
-- [ ] **Consider snapping the province fallback to the nearest listed city** rather than
-  the raw mean. Keeps the same "centre of what we know" intent but guarantees the pin
-  lands on a real settlement, which fixes the two provinces above and removes the risk of
-  a midpoint falling in water — the failure mode this file already recorded for Palawan's
-  offshore centroid. One line in `PROVINCE_CITY_CENTROIDS`; not done because the mean is
-  what was asked for and the difference only affects 2 of 55 provinces.
+- [x] **Province fallback snaps to the listed city nearest the mean** (2026-09-04),
+  closing the trade-off above. The mean is still what picks the target, but the value
+  returned is a real city rather than a point between cities — so the two provinces the
+  raw mean made worse are exact again, and a midpoint can no longer land in open water
+  (Palawan's offshore centroid, recorded in `ph-locations.ts`, is the precedent).
+  Longitude is scaled by `cos(lat)` before ranking candidates, since a degree of longitude
+  is 1–6% shorter than a degree of latitude at PH latitudes and that decides near-ties.
+  **All 55 provinces with listed cities now land exactly on one**, none over 30 km from
+  their nearest — and the snapped choices are the sensible ones: Zamboanga del Sur →
+  Pagadian, Surigao del Sur → Tandag (both provincial capitals), Negros Occidental →
+  Bacolod. Full resolution order re-checked afterwards: known city, free-text substring,
+  the two repeated `Talisay` entries still resolving to different provinces, unknown city
+  → snapped fallback, a province with no listed cities → `PROVINCE_COORDS` (Batanes), and
+  legacy province `Other` → Manila.
 - [x] **`ReviewsList.tsx` fell back to mock reviews on an omitted prop** (fixed
   2026-09-04). The fallback is now gated on `isSupabaseConfigured()`, matching the pattern
   every other mock-importing file in this repo already uses: with a real backend an

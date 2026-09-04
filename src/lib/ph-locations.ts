@@ -473,6 +473,14 @@ function cityCoordsFor(cityKey: string, provinceKey: string) {
  * history already records Palawan's sitting 282 km offshore in the Sulu Sea,
  * dragged out by the Kalayaan islands.
  *
+ * The value is then SNAPPED to whichever listed city sits closest to that mean,
+ * so the pin is always a real settlement. A raw mean sits *between* its inputs,
+ * which is wrong for the two provinces whose listed cities are far apart —
+ * Zamboanga City and Pagadian are 181 km apart, putting the midpoint 91 km from
+ * both — and a midpoint between two coastal cities can land in open water, the
+ * same failure this file records for Palawan's offshore centroid. Snapping
+ * keeps the "centre of what we know" intent and cannot leave dry land.
+ *
  * A plain arithmetic mean is fine at this scale — the Philippines spans no
  * pole and no antimeridian, so there's no wraparound to handle. Provinces with
  * no listed cities keep PROVINCE_COORDS, which is why that table stays.
@@ -484,10 +492,21 @@ const PROVINCE_CITY_CENTROIDS: Record<string, { lat: number; lng: number }> = ((
       .map((cityKey) => cityCoordsFor(cityKey, provinceKey))
       .filter((c): c is { lat: number; lng: number } => Boolean(c))
     if (points.length === 0) continue
-    out[provinceKey] = {
+    const mean = {
       lat: points.reduce((sum, c) => sum + c.lat, 0) / points.length,
       lng: points.reduce((sum, c) => sum + c.lng, 0) / points.length,
     }
+    // Snap to the closest listed city. Longitude degrees are narrower than
+    // latitude degrees away from the equator, so scale them by cos(lat) before
+    // comparing — at PH latitudes that is a ~1-6% correction, enough to matter
+    // when two candidates are nearly equidistant. Squared distance is enough to
+    // rank them; no need for the square root or a full haversine.
+    const scale = Math.cos((mean.lat * Math.PI) / 180)
+    out[provinceKey] = points.reduce((best, c) => {
+      const d = (c: { lat: number; lng: number }) =>
+        (c.lat - mean.lat) ** 2 + ((c.lng - mean.lng) * scale) ** 2
+      return d(c) < d(best) ? c : best
+    })
   }
   return out
 })()
