@@ -127,10 +127,23 @@ real queue. Each was recorded as a "deferred, minor" aside inside a Status entry
   inside it, Escape closes it, and `document.activeElement === ` the trigger button by
   element identity.
 
-**A decision, not a task:** `/dashboard/earnings` still counts only `rental_fee` for
-`host_qr` bookings, though the host actually received the full `total_amount` directly.
-The host commission billing work (061–063) changed the economics here, so this may now be
-answerable in a way it wasn't when it was first deferred.
+- [x] **The `host_qr` earnings question is answered, and answering it exposed a real bug**
+  (2026-09-04). The open question was whether `/dashboard/earnings` should keep counting
+  only `rental_fee + delivery_fee` for `host_qr`, since the host actually receives the full
+  `total_amount` directly. **Host commission billing (061) settled it: no change needed.**
+  The host receives everything, but must return the security deposit and is billed the 5%
+  service fee back monthly, so what they keep is `rental_fee + delivery_fee` — identical to
+  every other method. Before 061 they kept the uncollected service fee, which is what made
+  the figure questionable in the first place.
+  **The bug next to it was real:** the card labelled **"Pending Payout"** counted every
+  `confirmed`/`active` booking regardless of method or payment state, while
+  `request_payout()` (029/033) excludes `host_qr` and `test_skip` outright and requires
+  `payment_status = 'paid'`. So it forecast money Rentivo will never send. Now filtered to
+  match the RPC. Measured against live data: a **real** host's figure dropped ₱600 → ₱0
+  (a confirmed but still-unpaid GCash booking — nobody has paid it, so no payout can
+  follow), and seed hosts shed ₱1,000 of `host_qr` and ₱7,000 of `test_skip`. "Total
+  Earned" deliberately still counts all of them, which is correct — that money was earned,
+  just collected by the host rather than routed through Rentivo.
 
 ---
 

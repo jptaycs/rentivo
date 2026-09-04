@@ -22,13 +22,30 @@ export default function EarningsPage() {
   const { bookings, loading } = useHostBookings()
 
   const paid = bookings.filter((b) => b.payment_status === 'paid')
-  const pendingPayout = bookings.filter((b) => b.status === 'confirmed' || b.status === 'active')
+
+  // "Pending Payout" must mirror what request_payout() would actually settle,
+  // so it excludes the two methods that RPC excludes (029/033): a host_qr
+  // booking was paid straight into the host's own wallet and test_skip was
+  // never charged at all. Counting either forecast money Rentivo will never
+  // send. Unpaid bookings are out for the same reason — request_payout()
+  // requires payment_status 'paid'.
+  const pendingPayout = bookings.filter(
+    (b) =>
+      (b.status === 'confirmed' || b.status === 'active') &&
+      b.payment_status === 'paid' &&
+      b.payment_method !== 'host_qr' &&
+      b.payment_method !== 'test_skip'
+  )
 
   // request_payout() pays hosts rental_fee + delivery_fee (038) — mirror that
-  // arithmetic here. Note this is NOT exact for every booking: request_payout()
-  // excludes host_qr and test_skip bookings entirely (the host was paid
-  // directly, or never charged), while this page still counts them, so the
-  // dashboard total can overstate what a real payout run actually settles.
+  // arithmetic here.
+  //
+  // "Total Earned" deliberately still counts host_qr, and that is correct as of
+  // host commission billing (061): the host receives the full total_amount
+  // directly, but owes the 5% service fee back on a monthly bill and must
+  // return the security deposit, so what they actually keep is rental_fee +
+  // delivery_fee — the same as every other method. Before 061 they kept the
+  // uncollected service fee too, which is what made this figure questionable.
   const totalEarned = live ? paid.reduce((s, b) => s + b.rental_fee + b.delivery_fee, 0) : 154600
   const pending = live ? pendingPayout.reduce((s, b) => s + b.rental_fee + b.delivery_fee, 0) : 7515
 
