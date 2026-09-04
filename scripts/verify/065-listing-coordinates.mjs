@@ -41,5 +41,17 @@ check(
   'cleanup restored the row to its original values',
   restored.latitude === original.latitude && restored.longitude === original.longitude
 )
+// 066 (task 2): every backfilled row's latitude/longitude equals the same
+// getCityCoordinates() lookup PickupMap already renders for that listing, and
+// none claims to be exact.
+const { getCityCoordinates } = await import('../../src/lib/ph-locations.ts')
+const { body: all } = await admin('listings?select=id,city,province,latitude,longitude,location_is_exact')
+const mismatched = all.filter((l) => {
+  const { lat, lng } = getCityCoordinates(l.city ?? '', l.province ?? '')
+  return Math.abs(Number(l.latitude) - lat) > 1e-6 || Math.abs(Number(l.longitude) - lng) > 1e-6
+})
+check('every backfilled row equals its city-centre lookup', mismatched.length === 0, `${mismatched.length} off`)
+check('no backfilled row claims to be exact', all.every((l) => l.location_is_exact === false))
+
 console.log(fails === 0 ? '\nALL PASS' : `\n${fails} FAILED`)
 process.exit(fails === 0 ? 0 : 1)
