@@ -460,14 +460,50 @@ function cityCoordsFor(cityKey: string, provinceKey: string) {
 }
 
 /**
+ * Fallback pin for a province, as the mean of the cities we actually list for
+ * it — used ahead of PROVINCE_COORDS when the province has any.
+ *
+ * PROVINCE_COORDS holds geographic province centres, which is the wrong target
+ * for this job: the fallback fires when a host typed a city we don't know, and
+ * the useful guess is "near the places we do know in that province", not "the
+ * middle of the polygon". The two diverge badly for provinces whose listed
+ * cities cluster at one end — before this, 11 of 55 province centres sat over
+ * 30 km from their own NEAREST listed city, Zamboanga del Norte worst at 99 km.
+ * A polygon centroid can also land somewhere useless entirely; this file's
+ * history already records Palawan's sitting 282 km offshore in the Sulu Sea,
+ * dragged out by the Kalayaan islands.
+ *
+ * A plain arithmetic mean is fine at this scale — the Philippines spans no
+ * pole and no antimeridian, so there's no wraparound to handle. Provinces with
+ * no listed cities keep PROVINCE_COORDS, which is why that table stays.
+ */
+const PROVINCE_CITY_CENTROIDS: Record<string, { lat: number; lng: number }> = (() => {
+  const out: Record<string, { lat: number; lng: number }> = {}
+  for (const [provinceKey, cityKeys] of Object.entries(CITIES_BY_PROVINCE)) {
+    const points = cityKeys
+      .map((cityKey) => cityCoordsFor(cityKey, provinceKey))
+      .filter((c): c is { lat: number; lng: number } => Boolean(c))
+    if (points.length === 0) continue
+    out[provinceKey] = {
+      lat: points.reduce((sum, c) => sum + c.lat, 0) / points.length,
+      lng: points.reduce((sum, c) => sum + c.lng, 0) / points.length,
+    }
+  }
+  return out
+})()
+
+/**
  * Resolution order — PROVINCE-SCOPED FIRST, deliberately:
  *   1. Exact match among the selected province's own cities.
  *   2. Longest substring match among the selected province's own cities
  *      (handles free text like "NAGA CITY CAMARINES SUR").
  *   3. Flat city lookup across ALL cities (fallback for a legacy/unknown
  *      province value, e.g. old rows saved with province "Other").
- *   4. Province center.
- *   5. Manila.
+ *   4. Centre of the selected province's own listed cities (see
+ *      PROVINCE_CITY_CENTROIDS — deliberately not the geographic province
+ *      centre, which can sit far from anywhere we actually know).
+ *   5. Geographic province centre, for a province with no listed cities.
+ *   6. Manila.
  *
  * An earlier version tried the flat lookup (now step 3) first. That's
  * backwards: province is a required dropdown field, so it is *always*
@@ -506,8 +542,13 @@ export function getCityCoordinates(city: string, province: string) {
   // 3. Flat lookup — wrong or legacy province, but a real unique city name.
   if (CITY_COORDS[cityKey]) return CITY_COORDS[cityKey]
 
-  // 4. Province center, 5. Manila.
-  return PROVINCE_COORDS[provinceKey] ?? PROVINCE_COORDS['metro manila']
+  // 4. Centre of the province's own listed cities, 5. its geographic centre
+  //    (only provinces with no listed cities reach this), 6. Manila.
+  return (
+    PROVINCE_CITY_CENTROIDS[provinceKey] ??
+    PROVINCE_COORDS[provinceKey] ??
+    PROVINCE_COORDS['metro manila']
+  )
 }
 
 // ───────────────────────────────────────────────────────────────────────────

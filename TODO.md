@@ -83,8 +83,28 @@ real queue. Each was recorded as a "deferred, minor" aside inside a Status entry
   Fixing that means deleting objects from the bucket inside the wizard's five-write submit
   sequence, which is the most failure-sensitive path in this codebase; that risk is worse
   than the leak, which is bucket bloat with no user-visible effect.
-- [ ] **10 of 83 province centers sit 31–48 km from their nearest listed city.** A
-  coarse-fallback precision question, not a correctness one.
+- [x] **Province fallback pin is now the mean of that province's listed cities**
+  (2026-09-04). `getCityCoordinates`' step 4 used `PROVINCE_COORDS`, a table of geographic
+  province centres — the wrong target, since the fallback only fires when a host typed a
+  city we don't know, and the useful guess is "near the places we do know there", not "the
+  middle of the polygon". `PROVINCE_CITY_CENTROIDS` is derived from `CITIES_BY_PROVINCE`
+  at module load; `PROVINCE_COORDS` stays for provinces with no listed cities.
+  **Measured, not assumed** — provinces whose fallback sat >30 km from their own nearest
+  listed city went **11 of 55 → 2**, and every single-city province is now exact. The
+  earlier note said "10 of 83 at 31–48 km", which undercounted: Zamboanga del Norte was
+  99.1 km out, despite this file's history recording it as "checked and confirmed already
+  correct" — that check validated the centre against the province polygon, not against the
+  cities we list, which is precisely the distinction this change is about.
+  **Known trade-off, deliberately accepted:** a mean sits *between* its inputs, so a
+  province with two far-apart cities is now worse, not better — Zamboanga del Sur is 90.8
+  km from both Zamboanga City and Pagadian (181.6 km apart), and Surigao del Sur 48.6 km
+  from Bislig and Tandag. Those two are the only ones above 30 km.
+- [ ] **Consider snapping the province fallback to the nearest listed city** rather than
+  the raw mean. Keeps the same "centre of what we know" intent but guarantees the pin
+  lands on a real settlement, which fixes the two provinces above and removes the risk of
+  a midpoint falling in water — the failure mode this file already recorded for Palawan's
+  offshore centroid. One line in `PROVINCE_CITY_CENTROIDS`; not done because the mean is
+  what was asked for and the difference only affects 2 of 55 provinces.
 - [x] **`ReviewsList.tsx` fell back to mock reviews on an omitted prop** (fixed
   2026-09-04). The fallback is now gated on `isSupabaseConfigured()`, matching the pattern
   every other mock-importing file in this repo already uses: with a real backend an
