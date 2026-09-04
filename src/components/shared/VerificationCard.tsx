@@ -191,6 +191,23 @@ export function VerificationCard() {
             </div>
           )}
 
+          {/* The on-device check couldn't run — most often an older phone whose
+              browser lacks WebAssembly SIMD, since the no-SIMD model build isn't
+              vendored. The submission still goes through (and is flagged
+              `detector_unavailable` for the reviewer), but saying nothing left
+              the uploader believing their document had passed a check that
+              never happened. Amber, not red: nothing is wrong with their photo. */}
+          {degraded && !idError && !selfieError && (
+            <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>
+                We couldn&apos;t run the automatic photo check on this device — your
+                documents will go straight to manual review instead. You can submit
+                as normal.
+              </span>
+            </div>
+          )}
+
           {(idAttempts >= 2 || selfieAttempts >= 2) && (idError || selfieError) && (
             <label className="flex items-start gap-3 cursor-pointer" onClick={() => setOverride(!override)}>
               <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${override ? 'bg-[#003049] border-[#003049]' : 'border-gray-300'}`}>

@@ -253,6 +253,23 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
             </div>
           )}
 
+          {/* Same notice as the Settings VerificationCard: the on-device check
+              couldn't run (usually an older phone without WebAssembly SIMD, since
+              the no-SIMD model build isn't vendored). The submission still goes
+              through and is flagged `detector_unavailable` for the reviewer —
+              this just stops the uploader assuming a check happened that didn't.
+              Amber, not red: nothing is wrong with their photo. */}
+          {data.degraded && !idError && !selfieError && (
+            <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>
+                We couldn&apos;t run the automatic photo check on this device — your
+                documents will go straight to manual review instead. You can submit
+                as normal.
+              </span>
+            </div>
+          )}
+
           {(data.idAttempts >= 2 || data.selfieAttempts >= 2) && (idError || selfieError) && (
             <label className="flex items-start gap-3 cursor-pointer" onClick={() => set('override', !data.override)}>
               <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors ${data.override ? 'bg-[#003049] border-[#003049]' : 'border-gray-300'}`}>

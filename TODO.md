@@ -54,12 +54,23 @@ real queue. Each was recorded as a "deferred, minor" aside inside a Status entry
   ticked and Pay read `payDisabled: false`; with it in place, `payDisabled: true` — the
   checkbox genuinely ticked in both runs, so the difference is the guard, not the
   agreement.
-- [ ] **MediaPipe's no-SIMD fallback isn't vendored.** Older iOS (<16.4) and Android
-  WebViews request `vision_wasm_nosimd_internal.*`, 404 on it, and get a silent
-  `degraded` (unchecked) ID verification pass. Honest at the database layer — the row is
-  flagged `detector_unavailable` — but invisible in the UI, on hardware common in this
-  market. Vendoring the pair is another ~11 MB and was deliberately declined; *surfacing*
-  the degraded state to the uploader is the cheap half and is unblocked.
+- [ ] **MediaPipe's no-SIMD fallback isn't vendored** — *the silent half is fixed; the
+  vendoring decision is still open.* Older iOS (<16.4) and Android WebViews request
+  `vision_wasm_nosimd_internal.*`, 404 on it, and get a `degraded` (unchecked) ID
+  verification pass. That was honest at the database layer — the row is flagged
+  `detector_unavailable` — but invisible in the UI, so an uploader on an older phone
+  believed their document had passed a check that never ran.
+  **Done 2026-09-04:** both upload surfaces (`VerificationCard`, host wizard
+  `Step6Verify`) now show an amber notice when the check can't run — "We couldn't run the
+  automatic photo check on this device — your documents will go straight to manual review
+  instead. You can submit as normal." Amber not red, and suppressed when a real error is
+  showing, since nothing is wrong with their photo. Proven with a discriminating pair on a
+  throwaway account (never a demo one): with `blaze_face_short_range.tflite` removed the
+  amber notice rendered and the file was still accepted; with it restored the same upload
+  produced the real red "couldn't find a face" error and **no** amber notice — so the
+  notice tracks actual degradation, not a flag that is always on.
+  **Still open:** whether to vendor the ~11 MB no-SIMD pair so those devices get a real
+  check rather than a manual-review fallback. That is a size/benefit call, not a bug.
 - [ ] **Listing-wizard photo re-uploads orphan storage objects.** The dedupe map is keyed
   by `File` object identity, so going back to Step 1 after a failed submit and re-adding a
   removed photo re-uploads it and strands the earlier object in `listing-images`. Bucket
