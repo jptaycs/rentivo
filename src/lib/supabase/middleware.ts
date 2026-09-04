@@ -34,7 +34,13 @@ export async function updateSession(request: NextRequest) {
   if (!user && isProtected) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    url.searchParams.set('next', path)
+    // clone() carries the original query over; drop it so the booking params
+    // aren't duplicated on /login alongside the `next` we're about to set.
+    url.search = ''
+    // Keep the query string: /book is meaningless without ?listing&from&to
+    // (book/page.tsx redirects to / without them), so dropping it would strand
+    // a guest on the homepage after signing in instead of resuming their booking.
+    url.searchParams.set('next', path + request.nextUrl.search)
     return NextResponse.redirect(url)
   }
 

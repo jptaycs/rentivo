@@ -18,13 +18,19 @@ export function LoginForm() {
   // reads `next` elsewhere in this component, and so /login can stay a
   // statically-prerendered page instead of needing a Suspense boundary.
   const [suspended, setSuspended] = useState(false)
+  // Carried onto the "Sign up free" link so a guest sent here from Book Now
+  // still resumes their booking if they sign up rather than sign in.
+  const [signupHref, setSignupHref] = useState('/signup')
 
   useEffect(() => {
     // Fetch-on-mount pattern (window.location.search is unavailable during
     // SSR, so this can't be a lazy useState initializer) — same class as the
     // other documented set-state-in-effect sites in this codebase.
+    const params = new URLSearchParams(window.location.search)
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSuspended(new URLSearchParams(window.location.search).get('suspended') === '1')
+    setSuspended(params.get('suspended') === '1')
+    const next = safeRedirectPath(params.get('next'), '')
+    if (next) setSignupHref(`/signup?next=${encodeURIComponent(next)}`)
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -153,7 +159,7 @@ export function LoginForm() {
 
       <p className="text-center text-sm text-gray-500">
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="text-[#003049] font-semibold hover:underline">
+        <Link href={signupHref} className="text-[#003049] font-semibold hover:underline">
           Sign up free
         </Link>
       </p>

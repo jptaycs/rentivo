@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Loader2, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { safeRedirectPath } from '@/lib/utils'
 
 function PasswordStrength({ password }: { password: string }) {
   const checks = [
@@ -57,6 +58,18 @@ export function SignupForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [agreed, setAgreed] = useState(false)
+  // Where to land after signup. A guest sent here from Book Now carries
+  // ?next=/book?listing=…&from=…&to=… so they resume their booking instead of
+  // being dropped on the homepage. Read client-side (not useSearchParams())
+  // to keep /signup statically prerenderable, matching LoginForm.
+  const [next, setNext] = useState('/')
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNext(safeRedirectPath(new URLSearchParams(window.location.search).get('next')))
+  }, [])
+
+  const loginHref = next === '/' ? '/login' : `/login?next=${encodeURIComponent(next)}`
 
   const passwordsMatch = password && confirmPassword && password === confirmPassword
   const passwordStrong = password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password)
@@ -74,13 +87,13 @@ export function SignupForm() {
         password,
         options: {
           data: { full_name: fullName },
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=/`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
         },
       })
       if (authError) throw authError
       // Auto-confirm (e.g. local dev) returns a session; otherwise email verification is pending
       if (data.session) {
-        router.push('/')
+        router.push(next)
         router.refresh()
       } else {
         router.push('/auth/verify?email=' + encodeURIComponent(email))
@@ -96,7 +109,7 @@ export function SignupForm() {
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback?next=/` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
     })
   }
 
@@ -237,7 +250,7 @@ export function SignupForm() {
 
       <p className="text-center text-sm text-gray-500">
         Already have an account?{' '}
-        <Link href="/login" className="text-[#003049] font-semibold hover:underline">Sign in</Link>
+        <Link href={loginHref} className="text-[#003049] font-semibold hover:underline">Sign in</Link>
       </p>
     </form>
   )
