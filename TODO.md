@@ -27,19 +27,18 @@ Their full entries, with the reasoning, are in the archive further down.
 
 ## Unblocked — actionable now
 
-- [ ] **Decide what the host's typed `street_address` is for.** It is collected in the host
-  wizard, stored, scrubbed on account deletion — and surfaced to **nobody, ever**. Renters with
-  a confirmed booking now get an exact map pin (2026-09-06), which is enough to find a house
-  but not a unit or floor in a condo. Two honest options: extend `get_listing_coordinates` to
-  return the address to the same entitled callers (a small migration on a gated RPC), or stop
-  collecting the field. The UI copy no longer promises it either way — that was corrected
-  2026-09-06, because four screens told hosts and renters the address would be shared after
-  booking and it never was.
-
-Nothing above can be worked on without PayMongo or an owner decision, so these are the
-real queue. Each was recorded as a "deferred, minor" aside inside a Status entry in
-`AGENTS.md` rather than tracked here, which is why they were easy to lose.
-
+- [x] **The host's typed `street_address` now reaches a confirmed renter** (2026-09-06,
+  migration 069). It had been collected, stored, scrubbed on deletion — and shown to nobody,
+  while five screens promised it would be shared once a booking was confirmed. The owner chose
+  to make the promise true rather than drop the field. `get_listing_coordinates` was extended
+  to `returns table (latitude, longitude, street_address)`, keeping ONE gated path rather than
+  adding a second function to keep in sync; the `where` clause is byte-identical to 067's, so
+  the set of entitled callers did not change — only the columns they receive. Postgres cannot
+  change a function's return type in place, so 069 drops and recreates it, **which drops its
+  GRANTs** — the same trap as 068's columns — and re-issues them. The renter panel shows the
+  address above the map and falls back to city/province when it is null, which is most listings.
+  **This is a real disclosure:** a host's full street address now reaches a renter the moment
+  their booking is confirmed.
 - [x] **`/dashboard/earnings`' CSV export had two defects** (fixed 2026-09-04). It carried
   its own `toCsv()` that interpolated fields into a template string: no formula-injection
   guard, so a host-authored listing title beginning `=`/`+`/`-`/`@` executed as a formula

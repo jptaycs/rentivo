@@ -47,7 +47,7 @@ export default function RentalsPage() {
   // list: it is the host's precise location, so it is requested only when the
   // renter actually asks to see it.
   const [pickupBookingId, setPickupBookingId] = useState('')
-  const [pickup, setPickup] = useState<{ lat: number; lng: number } | null>(null)
+  const [pickup, setPickup] = useState<{ lat: number; lng: number; address: string | null } | null>(null)
   const [pickupLoading, setPickupLoading] = useState(false)
   const [pickupUnavailable, setPickupUnavailable] = useState(false)
   // Hosts who are suspended, among the ones this renter has an unpaid host_qr
@@ -136,7 +136,12 @@ export default function RentalsPage() {
     if (rpcError || !row || row.latitude == null || row.longitude == null) {
       setPickupUnavailable(true)
     } else {
-      setPickup({ lat: Number(row.latitude), lng: Number(row.longitude) })
+      // street_address is optional and null on most listings — the panel shows
+      // the map alone in that case rather than an empty line.
+      const address = typeof row.street_address === 'string' && row.street_address.trim()
+        ? row.street_address.trim()
+        : null
+      setPickup({ lat: Number(row.latitude), lng: Number(row.longitude), address })
     }
     setPickupLoading(false)
   }
@@ -317,6 +322,7 @@ export default function RentalsPage() {
                     lng={pickup.lng}
                     city={item.listing?.city ?? ''}
                     province={item.listing?.province ?? ''}
+                    address={pickup.address}
                   />
                 ) : pickupUnavailable ? (
                   <p className="text-sm text-gray-600">
