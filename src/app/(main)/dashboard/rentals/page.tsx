@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Calendar, MapPin, MessageCircle, Star, Package, Loader2, Check, X, AlertCircle, QrCode } from 'lucide-react'
+import { Calendar, MapPin, MessageCircle, Star, Package, Loader2, Check, X, AlertCircle, QrCode, Navigation } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { useMyRentals, type BookingWithRefs } from '@/hooks/useBookings'
 import { useReviewedBookings } from '@/hooks/useReviewedBookings'
 import { ReviewModal } from '@/components/shared/ReviewModal'
+import { PickupLocationMap } from '@/components/booking/PickupLocationMap'
 
 const TABS = ['Upcoming', 'History']
 
@@ -21,6 +22,12 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 const UPCOMING_STATUSES = ['pending', 'confirmed', 'active']
+
+// Statuses that entitle a renter to the host's EXACT pickup point. Mirrors the
+// allowlist inside get_listing_coordinates (067) — the RPC is the real gate, so
+// if these ever disagree the RPC wins and the renter simply sees the
+// unavailable state instead of a map.
+const PICKUP_VISIBLE_STATUSES = ['confirmed', 'active', 'completed']
 
 export default function RentalsPage() {
   const [tab, setTab] = useState('Upcoming')
@@ -36,6 +43,13 @@ export default function RentalsPage() {
   const [qr, setQr] = useState<{ url: string; label: string | null } | null>(null)
   const [qrLoading, setQrLoading] = useState(false)
   const [qrError, setQrError] = useState('')
+  // Exact pickup point. Fetched on open rather than for every booking in the
+  // list: it is the host's precise location, so it is requested only when the
+  // renter actually asks to see it.
+  const [pickupBookingId, setPickupBookingId] = useState('')
+  const [pickup, setPickup] = useState<{ lat: number; lng: number } | null>(null)
+  const [pickupLoading, setPickupLoading] = useState(false)
+  const [pickupUnavailable, setPickupUnavailable] = useState(false)
   // Hosts who are suspended, among the ones this renter has an unpaid host_qr
   // booking against. GET /api/bookings/[id]/qr refuses those (it is the fifth
   // money path — see the guard's comment there), so without this the renter
@@ -91,6 +105,40 @@ export default function RentalsPage() {
       setQrError(e instanceof Error ? e.message : 'Could not load the QR code.')
     }
     setQrLoading(false)
+  }
+
+  async function togglePickup(booking: BookingWithRefs) {
+    if (pickupBookingId === booking.id) {
+      setPickupBookingId('')
+      return
+    }
+    setPickupBookingId(booking.id)
+    setPickup(null)
+    setPickupUnavailable(false)
+    // A listing whose host never placed a pin still HAS coordinates — the
+    // city centre, from the 066 backfill — and the RPC returns them happily.
+    // Showing those under an "exact pickup point" heading would be a lie of
+    // exactly the kind location_is_exact exists to prevent, so check the flag
+    // before asking. It rides along on the booking's listing join
+    // (LISTING_COLUMNS), so this costs no extra request.
+    if (!booking.listing?.location_is_exact) {
+      setPickupUnavailable(true)
+      return
+    }
+    setPickupLoading(true)
+    // get_listing_coordinates returns ZERO ROWS rather than raising when the
+    // caller isn't entitled, so an empty result is the normal "not yours yet"
+    // answer, not an error. It also comes back empty for a listing whose host
+    // has never placed a pin. Both land on the same honest message.
+    const { data, error: rpcError } = await createClient()
+      .rpc('get_listing_coordinates', { p_listing_id: booking.listing_id })
+    const row = Array.isArray(data) ? data[0] : null
+    if (rpcError || !row || row.latitude == null || row.longitude == null) {
+      setPickupUnavailable(true)
+    } else {
+      setPickup({ lat: Number(row.latitude), lng: Number(row.longitude) })
+    }
+    setPickupLoading(false)
   }
 
   async function handleCancel(booking: BookingWithRefs) {
@@ -189,6 +237,15 @@ export default function RentalsPage() {
                 className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-[#003049] px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors">
                 <MessageCircle className="w-3.5 h-3.5" /> Message Host
               </Link>
+              {PICKUP_VISIBLE_STATUSES.includes(item.status) && (
+                <button
+                  onClick={() => togglePickup(item)}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-[#003049] border border-blue-200 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  {pickupBookingId === item.id ? 'Hide Pickup Location' : 'Show Pickup Location'}
+                </button>
+              )}
               {item.payment_method === 'host_qr' &&
                 item.payment_status === 'unpaid' &&
                 item.status !== 'cancelled' &&
@@ -247,6 +304,28 @@ export default function RentalsPage() {
                   payment goes straight to the host, so Rentivo can&apos;t refund one on your behalf.
                 </div>
               )}
+
+            {pickupBookingId === item.id && (
+              <div className="px-5 py-5 border-t border-gray-100 bg-blue-50/30">
+                {pickupLoading ? (
+                  <div className="w-full h-56 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-300">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                ) : pickup ? (
+                  <PickupLocationMap
+                    lat={pickup.lat}
+                    lng={pickup.lng}
+                    city={item.listing?.city ?? ''}
+                    province={item.listing?.province ?? ''}
+                  />
+                ) : pickupUnavailable ? (
+                  <p className="text-sm text-gray-600">
+                    Pickup location isn&apos;t available for this booking yet. Your host hasn&apos;t
+                    marked their exact pickup point — message them to arrange where to collect the gear.
+                  </p>
+                ) : null}
+              </div>
+            )}
 
             {qrBookingId === item.id && (
               <div className="px-5 py-5 border-t border-gray-100 bg-purple-50/40 text-center space-y-2">
