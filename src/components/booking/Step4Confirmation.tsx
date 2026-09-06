@@ -221,7 +221,7 @@ export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) 
               : 'The host will confirm your booking within 24 hours.',
             booking.is_delivery
               ? 'The host will reach out to coordinate delivery.'
-              : 'You will receive the exact pickup address once confirmed.',
+              : 'The exact pickup point appears on a map in My Rentals once the host confirms.',
             'Message the host if you have any questions.',
             'Return the equipment in the same condition by the return date.',
           ].map((step, i) => (

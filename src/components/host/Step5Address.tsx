@@ -34,7 +34,7 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-[#111827]">Pickup location</h2>
-        <p className="text-gray-500 text-sm mt-1">Renters see an approximate area on the map until a booking is confirmed. The exact address is shared after booking.</p>
+        <p className="text-gray-500 text-sm mt-1">Renters see an approximate area on the map until a booking is confirmed. Once it is, they see the exact point you mark below.</p>
       </div>
 
       {/* Province */}
@@ -84,7 +84,7 @@ export function Step5Address({ data, onChange, onNext, onBack }: Step5AddressPro
 
       {/* Street address */}
       <div>
-        <label className={label}>Street Address <span className="font-normal text-gray-400 normal-case">(shared only after booking)</span></label>
+        <label className={label}>Street Address <span className="font-normal text-gray-400 normal-case">(for your records — not shown to renters)</span></label>
         <input
           value={data.streetAddress}
           onChange={e => set('streetAddress', e.target.value)}

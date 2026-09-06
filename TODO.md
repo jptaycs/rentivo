@@ -27,6 +27,15 @@ Their full entries, with the reasoning, are in the archive further down.
 
 ## Unblocked — actionable now
 
+- [ ] **Decide what the host's typed `street_address` is for.** It is collected in the host
+  wizard, stored, scrubbed on account deletion — and surfaced to **nobody, ever**. Renters with
+  a confirmed booking now get an exact map pin (2026-09-06), which is enough to find a house
+  but not a unit or floor in a condo. Two honest options: extend `get_listing_coordinates` to
+  return the address to the same entitled callers (a small migration on a gated RPC), or stop
+  collecting the field. The UI copy no longer promises it either way — that was corrected
+  2026-09-06, because four screens told hosts and renters the address would be shared after
+  booking and it never was.
+
 Nothing above can be worked on without PayMongo or an owner decision, so these are the
 real queue. Each was recorded as a "deferred, minor" aside inside a Status entry in
 `AGENTS.md` rather than tracked here, which is why they were easy to lose.

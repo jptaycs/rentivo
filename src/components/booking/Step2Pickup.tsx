@@ -107,10 +107,10 @@ export function Step2Pickup({
           <div className="flex items-start gap-3">
             <MapPin className="w-4 h-4 text-[#003049] mt-0.5 shrink-0" />
             <div>
-              <p className="font-semibold text-[#111827] text-sm">Host pickup address</p>
+              <p className="font-semibold text-[#111827] text-sm">Pickup location</p>
               <p className="text-sm text-gray-500 mt-1">{listing.city}, {listing.province}</p>
               <p className="text-xs text-gray-400 mt-2">
-                Exact address will be shared after booking is confirmed by the host.
+                The exact pickup point appears on a map in My Rentals once the host confirms.
               </p>
             </div>
           </div>
