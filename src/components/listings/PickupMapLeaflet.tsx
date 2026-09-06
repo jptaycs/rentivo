@@ -48,17 +48,28 @@ export default function PickupMapLeaflet({
       // every listing (see the 1km circle below), so a precise-looking pin
       // would misrepresent what's actually known. Title and image URL are
       // host-authored and go straight into innerHTML, so both are escaped.
+      //
+      // iconSize is deliberately omitted (not [0, 0]) — Leaflet only sets an
+      // inline width/height on the marker container when iconSize is given
+      // (see DivIcon's own "also can be set through CSS" comment). Passing
+      // [0, 0] forces a zero-width container, and the card's flex child then
+      // collapses to match instead of sizing to its content. Leaving iconSize
+      // unset lets the (absolutely-positioned, width:auto) marker container
+      // shrink-wrap to the card's real content width. iconAnchor sits the
+      // marker at the card's left edge, vertically centered on the ~48px-tall
+      // row (36px thumbnail + 6px top/bottom padding), so the card floats
+      // just beside the actual coordinate rather than far from it.
       const card = L.divIcon({
         className: '',
         html: `<div style="display:flex;align-items:center;gap:8px;background:#fff;border-radius:12px;
-            box-shadow:0 4px 14px rgba(0,0,0,.18);padding:6px 10px 6px 6px;white-space:nowrap">
-            ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" style="width:36px;height:36px;border-radius:8px;object-fit:cover"
+            box-shadow:0 4px 14px rgba(0,0,0,.18);padding:6px 10px 6px 6px;white-space:nowrap;width:max-content">
+            ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" style="width:36px;height:36px;border-radius:8px;object-fit:cover;flex-shrink:0"
               onerror="this.style.display='none'" />` : ''}
             <span style="font-weight:600;font-size:12px;color:#111827;max-width:180px;overflow:hidden;
               text-overflow:ellipsis">${escapeHtml(title)}</span>
           </div>`,
-        iconSize: [0, 0],
-        iconAnchor: [0, 0],
+        iconSize: undefined,
+        iconAnchor: [0, 24],
       })
       L.marker([lat, lng], { icon: card }).addTo(map)
       L.circle([lat, lng], { radius: 1000, color: '#003049', weight: 1, fillOpacity: 0.08 }).addTo(map)
