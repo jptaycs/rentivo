@@ -88,5 +88,5 @@ export default function PickupMapLeaflet({
     }
   }, [city, province, title, imageUrl, approxLat, approxLng])
 
-  return <div ref={containerRef} className="w-full h-56" />
+  return <div ref={containerRef} className="w-full h-[360px]" />
 }

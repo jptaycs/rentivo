@@ -15,7 +15,7 @@ interface PickupMapProps {
 const LeafletMap = dynamic(() => import('./PickupMapLeaflet'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-56 bg-[#F8FAFC] flex items-center justify-center">
+    <div className="w-full h-[360px] bg-[#F8FAFC] flex items-center justify-center">
       <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
     </div>
   ),

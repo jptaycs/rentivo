@@ -70,5 +70,5 @@ export default function PickupLocationMapLeaflet({ lat, lng }: Props) {
     }
   }, [lat, lng])
 
-  return <div ref={containerRef} className="w-full h-56" />
+  return <div ref={containerRef} className="w-full h-[360px]" />
 }

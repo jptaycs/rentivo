@@ -13,7 +13,7 @@
 //     commission, earnings or unrequested-payout totals. It only fills reviews.
 //   * Every row it writes is tagged (booking_ref prefix DEMO-) so `remove` can
 //     find them again without guessing.
-import { URL as U, SECRET, admin } from './verify/env.mjs'
+import { admin } from './verify/env.mjs'
 
 const REAL_HOST = 'c38111b3-9922-4d18-9ae9-a12c8ffb9c68'
 const TAG = 'DEMO-'
