@@ -27,6 +27,20 @@ Their full entries, with the reasoning, are in the archive further down.
 
 ## Unblocked — actionable now
 
+- [ ] **REMOVE THE SEEDED DEMO REVIEWS BEFORE REAL LAUNCH.**
+  `node --experimental-strip-types scripts/seed-demo-reviews.mjs remove`
+  Added 2026-09-06 at the owner's request so a colleague could see a populated
+  storefront during a walkthrough: **95 reviews across the 19 seed listings**, each backed by
+  a tagged (`DEMO-` booking_ref) booking, because `reviews.booking_id` is NOT NULL.
+  **They are invented testimony.** Fine for a demo of placeholder inventory; not fine sitting
+  in front of paying strangers, which is why removal is tracked here rather than assumed.
+  Two boundaries were kept and should be kept if this is ever re-run: the **real host's
+  listing (Isse Capucao, `c38111b3`) was excluded** — inventing reviews about a real person's
+  service is a different thing entirely — and the demo bookings are `completed` + **unpaid**,
+  so `/admin/reports`, commission, earnings and payout eligibility all filter them out.
+  Verified after seeding: commission earned ₱3,168 / collected ₱2,208 and unrequested payouts
+  ₱11,800 across 3 — every figure identical to before.
+
 - [x] **The host's typed `street_address` now reaches a confirmed renter** (2026-09-06,
   migration 069). It had been collected, stored, scrubbed on deletion — and shown to nobody,
   while five screens promised it would be shared once a booking was confirmed. The owner chose
