@@ -37,7 +37,11 @@ export default function PickupMapLeaflet({
 
       const map = L.map(containerRef.current, {
         center: [lat, lng],
-        zoom: 13,
+        // Zoom follows the circle: at 3dp the approximate area is only 150m
+        // across, which at the old district zoom rendered as a ~16px dot and
+        // read as a precise pin rather than an area. Zoom 16 makes the circle
+        // legible as the area it represents.
+        zoom: 16,
         scrollWheelZoom: false,
         attributionControl: true,
       })
@@ -45,7 +49,7 @@ export default function PickupMapLeaflet({
       L.tileLayer(MAP_TILE_URL, MAP_TILE_OPTIONS).addTo(map)
 
       // A floating card, not a pin — the map is deliberately approximate for
-      // every listing (see the 1km circle below), so a precise-looking pin
+      // every listing (see the 150m circle below), so a precise-looking pin
       // would misrepresent what's actually known. Title and image URL are
       // host-authored and go straight into innerHTML, so both are escaped.
       //
@@ -72,7 +76,7 @@ export default function PickupMapLeaflet({
         iconAnchor: [0, 24],
       })
       L.marker([lat, lng], { icon: card }).addTo(map)
-      L.circle([lat, lng], { radius: 1000, color: '#003049', weight: 1, fillOpacity: 0.08 }).addTo(map)
+      L.circle([lat, lng], { radius: 150, color: '#003049', weight: 1, fillOpacity: 0.08 }).addTo(map)
 
       mapRef.current = map
     })

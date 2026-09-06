@@ -1,7 +1,13 @@
 # Exact pickup coordinates + floating listing cards on the maps
 
-**Status:** approved design, not yet implemented
+**Status:** implemented and deployed 2026-09-05/06
 **Date:** 2026-09-05
+**Superseded in part, 2026-09-06:** the 2-decimal rounding argued for below was changed to
+3 decimals by migration 068, at the owner's request, because nearby listings were merging to
+a single published point. The reasoning below for preferring 2dp still stands on its own
+terms and is left intact — it is the case against the change, and whoever revisits this
+should read it. What changed is the decision, not the argument: the published point is now
+within ~77m of the host's pin rather than ~775m, and the circle is 150m rather than 1km.
 
 ## Problem
 
