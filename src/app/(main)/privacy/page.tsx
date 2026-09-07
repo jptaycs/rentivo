@@ -72,6 +72,12 @@ export default function PrivacyPage() {
               <span className="font-semibold">Wishlist and recently-viewed history:</span>{' '}
               the listings you save or view, so we can show them back to you.
             </li>
+            <li>
+              <span className="font-semibold">Reviews:</span> after a completed
+              booking, the rating and written comment you leave are visible
+              publicly on the listing page and on the reviewed person&apos;s host
+              profile, along with your display name.
+            </li>
           </ul>
         </section>
 
@@ -195,10 +201,13 @@ export default function PrivacyPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-bold text-[#111827]">8. Cookies</h2>
           <p className="text-sm text-gray-700 leading-relaxed">
-            Rentivo sets an authentication session cookie so you can stay signed in,
-            and uses your browser&apos;s local storage to remember preferences like your
-            wishlist when you&apos;re signed out. We do not use advertising cookies or
-            any third-party tracking cookies.
+            Rentivo sets an authentication session cookie so you can stay signed in.
+            If you browse without an account, we use your browser&apos;s local storage
+            — not a cookie — to remember your wishlist and recently-viewed listings
+            so they&apos;re still there when you come back. Once you sign in, those
+            same lists move into our database instead (see &quot;What we collect&quot;
+            above). We do not use advertising cookies or any third-party tracking
+            cookies.
           </p>
         </section>
 
