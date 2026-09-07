@@ -457,9 +457,9 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
         </div>
         <p className="text-sm text-gray-600 leading-relaxed">
           I agree to the{' '}
-          <a href="#" className="text-[#003049] underline">Rental Agreement</a>,{' '}
-          <a href="#" className="text-[#003049] underline">Terms of Service</a>, and{' '}
-          <a href="#" className="text-[#003049] underline">Cancellation Policy</a>. I understand this host asks for a{' '}
+          <a href="/rental-agreement" className="text-[#003049] underline">Rental Agreement</a>,{' '}
+          <a href="/terms" className="text-[#003049] underline">Terms of Service</a>, and{' '}
+          <a href="/cancellation" className="text-[#003049] underline">Cancellation Policy</a>. I understand this host asks for a{' '}
           <strong>₱{listing.security_deposit.toLocaleString()}</strong> security deposit, arranged directly with them at pickup and not charged by Rentivo.
         </p>
       </label>

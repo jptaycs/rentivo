@@ -234,9 +234,9 @@ export function SignupForm() {
         </div>
         <p className="text-sm text-gray-600 leading-relaxed">
           I agree to Rentivo&apos;s{' '}
-          <Link href="#" className="text-[#003049] hover:underline">Terms of Service</Link>
+          <Link href="/terms" className="text-[#003049] hover:underline">Terms of Service</Link>
           {' '}and{' '}
-          <Link href="#" className="text-[#003049] hover:underline">Privacy Policy</Link>
+          <Link href="/privacy" className="text-[#003049] hover:underline">Privacy Policy</Link>
         </p>
       </label>
 

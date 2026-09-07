@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { Calendar, ChevronRight, MapPin } from 'lucide-react'
 import type { Listing } from '@/types'
 
@@ -68,7 +69,8 @@ export function Step1Review({ listing, pickupDate, returnDate, days, onNext }: S
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
         <h3 className="font-bold text-[#111827] mb-2">Cancellation Policy</h3>
         <p className="text-sm text-gray-600 leading-relaxed">
-          Free cancellation up to <strong>48 hours before pickup</strong>. Cancellations within 48 hours are charged 50% of the rental fee. No-shows are charged in full.
+          Cancel any time before the host accepts your request and you&apos;ll be refunded in full.{' '}
+          <Link href="/cancellation" className="text-[#003049] underline">Read the full policy</Link>.
         </p>
       </div>
 

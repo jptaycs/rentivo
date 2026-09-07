@@ -74,7 +74,7 @@ export default function SettingsPage() {
     { q: 'How do I become a host?', a: 'Click "Become a Host" in the navbar, complete the listing wizard, and submit your gear for review. Most listings go live within 24 hours.' },
     { q: 'What happens if equipment is damaged?', a: 'Renters are responsible for loss or damage. Rentivo does not offer insurance or a protection plan — what stands behind a rental is the security deposit the host sets on the listing, arranged directly with them at pickup and not charged by Rentivo. Damage is settled between the host and the renter, so report any issue in the booking\'s message thread to keep a record.' },
     { q: 'How are payments processed?', a: 'We support GCash, Maya, and Credit/Debit Card. Payouts to hosts are processed within 3 business days after a completed rental.' },
-    { q: 'Can I cancel a booking?', a: 'Cancellation policies vary per listing (Flexible, Moderate, or Strict). Check the listing\'s policy before booking. Hosts may also set their own cancellation terms.' },
+    { q: 'Can I cancel a booking?', a: 'You can cancel while a booking is still pending — before the host accepts it — and a paid booking is refunded in full. Once a host accepts, contact them through the booking\'s message thread. Bookings paid directly to a host\'s GCash or Maya QR are settled with that host, since Rentivo never received the money.' },
     { q: 'How does identity verification work?', a: 'We require a government-issued ID and a selfie to verify your identity. This protects both hosts and renters on the platform.' },
   ]
 
@@ -380,19 +380,19 @@ export default function SettingsPage() {
         {/* Quick links */}
         <div className="flex flex-wrap gap-3 pt-2 border-t border-gray-100">
           <a
-            href="mailto:support@rentivo.ph"
+            href="mailto:jptayco1109@gmail.com"
             className="flex items-center gap-2 text-sm font-medium text-[#003049] bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl transition-colors"
           >
             <MessageSquare className="w-4 h-4" /> Contact Support
           </a>
           <a
-            href="#"
+            href="/terms"
             className="flex items-center gap-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-xl transition-colors"
           >
             <FileText className="w-4 h-4" /> Terms of Service <ExternalLink className="w-3 h-3" />
           </a>
           <a
-            href="#"
+            href="/privacy"
             className="flex items-center gap-2 text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-xl transition-colors"
           >
             <FileText className="w-4 h-4" /> Privacy Policy <ExternalLink className="w-3 h-3" />
@@ -453,7 +453,7 @@ export default function SettingsPage() {
         )}
 
         <a
-          href="mailto:support@rentivo.ph?subject=Delete my Rentivo account"
+          href="mailto:jptayco1109@gmail.com?subject=Delete my Rentivo account"
           className="block text-xs text-red-500 hover:underline"
         >
           Or contact support if you run into an issue
