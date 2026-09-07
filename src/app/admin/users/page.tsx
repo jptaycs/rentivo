@@ -1,6 +1,20 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAdminPage } from '@/lib/admin'
+import { isAdminEmail } from '@/lib/admin-emails'
+import { RowActions } from './RowActions'
+
+/**
+ * Mirrors src/app/api/admin/users/[id]/suspend/route.ts's isBanned() exactly,
+ * as src/app/admin/users/[id]/page.tsx does — route.ts files may only export
+ * HTTP handlers, so this can't be imported. Keep all three in sync.
+ * GoTrue reports an un-banned user as an absent/past banned_until.
+ */
+function isBanned(bannedUntil: string | null | undefined): boolean {
+  if (!bannedUntil) return false
+  const t = Date.parse(bannedUntil)
+  return Number.isFinite(t) && t > Date.now()
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -64,8 +78,14 @@ export default async function AdminUsersPage({
   const { data: usersList } = await admin.auth.admin.listUsers({ perPage: 1000 })
   const emailById = new Map<string, string>()
   const deletedIds = new Set<string>()
+  // Real GoTrue ban state and admin-allowlist membership, both read off the
+  // listUsers call this page already makes — no extra query for the actions.
+  const bannedIds = new Set<string>()
+  const adminIds = new Set<string>()
   for (const u of usersList?.users ?? []) {
     emailById.set(u.id, u.email ?? '—')
+    if (isBanned(u.banned_until)) bannedIds.add(u.id)
+    if (isAdminEmail(u.email)) adminIds.add(u.id)
     // deleteUser(uid, true) soft-deletes: the auth.users row stays (with
     // deleted_at set) so profiles.id's FK never cascades, but that means a
     // tombstone would otherwise show up here as a live user. Filter it out.
@@ -167,6 +187,7 @@ export default async function AdminUsersPage({
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">City</th>
                 <th className="px-4 py-3">Joined</th>
+                <th className="px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -208,6 +229,15 @@ export default async function AdminUsersPage({
                   <td className="px-4 py-3 text-gray-600">{p.city || '—'}</td>
                   <td className="px-4 py-3 text-xs text-gray-500">
                     {new Date(p.created_at).toLocaleDateString('en-PH')}
+                  </td>
+                  <td className="px-4 py-3">
+                    <RowActions
+                      userId={p.id}
+                      name={p.full_name}
+                      isSuspended={p.suspended_at !== null}
+                      isBanned={bannedIds.has(p.id)}
+                      isAdmin={adminIds.has(p.id)}
+                    />
                   </td>
                 </tr>
               ))}
