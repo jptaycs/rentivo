@@ -22,7 +22,6 @@ interface CheckoutBody {
   deliveryAddress?: string | null
   method?: 'gcash' | 'maya' | 'card' | 'qrph' | 'apple_pay' | 'google_pay'
   phone?: string | null
-  promoCode?: string | null
   /** Card payment method created in the browser with the public key */
   paymentMethodId?: string | null
   /** Reuse an unpaid booking from a previous failed attempt */
@@ -109,7 +108,7 @@ export async function POST(req: Request) {
       p_is_delivery: body.isDelivery ?? false,
       p_delivery_address: body.isDelivery ? body.deliveryAddress : null,
       p_payment_method: body.method,
-      p_promo_code: body.promoCode || null,
+      p_promo_code: null,   // 071: promo codes discontinued
     })
     if (error) {
       return NextResponse.json(

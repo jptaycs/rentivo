@@ -130,7 +130,7 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
         p_is_delivery: isDelivery,
         p_delivery_address: isDelivery ? deliveryAddress : null,
         p_payment_method: 'host_qr',
-        p_promo_code: payload.promoCode || null,
+        p_promo_code: null,   // 071: promo codes discontinued
       })
       if (rpcError) {
         setError(rpcError.message.replace(/^.*?: /, ''))

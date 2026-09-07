@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronLeft, Lock, Loader2, Check, Tag, X, AlertCircle } from 'lucide-react'
+import { ChevronLeft, Lock, Loader2, Check, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { calcPricing } from '@/lib/pricing'
@@ -13,7 +13,6 @@ type PaymentMethod = 'gcash' | 'maya' | 'card' | 'qrph' | 'apple_pay' | 'google_
 export interface CheckoutPayload {
   method: PaymentMethod
   phone?: string
-  promoCode?: string
   paymentMethodId?: string
 }
 
@@ -23,12 +22,6 @@ interface Step3PaymentProps {
   isDelivery: boolean
   onNext: (payload: CheckoutPayload) => Promise<void>
   onBack: () => void
-}
-
-interface AppliedPromo {
-  code: string
-  pct: number | null
-  flat: number | null
 }
 
 const PAYMONGO_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY
@@ -122,10 +115,6 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
   const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
   const [payError, setPayError] = useState('')
-  const [promo, setPromo] = useState<AppliedPromo | null>(null)
-  const [promoInput, setPromoInput] = useState('')
-  const [promoError, setPromoError] = useState('')
-  const [promoChecking, setPromoChecking] = useState(false)
 
   // Withhold the direct-QR tile while the host has an overdue commission bill
   // (host commission billing, 061). The database trigger refuses such a
@@ -160,35 +149,10 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
     : BASE_METHODS
   ).map((m) => (isPaymentMethodDisabled(m.id) ? { ...m, comingSoon: true, unavailable: true } : m))
 
-  async function applyPromo() {
-    const code = promoInput.trim().toUpperCase()
-    if (!code) return
-    setPromoChecking(true)
-    setPromoError('')
-    const supabase = createClient()
-    const { data, error } = await supabase.rpc('validate_promo_code', { p_code: code })
-    setPromoChecking(false)
-    const row = data?.[0]
-    if (error || !row) {
-      setPromoError('Invalid or expired promo code.')
-      setPromo(null)
-      return
-    }
-    setPromo({ code: row.code, pct: row.discount_pct, flat: row.discount_flat })
-  }
-
-  function removePromo() {
-    setPromo(null)
-    setPromoInput('')
-    setPromoError('')
-  }
-
-  const { rentalFee, total: baseTotal } = calcPricing(listing, days, isDelivery)
-  // Discount applies to the rental fee only — never the refundable deposit
-  const discount = promo
-    ? Math.min(rentalFee, Math.round((rentalFee * (promo.pct ?? 0)) / 100) + (promo.flat ?? 0))
-    : 0
-  const total = baseTotal - discount
+  // 071: promo codes are discontinued. A discount reduced what the renter paid
+  // but not what the host was paid (request_payout pays rental_fee, stored
+  // pre-discount), so every code cost Rentivo more than its 5% service fee.
+  const { total } = calcPricing(listing, days, isDelivery)
 
   const isWallet = method === 'gcash' || method === 'maya'
   const isCard = method === 'card'
@@ -236,7 +200,6 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
       await onNext({
         method,
         phone: isWallet ? `+63${mobileNumber.replace(/\D/g, '').slice(1)}` : undefined,
-        promoCode: promo?.code,
         paymentMethodId,
       })
     } catch (err) {
@@ -409,42 +372,6 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
           </p>
         </div>
       )}
-
-      {/* Promo code */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
-        <p className="text-sm font-bold text-[#111827] flex items-center gap-2"><Tag className="w-4 h-4 text-[#003049]" /> Promo Code</p>
-        {promo ? (
-          <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-            <div>
-              <p className="text-sm font-bold text-green-700">{promo.code} applied</p>
-              <p className="text-xs text-green-600">Saving ₱{discount.toLocaleString()} on this booking</p>
-            </div>
-            <button onClick={removePromo} className="text-green-500 hover:text-green-700 transition-colors">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="flex gap-2">
-              <input
-                value={promoInput}
-                onChange={e => { setPromoInput(e.target.value.toUpperCase()); setPromoError('') }}
-                placeholder="Enter promo code"
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100"
-              />
-              <button
-                onClick={applyPromo}
-                disabled={!promoInput.trim() || promoChecking}
-                className="px-4 py-2.5 bg-[#003049] hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold text-sm rounded-xl transition-colors"
-              >
-                {promoChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
-              </button>
-            </div>
-            {promoError && <p className="text-xs text-red-500">{promoError}</p>}
-            <p className="text-xs text-gray-400">Try: RENTIVO10, WELCOME15, CREATOR20</p>
-          </>
-        )}
-      </div>
 
       {/* Terms */}
       <label className="flex items-start gap-3 cursor-pointer" onClick={() => setAgreed((v) => !v)}>
