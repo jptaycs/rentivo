@@ -38,8 +38,9 @@ export default function CancellationPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-bold text-[#111827]">No cancellation tiers</h2>
           <p className="text-sm text-gray-700 leading-relaxed">
-            Rentivo does not offer different cancellation tiers (for example, Flexible, Moderate,
-            or Strict). Every eligible cancellation is handled the same way, as described above.
+            Rentivo does not offer named cancellation tiers, and the refund amount does not
+            change based on how far in advance you cancel. Every eligible cancellation is
+            handled the same way, as described above.
           </p>
         </section>
 
@@ -57,6 +58,15 @@ export default function CancellationPage() {
             If a booking was paid directly to the host&apos;s own GCash or Maya QR code, Rentivo
             never received that payment and cannot refund it. If that booking is cancelled,
             arrange the refund directly with the host.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-bold text-[#111827]">Who to contact</h2>
+          <p className="text-sm text-gray-700 leading-relaxed">
+            Rentivo is operated by Appnado IT Solutions, a DTI- and BIR-registered
+            business in the Philippines. For questions about this page, email{' '}
+            <a href="mailto:jptayco1109@gmail.com" className="text-[#003049] underline">jptayco1109@gmail.com</a>.
           </p>
         </section>
 
