@@ -17,7 +17,7 @@ export default function HostTermsPage() {
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 leading-relaxed">
             <li>Your identity must be verified by Rentivo before your listings are published.</li>
             <li>Listings must describe equipment you own, accurately, with current photos and a truthful condition.</li>
-            <li>Security deposits you set are held for the rental and returned when the equipment comes back as agreed.</li>
+            <li>Security deposits you set are collected from the renter by you at pickup and returned by you — Rentivo does not charge, hold or return them.</li>
             <li>Rentivo charges a 5% service fee on the rental fee of every booking. Delivery fees you set are paid to you in full.</li>
           </ul>
         </section>

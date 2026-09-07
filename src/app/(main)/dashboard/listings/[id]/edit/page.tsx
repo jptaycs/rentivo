@@ -356,6 +356,9 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
                   className={`${field} pl-8`}
                 />
               </div>
+              <p className="mt-2 text-xs text-gray-400">
+                You collect this from the renter at pickup and return it yourself — Rentivo doesn&apos;t charge or hold it.
+              </p>
             </div>
             <div>
               <label className={label}>Weekly Rate <span className="font-normal text-gray-400 normal-case">(optional)</span></label>

@@ -72,7 +72,7 @@ export default function SettingsPage() {
 
   const FAQS = [
     { q: 'How do I become a host?', a: 'Click "Become a Host" in the navbar, complete the listing wizard, and submit your gear for review. Most listings go live within 24 hours.' },
-    { q: 'What happens if equipment is damaged?', a: 'Renters are responsible for loss or damage. Rentivo does not offer insurance or a protection plan — what stands behind a rental is the security deposit the host sets on the listing, collected at checkout. Damage is settled between the host and the renter, so report any issue in the booking\'s message thread to keep a record.' },
+    { q: 'What happens if equipment is damaged?', a: 'Renters are responsible for loss or damage. Rentivo does not offer insurance or a protection plan — what stands behind a rental is the security deposit the host sets on the listing, arranged directly with them at pickup and not charged by Rentivo. Damage is settled between the host and the renter, so report any issue in the booking\'s message thread to keep a record.' },
     { q: 'How are payments processed?', a: 'We support GCash, Maya, and Credit/Debit Card. Payouts to hosts are processed within 3 business days after a completed rental.' },
     { q: 'Can I cancel a booking?', a: 'Cancellation policies vary per listing (Flexible, Moderate, or Strict). Check the listing\'s policy before booking. Hosts may also set their own cancellation terms.' },
     { q: 'How does identity verification work?', a: 'We require a government-issued ID and a selfie to verify your identity. This protects both hosts and renters on the platform.' },
