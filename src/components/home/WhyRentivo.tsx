@@ -16,7 +16,7 @@ const FEATURES = [
   {
     icon: ShieldCheck,
     title: 'Trusted Marketplace',
-    description: 'Verified users, secure payments, equipment protection, and a review system you can count on.',
+    description: 'Verified users, secure payments, host-set security deposits, and a review system you can count on.',
     color: 'bg-orange-50 text-orange-500',
   },
 ]

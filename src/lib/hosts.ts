@@ -47,3 +47,30 @@ export async function getHostProfile(id: string): Promise<HostProfileData | null
     city: (profile as Profile).city ?? listingRows[0]?.city ?? null,
   }
 }
+
+/**
+ * The date a host's first *visible* listing went up — the same rule
+ * getHostProfile's "Hosting since" stat uses (RLS exposes only active,
+ * published listings, so a host whose genuine first listing is paused or
+ * pending review reports their earliest visible one), so the listing detail
+ * page and the host profile page can't report different tenures.
+ *
+ * Returns null when there's nothing to read — no listings, mock mode, a bad id.
+ * Callers fall back to the profile's own created_at, as getHostProfile does.
+ */
+export async function getHostSince(hostId: string): Promise<string | null> {
+  if (!isSupabaseConfigured() || !UUID_RE.test(hostId)) return null
+
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('listings')
+    .select('created_at')
+    .eq('host_id', hostId)
+    .eq('is_active', true)
+    .eq('is_draft', false)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  return (data as { created_at: string } | null)?.created_at ?? null
+}

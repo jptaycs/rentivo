@@ -10,9 +10,18 @@ import type { Profile } from '@/types'
 interface HostCardProps {
   host: Profile
   listingId: string
+  /**
+   * Pre-formatted on the server from the host's first listing (see
+   * `getHostSince`), so this card and the host profile page report the same
+   * date — and so a UTC server and a +08 browser can't format two different
+   * ones and trip a hydration mismatch.
+   */
+  hostSince: string
+  /** Pre-formatted tenure for the same date: "New host" / "8 months" / "2 years". */
+  hostingFor: string
 }
 
-export function HostCard({ host, listingId }: HostCardProps) {
+export function HostCard({ host, listingId, hostSince, hostingFor }: HostCardProps) {
   const [inquiryOpen, setInquiryOpen] = useState(false)
   // base-ui returns focus to <body> on close, since this trigger is a plain
   // button rather than a DialogTrigger. Put focus back where the user left it,
@@ -28,9 +37,6 @@ export function HostCard({ host, listingId }: HostCardProps) {
     .join('')
     .slice(0, 2)
     .toUpperCase()
-
-  const joinYear = new Date(host.created_at).getFullYear()
-  const yearsHosting = new Date().getFullYear() - joinYear || 1
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -48,7 +54,7 @@ export function HostCard({ host, listingId }: HostCardProps) {
               <BadgeCheck className="w-5 h-5 text-[#003049]" />
             )}
           </div>
-          <p className="text-sm text-gray-500 mt-0.5">Host since {joinYear}</p>
+          <p className="text-sm text-gray-500 mt-0.5">Host since {hostSince}</p>
           {host.host_rating && (
             <div className="flex items-center gap-1 mt-1">
               <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
@@ -73,8 +79,8 @@ export function HostCard({ host, listingId }: HostCardProps) {
         </div>
         <div className="bg-[#F8FAFC] rounded-xl p-3 text-center">
           <Calendar className="w-4 h-4 text-[#003049] mx-auto mb-1" />
-          <p className="text-xs text-gray-500">Years hosting</p>
-          <p className="text-sm font-semibold text-[#111827]">{yearsHosting} yr{yearsHosting > 1 ? 's' : ''}</p>
+          <p className="text-xs text-gray-500">Hosting</p>
+          <p className="text-sm font-semibold text-[#111827]">{hostingFor}</p>
         </div>
       </div>
 

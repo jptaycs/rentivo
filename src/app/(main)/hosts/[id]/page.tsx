@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { BadgeCheck, Star, Clock, MapPin, MessageCircle, ChevronRight, Camera } from 'lucide-react'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { getHostProfile } from '@/lib/hosts'
+import { formatHostingSince } from '@/lib/hosting'
 import { MOCK_LISTINGS } from '@/lib/mock-data'
 import { ListingCard } from '@/components/shared/ListingCard'
 import type { Listing, Profile, Review } from '@/types'
@@ -44,8 +45,6 @@ const MOCK_HOST: HostView = {
 function toView(profile: Profile, listings: Listing[], reviews: Review[], city: string | null): HostView {
   const monthYear = (d: string) =>
     new Date(d).toLocaleDateString('en-PH', { month: 'long', year: 'numeric' })
-  const fullDate = (d: string) =>
-    new Date(d).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })
   return {
     name: profile.full_name,
     avatarUrl: profile.avatar_url,
@@ -63,7 +62,7 @@ function toView(profile: Profile, listings: Listing[], reviews: Review[], city: 
     // genuine first listing is paused or pending review shows their earliest
     // *visible* one. Falls back to the account's own creation date when the
     // host has no visible listings at all.
-    since: fullDate(listings[listings.length - 1]?.created_at ?? profile.created_at),
+    since: formatHostingSince(listings[listings.length - 1]?.created_at ?? profile.created_at),
     listings,
     reviews: reviews.map((r) => ({
       id: r.id,

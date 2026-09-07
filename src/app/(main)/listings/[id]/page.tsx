@@ -1,5 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getListing, getListingReviews } from '@/lib/listings'
+import { getHostSince } from '@/lib/hosts'
+import { formatHostingSince, formatHostingDuration } from '@/lib/hosting'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { ViewTracker } from '@/components/listings/ViewTracker'
 import { PhotoGallery } from '@/components/listings/PhotoGallery'
@@ -10,7 +12,7 @@ import { ReviewsList } from '@/components/listings/ReviewsList'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import {
-  BadgeCheck, Zap, MapPin, CheckCircle2, Shield, XCircle, Info,
+  BadgeCheck, Zap, MapPin, CheckCircle2, Wallet, XCircle, Info,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -24,7 +26,15 @@ export default async function ListingPage({ params }: ListingPageProps) {
 
   if (!listing) notFound()
 
-  const reviews = isSupabaseConfigured() ? await getListingReviews(listing.id) : undefined
+  const [reviews, firstListedAt] = await Promise.all([
+    isSupabaseConfigured() ? getListingReviews(listing.id) : undefined,
+    listing.host ? getHostSince(listing.host.id) : null,
+  ])
+
+  // The host's first listing is the honest start of their hosting history; the
+  // account's own created_at is only a fallback (no visible listings, mock
+  // mode). Same rule as the host profile page, so the two agree.
+  const hostSince = firstListedAt ?? listing.host?.created_at ?? null
 
   const CONDITION_LABELS: Record<string, string> = {
     mint: 'Mint condition',
@@ -204,7 +214,16 @@ export default async function ListingPage({ params }: ListingPageProps) {
               <h2 className="text-xl font-bold text-[#111827] mb-4">Trust & Safety</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
-                  { icon: Shield, title: 'Equipment Protection', desc: 'Covered for accidental damage up to ₱50,000' },
+                  // Rentivo has no insurance or damage-claims mechanism, so
+                  // nothing here may promise coverage. The deposit is the real
+                  // thing standing behind a rental — state that and nothing more.
+                  ...(listing.security_deposit > 0
+                    ? [{
+                        icon: Wallet,
+                        title: 'Security Deposit',
+                        desc: `₱${listing.security_deposit.toLocaleString()} collected at checkout for this rental`,
+                      }]
+                    : []),
                   { icon: BadgeCheck, title: 'Verified Profiles', desc: 'ID and selfie verified by Rentivo' },
                 ].map((item) => {
                   const Icon = item.icon
@@ -235,7 +254,12 @@ export default async function ListingPage({ params }: ListingPageProps) {
             {listing.host && (
               <section>
                 <h2 className="text-xl font-bold text-[#111827] mb-4">Your Host</h2>
-                <HostCard host={listing.host} listingId={listing.id} />
+                <HostCard
+                  host={listing.host}
+                  listingId={listing.id}
+                  hostSince={formatHostingSince(hostSince ?? listing.host.created_at)}
+                  hostingFor={formatHostingDuration(hostSince ?? listing.host.created_at)}
+                />
               </section>
             )}
           </div>
