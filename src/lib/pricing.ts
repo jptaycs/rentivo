@@ -26,14 +26,19 @@ export function calcRentalFee(listing: PricedListing, days: number): { rentalFee
 }
 
 /**
- * Mirrors create_booking (038). The delivery fee is charged only when the
+ * Mirrors create_booking (070). The delivery fee is charged only when the
  * renter picks delivery, and the service fee is NOT charged on it — it is a
  * pass-through to the host.
+ *
+ * The security deposit is deliberately NOT part of the total: since 070
+ * Rentivo does not charge it. The host collects it directly at pickup.
+ * `PricedListing.security_deposit` stays on the interface because the listing
+ * still discloses the amount — it is just not money Rentivo takes.
  */
 export function calcPricing(listing: PricedListing, days: number, isDelivery = false) {
   const { rentalFee, tier } = calcRentalFee(listing, days)
   const serviceFee = Math.round(rentalFee * SERVICE_FEE_RATE)
   const deliveryFee = isDelivery ? (listing.delivery_fee ?? 0) : 0
-  const total = rentalFee + serviceFee + deliveryFee + listing.security_deposit
+  const total = rentalFee + serviceFee + deliveryFee
   return { rentalFee, tier, serviceFee, deliveryFee, total }
 }

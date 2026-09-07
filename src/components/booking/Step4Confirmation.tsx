@@ -192,10 +192,14 @@ export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) 
               <span>₱{booking.delivery_fee.toLocaleString()}</span>
             </div>
           )}
-          <div className="flex justify-between text-gray-600">
-            <span>Security deposit</span>
-            <span>₱{booking.security_deposit.toLocaleString()}</span>
-          </div>
+          {/* Pre-070 bookings really were charged a deposit; their receipts must
+              still add up. New bookings store 0 and render no row. */}
+          {booking.security_deposit > 0 && (
+            <div className="flex justify-between text-gray-600">
+              <span>Security deposit</span>
+              <span>₱{booking.security_deposit.toLocaleString()}</span>
+            </div>
+          )}
           <div className="flex justify-between font-bold text-[#111827] text-base border-t border-gray-200 pt-2 mt-1">
             <span>{isAwaitingQrPayment ? 'Total Due' : 'Total Paid'}</span>
             <span className="text-[#003049]">₱{booking.total_amount.toLocaleString()}</span>
