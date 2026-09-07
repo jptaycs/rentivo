@@ -9,7 +9,7 @@ export default function HostTermsPage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
         <div>
           <h1 className="text-3xl font-bold text-[#111827]">Host Terms of Service</h1>
-          <p className="mt-2 text-sm text-gray-500">Last updated {POLICY_START_LABEL}</p>
+          <p className="mt-2 text-sm text-gray-500">Last updated September 8, 2026</p>
         </div>
 
         <section className="space-y-3">
@@ -17,7 +17,7 @@ export default function HostTermsPage() {
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 leading-relaxed">
             <li>Your identity must be verified by Rentivo before your listings are published.</li>
             <li>Listings must describe equipment you own, accurately, with current photos and a truthful condition.</li>
-            <li>Security deposits you set are held for the rental and returned when the equipment comes back as agreed.</li>
+            <li>Security deposits you set are collected from the renter by you at pickup and returned by you — Rentivo does not charge, hold or return them.</li>
             <li>Rentivo charges a 5% service fee on the rental fee of every booking. Delivery fees you set are paid to you in full.</li>
           </ul>
         </section>
@@ -33,6 +33,15 @@ export default function HostTermsPage() {
             <li>If a bill is still unpaid after its due date, renters can no longer pay you by direct QR until it is settled. Your listings stay live and bookable through Rentivo&apos;s other payment methods.</li>
             <li>This applies to bookings confirmed as paid on or after {POLICY_START_LABEL}.</li>
           </ul>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-bold text-[#111827]">Who to contact</h2>
+          <p className="text-sm text-gray-700 leading-relaxed">
+            Rentivo is operated by Appnado IT Solutions, a DTI- and BIR-registered
+            business in the Philippines. For questions about these terms, email{' '}
+            <a href="mailto:jptayco1109@gmail.com" className="text-[#003049] underline">jptayco1109@gmail.com</a>.
+          </p>
         </section>
       </div>
     </div>

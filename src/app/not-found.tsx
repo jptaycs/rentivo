@@ -34,7 +34,7 @@ export default function NotFound() {
 
       <p className="text-xs text-gray-400 mt-10">
         Need help?{' '}
-        <a href="mailto:support@rentivo.ph" className="text-[#003049] hover:underline">Contact support</a>
+        <a href="mailto:jptayco1109@gmail.com" className="text-[#003049] hover:underline">Contact support</a>
       </p>
     </div>
   )

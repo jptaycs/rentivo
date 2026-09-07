@@ -34,8 +34,15 @@ export function Footer() {
           <div>
             <h4 className="text-white text-sm font-semibold mb-3">Support</h4>
             <ul className="space-y-2 text-sm">
-              {['Help Center', 'Safety', 'Cancellations', 'Contact Us'].map((l) => (
-                <li key={l}><Link href="#" className="hover:text-white transition-colors">{l}</Link></li>
+              {[
+                { label: 'Help Center', href: 'mailto:jptayco1109@gmail.com' },
+                { label: 'Safety', href: '/rental-agreement' },
+                { label: 'Cancellations', href: '/cancellation' },
+                { label: 'Contact Us', href: 'mailto:jptayco1109@gmail.com' },
+              ].map((l) => (
+                <li key={l.label}>
+                  <Link href={l.href} className="hover:text-white transition-colors">{l.label}</Link>
+                </li>
               ))}
             </ul>
           </div>
@@ -44,9 +51,9 @@ export function Footer() {
         <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs">© 2026 Rentivo. All rights reserved.</p>
           <div className="flex gap-4 text-xs">
-            <Link href="#" className="hover:text-white transition-colors">Privacy</Link>
-            <Link href="#" className="hover:text-white transition-colors">Terms</Link>
-            <Link href="#" className="hover:text-white transition-colors">Cookies</Link>
+            <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+            <Link href="/privacy" className="hover:text-white transition-colors">Cookies</Link>
           </div>
         </div>
       </div>

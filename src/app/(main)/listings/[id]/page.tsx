@@ -112,7 +112,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
                   { label: 'Category', value: listing.category.charAt(0).toUpperCase() + listing.category.slice(1) },
                   { label: 'Condition', value: CONDITION_LABELS[listing.condition] },
                   { label: 'Location', value: `${listing.city}, ${listing.province}` },
-                  { label: 'Security Deposit', value: `₱${listing.security_deposit.toLocaleString()}` },
+                  { label: 'Security Deposit', value: `₱${listing.security_deposit.toLocaleString()} — paid to the host at pickup` },
                 ].map((s) => (
                   <div key={s.label} className="bg-white rounded-xl border border-gray-100 p-4">
                     <dt className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{s.label}</dt>
@@ -214,14 +214,14 @@ export default async function ListingPage({ params }: ListingPageProps) {
               <h2 className="text-xl font-bold text-[#111827] mb-4">Trust & Safety</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
-                  // Rentivo has no insurance or damage-claims mechanism, so
-                  // nothing here may promise coverage. The deposit is the real
-                  // thing standing behind a rental — state that and nothing more.
+                  // Rentivo has no insurance or damage-claims mechanism, and
+                  // since 070 does not collect the deposit either. Say exactly
+                  // what happens: the host holds it, in person.
                   ...(listing.security_deposit > 0
                     ? [{
                         icon: Wallet,
                         title: 'Security Deposit',
-                        desc: `₱${listing.security_deposit.toLocaleString()} collected at checkout for this rental`,
+                        desc: `₱${listing.security_deposit.toLocaleString()} arranged directly with the host at pickup — Rentivo does not collect or hold it`,
                       }]
                     : []),
                   { icon: BadgeCheck, title: 'Verified Profiles', desc: 'ID and selfie verified by Rentivo' },

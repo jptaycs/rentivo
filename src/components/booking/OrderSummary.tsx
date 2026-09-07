@@ -97,10 +97,6 @@ export function OrderSummary({ listing, pickupDate, returnDate, days, isDelivery
             <span>₱{deliveryFee.toLocaleString()}</span>
           </div>
         )}
-        <div className="flex justify-between text-gray-600">
-          <span>Security deposit <span className="text-xs">(refundable)</span></span>
-          <span>₱{listing.security_deposit.toLocaleString()}</span>
-        </div>
         <div className="flex justify-between font-bold text-[#111827] text-base border-t border-gray-200 pt-3 mt-1">
           <span>Total</span>
           <span>₱{total.toLocaleString()}</span>

@@ -138,7 +138,7 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
         </div>
         <div className="flex items-start gap-2 mt-2 text-xs text-gray-400">
           <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-          Held during the rental and refunded upon safe return. Recommended: 3–5× the daily rate.
+          You collect this from the renter at pickup and return it yourself — Rentivo doesn&apos;t charge or hold it. Recommended: 3–5× the daily rate.
         </div>
       </div>
 
