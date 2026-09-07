@@ -78,6 +78,15 @@ export default function PrivacyPage() {
               publicly on the listing page and on the reviewed person&apos;s host
               profile, along with your display name.
             </li>
+            <li>
+              <span className="font-semibold">Moderation records:</span> if we
+              suspend an account, we keep a record of that action, which admin
+              took it, and the reason given. If we remove an account, we
+              additionally keep a record of that account&apos;s name and email
+              address at the time, since those fields are otherwise replaced with
+              placeholder values on deletion. These records are not shown
+              publicly.
+            </li>
           </ul>
         </section>
 
@@ -171,6 +180,14 @@ export default function PrivacyPage() {
             records — commission bills and payout requests — because they are
             accounting records, and we keep message threads because they are also the
             other party&apos;s record of the conversation, not yours alone.
+          </p>
+          <p className="text-sm text-gray-700 leading-relaxed">
+            If your account was suspended or removed by an admin, we also keep the
+            moderation record described in section 2 — the action taken, who took
+            it, the reason, and, for a removed account, the name and email address
+            on file at the time. We keep this regardless of a later deletion,
+            because it is the audit trail for our own moderation decision, and it
+            would be worthless if the account it concerns could erase it.
           </p>
           <p className="text-sm text-gray-700 leading-relaxed">
             Account deletion is blocked while you have an in-flight booking, a pending

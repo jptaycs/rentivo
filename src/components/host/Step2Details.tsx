@@ -110,7 +110,7 @@ export function Step2Details({ data, onChange, onNext, onBack }: Step2DetailsPro
 
       {/* Serial number */}
       <div>
-        <label className={label}>Serial Number <span className="normal-case text-gray-400 font-normal">(for insurance purposes)</span></label>
+        <label className={label}>Serial Number <span className="normal-case text-gray-400 font-normal">(identifies this specific item in case of a dispute)</span></label>
         <input
           value={data.serialNumber}
           onChange={e => set('serialNumber', e.target.value)}
