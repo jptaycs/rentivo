@@ -14,11 +14,9 @@ export const metadata: Metadata = {
   description:
     'The most trusted marketplace for renting cameras, smartphones, and lenses in the Philippines.',
   keywords: ['camera rental', 'lens rental', 'smartphone rental', 'Philippines'],
-  icons: {
-    icon: '/rentivo-logo-beige.png',
-    shortcut: '/rentivo-logo-beige.png',
-    apple: '/rentivo-logo-beige.png',
-  },
+  // Tab/home-screen icons come from the file conventions in this folder
+  // (favicon.ico, icon.png, apple-icon.png) — the aperture mark from the logo,
+  // since the full wordmark is unreadable at 16px.
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
