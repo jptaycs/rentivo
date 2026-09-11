@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import Image from 'next/image'
+import { Logo } from '@/components/layout/Logo'
 import { Bell, MessageCircle, Menu, X, LayoutDashboard, Package, LogOut, Settings, ChevronDown } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -44,10 +44,7 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
-          <Link href="/" className="shrink-0 flex items-center gap-2.5">
-            <Image src="/rentivo-mark.png" alt="" width={36} height={36} className="w-9 h-9" priority />
-            <span className="text-xl font-bold tracking-tight text-[#003049]">Rentivo</span>
-          </Link>
+          <Logo size="md" priority />
 
 
           {/* Right actions — desktop */}

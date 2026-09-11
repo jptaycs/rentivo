@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
+import { Logo } from '@/components/layout/Logo'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Package, CalendarDays, MessageCircle,
@@ -51,9 +51,7 @@ export function DashboardSidebar({ isHost = true, onClose }: DashboardSidebarPro
     <aside className="flex flex-col h-full bg-white border-r border-gray-100">
       {/* Logo */}
       <div className="px-5 py-5 border-b border-gray-100">
-        <Link href="/" onClick={onClose}>
-          <Image src="/rentivo-logo.png" alt="Rentivo" width={130} height={44} className="h-10 w-auto object-contain" />
-        </Link>
+        <Logo size="sm" onClick={onClose} />
       </div>
 
       {/* Mode toggle */}

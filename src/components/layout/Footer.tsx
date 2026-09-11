@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import Image from 'next/image'
+import { Logo } from '@/components/layout/Logo'
 import { BUSINESS, BUSINESS_ADDRESS } from '@/lib/business'
 
 export function Footer() {
@@ -8,9 +8,7 @@ export function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="inline-block mb-3">
-              <Image src="/rentivo-logo-beige.png" alt="Rentivo" width={220} height={72} className="h-20 w-auto object-contain" />
-            </Link>
+            <Logo size="lg" tone="cream" className="mb-3" />
             <p className="text-sm leading-relaxed">Rent Smarter. Create More.</p>
           </div>
 

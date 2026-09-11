@@ -1,15 +1,13 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { Camera, Search, Home } from 'lucide-react'
+import { Logo } from '@/components/layout/Logo'
 import { BUSINESS } from '@/lib/business'
 
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center px-4 text-center">
       {/* Logo */}
-      <Link href="/" className="mb-12 inline-block">
-        <Image src="/rentivo-logo.png" alt="Rentivo" width={160} height={52} className="h-12 w-auto object-contain" />
-      </Link>
+      <Logo size="lg" className="mb-12" />
 
       {/* 404 */}
       <div className="relative mb-6">

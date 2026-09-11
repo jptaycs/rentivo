@@ -1,5 +1,4 @@
-import Link from 'next/link'
-import Image from 'next/image'
+import { Logo } from '@/components/layout/Logo'
 
 interface AuthShellProps {
   children: React.ReactNode
@@ -32,9 +31,7 @@ export function AuthShell({ children, heading, subheading }: AuthShellProps) {
         <div className="absolute top-20 right-10 w-32 h-32 bg-white/5 rounded-full" />
 
         {/* Logo */}
-        <Link href="/" className="relative z-10 inline-block">
-          <Image src="/rentivo-logo-beige.png" alt="Rentivo" width={160} height={52} className="h-14 w-auto object-contain" />
-        </Link>
+        <Logo size="lg" tone="cream" className="relative z-10" />
 
         {/* Center content */}
         <div className="relative z-10 space-y-6">
@@ -90,9 +87,7 @@ export function AuthShell({ children, heading, subheading }: AuthShellProps) {
       {/* Right form panel */}
       <div className="flex-1 flex flex-col justify-center items-center px-6 py-12 sm:px-12 overflow-y-auto">
         {/* Mobile logo */}
-        <Link href="/" className="mb-8 lg:hidden inline-block">
-          <Image src="/rentivo-logo.png" alt="Rentivo" width={140} height={48} className="h-11 w-auto object-contain" />
-        </Link>
+        <Logo size="md" className="mb-8 lg:hidden" />
 
         <div className="w-full max-w-md">
           <div className="mb-8">
