@@ -44,8 +44,9 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
-          <Link href="/" className="shrink-0">
-            <Image src="/rentivo-logo.png" alt="Rentivo" width={220} height={72} className="h-16 w-auto object-contain" priority />
+          <Link href="/" className="shrink-0 flex items-center gap-2.5">
+            <Image src="/rentivo-mark.png" alt="" width={36} height={36} className="w-9 h-9" priority />
+            <span className="text-xl font-bold tracking-tight text-[#003049]">Rentivo</span>
           </Link>
 
 
