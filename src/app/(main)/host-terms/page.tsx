@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { POLICY_START_LABEL, GRACE_DAYS } from '@/lib/billing'
+import { LegalContact } from '@/components/shared/LegalContact'
 
 export const metadata = { title: 'Host Terms — Rentivo' }
 
@@ -35,14 +36,7 @@ export default function HostTermsPage() {
           </ul>
         </section>
 
-        <section className="space-y-3">
-          <h2 className="text-xl font-bold text-[#111827]">Who to contact</h2>
-          <p className="text-sm text-gray-700 leading-relaxed">
-            Rentivo is operated by Appnado IT Solutions, a DTI- and BIR-registered
-            business in the Philippines. For questions about these terms, email{' '}
-            <a href="mailto:jptayco1109@gmail.com" className="text-[#003049] underline">jptayco1109@gmail.com</a>.
-          </p>
-        </section>
+        <LegalContact purpose="these host terms, a payout, or a commission bill" />
       </div>
     </div>
   )

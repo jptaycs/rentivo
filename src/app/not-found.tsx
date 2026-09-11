@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Camera, Search, Home } from 'lucide-react'
+import { BUSINESS } from '@/lib/business'
 
 export default function NotFound() {
   return (
@@ -34,7 +35,7 @@ export default function NotFound() {
 
       <p className="text-xs text-gray-400 mt-10">
         Need help?{' '}
-        <a href="mailto:jptayco1109@gmail.com" className="text-[#003049] hover:underline">Contact support</a>
+        <a href={`mailto:${BUSINESS.email}`} className="text-[#003049] hover:underline">Contact support</a>
       </p>
     </div>
   )

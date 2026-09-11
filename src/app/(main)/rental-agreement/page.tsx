@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { BUSINESS } from '@/lib/business'
+import { LegalContact } from '@/components/shared/LegalContact'
 
 export const metadata = { title: 'Rental Agreement — Rentivo' }
 
@@ -15,12 +17,12 @@ export default function RentalAgreementPage() {
           <h2 className="text-xl font-bold text-[#111827]">1. Who this agreement is between</h2>
           <p className="text-sm text-gray-700 leading-relaxed">
             This rental agreement is between the host and the renter for a specific booking made
-            through Rentivo. Rentivo is operated by Appnado IT Solutions, which publishes this
+            through Rentivo. Rentivo is operated by {BUSINESS.name}, which publishes this
             page as a reference for hosts and renters — Rentivo is not a party to this agreement,
             does not lend or own the equipment, and provides no insurance for the rental. Any
             question about this page itself can be sent to{' '}
-            <a href="mailto:jptayco1109@gmail.com" className="text-[#003049] underline">
-              jptayco1109@gmail.com
+            <a href={`mailto:${BUSINESS.email}`} className="text-[#003049] underline">
+              {BUSINESS.email}
             </a>
             .
           </p>
@@ -81,9 +83,16 @@ export default function RentalAgreementPage() {
             <Link href="/dashboard/messages" className="text-[#003049] underline">
               message thread
             </Link>{' '}
-            so there is a record both parties can refer back to.
+            so there is a record both parties can refer back to. If you cannot settle it between
+            you, see the{' '}
+            <Link href="/disputes" className="text-[#003049] underline">
+              Dispute Resolution Policy
+            </Link>{' '}
+            for what Rentivo can and cannot do.
           </p>
         </section>
+
+        <LegalContact purpose="this agreement" />
 
         <section className="space-y-3">
           <p className="text-sm text-gray-700 leading-relaxed">

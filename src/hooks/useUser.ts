@@ -16,7 +16,10 @@ export interface SessionUser {
 // Shown while Supabase env vars are absent so the mock-data UI keeps working
 const MOCK_USER: SessionUser = {
   id: 'mock-user',
-  email: 'jptayco1109@gmail.com',
+  // Deliberately the demo address, not the owner's real one — mock mode
+  // renders this in the navbar and sidebar, and the owner's address is the
+  // admin allowlist address, which is never shown in the UI.
+  email: 'demo@demo.rentivo.ph',
   name: 'Juan P. Tayco',
   avatarUrl: null,
 }

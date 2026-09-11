@@ -59,6 +59,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }]
   },
+  // /cancellation's content moved into /refunds (Return and Refund Policy) so
+  // cancellation, refund and equipment-return rules live in one place rather
+  // than drifting across two. The old path is kept alive because it is linked
+  // from emails and receipts already sent.
+  async redirects() {
+    return [{ source: '/cancellation', destination: '/refunds', permanent: true }]
+  },
   images: {
     remotePatterns: [
       {

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { BUSINESS, BUSINESS_ADDRESS } from '@/lib/business'
 
 export const metadata = { title: 'Privacy Policy — Rentivo' }
 
@@ -14,13 +15,14 @@ export default function PrivacyPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-bold text-[#111827]">1. Who we are</h2>
           <p className="text-sm text-gray-700 leading-relaxed">
-            Rentivo is operated by Appnado IT Solutions, a business registered with the
-            Philippine Department of Trade and Industry (DTI) and the Bureau of Internal
-            Revenue (BIR). For the purposes of the Data Privacy Act of 2012 (RA 10173),
-            Appnado IT Solutions is the Personal Information Controller for the data
+            Rentivo is operated by {BUSINESS.name}, a business registered with the
+            Philippine Department of Trade and Industry (DTI Business Name Registration No.{' '}
+            {BUSINESS.dtiNumber}) and the Bureau of Internal Revenue, based in{' '}
+            {BUSINESS_ADDRESS}. For the purposes of the Data Privacy Act of 2012 (RA 10173),
+            {' '}{BUSINESS.name} is the Personal Information Controller for the data
             described on this page. For any privacy question, request, or concern, email{' '}
-            <a href="mailto:jptayco1109@gmail.com" className="text-[#003049] underline">
-              jptayco1109@gmail.com
+            <a href={`mailto:${BUSINESS.email}`} className="text-[#003049] underline">
+              {BUSINESS.email}
             </a>
             .
           </p>
@@ -208,8 +210,8 @@ export default function PrivacyPage() {
             damages for violations of your rights; to data portability; and to lodge a
             complaint with the National Privacy Commission. To exercise any of these
             rights, email us at{' '}
-            <a href="mailto:jptayco1109@gmail.com" className="text-[#003049] underline">
-              jptayco1109@gmail.com
+            <a href={`mailto:${BUSINESS.email}`} className="text-[#003049] underline">
+              {BUSINESS.email}
             </a>{' '}
             and we&apos;ll respond directly.
           </p>

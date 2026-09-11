@@ -1,4 +1,6 @@
 import Link from 'next/link'
+import { BUSINESS, BUSINESS_ADDRESS } from '@/lib/business'
+import { LegalContact } from '@/components/shared/LegalContact'
 
 export const metadata = { title: 'Terms of Service — Rentivo' }
 
@@ -14,11 +16,12 @@ export default function TermsPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-bold text-[#111827]">1. Who you are contracting with</h2>
           <p className="text-sm text-gray-700 leading-relaxed">
-            Rentivo is operated by Appnado IT Solutions, a DTI- and BIR-registered business.
-            These terms are an agreement between you and Appnado IT Solutions. For any question
+            Rentivo is operated by {BUSINESS.name}, a DTI- and BIR-registered business
+            (DTI Business Name Registration No. {BUSINESS.dtiNumber}) based in {BUSINESS_ADDRESS}.
+            These terms are an agreement between you and {BUSINESS.name}. For any question
             about these terms, contact{' '}
-            <a href="mailto:jptayco1109@gmail.com" className="text-[#003049] underline">
-              jptayco1109@gmail.com
+            <a href={`mailto:${BUSINESS.email}`} className="text-[#003049] underline">
+              {BUSINESS.email}
             </a>
             .
           </p>
@@ -123,12 +126,17 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xl font-bold text-[#111827]">10. Governing law</h2>
+          <h2 className="text-xl font-bold text-[#111827]">10. Governing law and disputes</h2>
           <p className="text-sm text-gray-700 leading-relaxed">
-            These terms are governed by the laws of the Philippines. For how cancellations are
-            handled, see{' '}
-            <Link href="/cancellation" className="text-[#003049] underline">
-              Cancellation Policy
+            These terms are governed by the laws of the Philippines. How a disagreement is
+            raised and resolved — with a host, a renter, or with Rentivo itself — is set out in
+            the{' '}
+            <Link href="/disputes" className="text-[#003049] underline">
+              Dispute Resolution Policy
+            </Link>
+            . For how cancellations, refunds and equipment returns are handled, see the{' '}
+            <Link href="/refunds" className="text-[#003049] underline">
+              Return and Refund Policy
             </Link>
             .
           </p>
@@ -145,6 +153,8 @@ export default function TermsPage() {
             This page describes how Rentivo actually works. It is not legal advice.
           </p>
         </section>
+
+        <LegalContact purpose="these terms" />
       </div>
     </div>
   )

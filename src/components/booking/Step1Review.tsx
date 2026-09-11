@@ -67,10 +67,10 @@ export function Step1Review({ listing, pickupDate, returnDate, days, onNext }: S
 
       {/* Cancellation policy */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5">
-        <h3 className="font-bold text-[#111827] mb-2">Cancellation Policy</h3>
+        <h3 className="font-bold text-[#111827] mb-2">Cancellations & refunds</h3>
         <p className="text-sm text-gray-600 leading-relaxed">
           Cancel any time before the host accepts your request and you&apos;ll be refunded in full.{' '}
-          <Link href="/cancellation" className="text-[#003049] underline">Read the full policy</Link>.
+          <Link href="/refunds" className="text-[#003049] underline">Read the full policy</Link>.
         </p>
       </div>
 

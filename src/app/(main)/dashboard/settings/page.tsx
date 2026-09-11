@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { VerificationCard } from '@/components/shared/VerificationCard'
 import { QrPaymentCard } from '@/components/shared/QrPaymentCard'
+import { BUSINESS } from '@/lib/business'
 
 export default function SettingsPage() {
   const live = isSupabaseConfigured()
@@ -380,7 +381,7 @@ export default function SettingsPage() {
         {/* Quick links */}
         <div className="flex flex-wrap gap-3 pt-2 border-t border-gray-100">
           <a
-            href="mailto:jptayco1109@gmail.com"
+            href={`mailto:${BUSINESS.email}`}
             className="flex items-center gap-2 text-sm font-medium text-[#003049] bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl transition-colors"
           >
             <MessageSquare className="w-4 h-4" /> Contact Support
@@ -453,7 +454,7 @@ export default function SettingsPage() {
         )}
 
         <a
-          href="mailto:jptayco1109@gmail.com?subject=Delete my Rentivo account"
+          href={`mailto:${BUSINESS.email}?subject=Delete my Rentivo account`}
           className="block text-xs text-red-500 hover:underline"
         >
           Or contact support if you run into an issue
