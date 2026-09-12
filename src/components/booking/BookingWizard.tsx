@@ -121,30 +121,6 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
   async function handlePaymentComplete(payload: CheckoutPayload) {
     setError('')
 
-    if (payload.method === 'host_qr') {
-      const supabase = createClient()
-      const { data, error: rpcError } = await supabase.rpc('create_booking', {
-        p_listing_id: listing.id,
-        p_pickup_date: pickupDate,
-        p_return_date: returnDate,
-        p_is_delivery: isDelivery,
-        p_delivery_address: isDelivery ? deliveryAddress : null,
-        p_payment_method: 'host_qr',
-        p_promo_code: null,   // 071: promo codes discontinued
-      })
-      if (rpcError) {
-        setError(rpcError.message.replace(/^.*?: /, ''))
-        return
-      }
-      const created = data as Booking
-      setBooking(created)
-      fetch(`/api/bookings/${created.id}/notify-qr-requested`, { method: 'POST' }).catch((e) =>
-        console.error('[email] notify-qr-requested failed', e)
-      )
-      goNext()
-      return
-    }
-
     const res = await fetch('/api/payments/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

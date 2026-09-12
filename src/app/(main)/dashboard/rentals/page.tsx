@@ -1,11 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Calendar, MapPin, MessageCircle, Star, Package, Loader2, Check, X, AlertCircle, QrCode, Navigation } from 'lucide-react'
+import { Calendar, MapPin, MessageCircle, Star, Package, Loader2, Check, X, AlertCircle, Navigation } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { useMyRentals, type BookingWithRefs } from '@/hooks/useBookings'
 import { useReviewedBookings } from '@/hooks/useReviewedBookings'
 import { ReviewModal } from '@/components/shared/ReviewModal'
@@ -36,13 +35,6 @@ export default function RentalsPage() {
   const [reviewing, setReviewing] = useState<BookingWithRefs | null>(null)
   const [cancellingId, setCancellingId] = useState('')
   const [error, setError] = useState('')
-  // Host-QR payment: the renter can reopen the QR any time before it's paid —
-  // the signed URL is short-lived, so it's fetched fresh on each open rather
-  // than eagerly for every booking in the list.
-  const [qrBookingId, setQrBookingId] = useState('')
-  const [qr, setQr] = useState<{ url: string; label: string | null } | null>(null)
-  const [qrLoading, setQrLoading] = useState(false)
-  const [qrError, setQrError] = useState('')
   // Exact pickup point. Fetched on open rather than for every booking in the
   // list: it is the host's precise location, so it is requested only when the
   // renter actually asks to see it.
@@ -50,62 +42,6 @@ export default function RentalsPage() {
   const [pickup, setPickup] = useState<{ lat: number; lng: number; address: string | null } | null>(null)
   const [pickupLoading, setPickupLoading] = useState(false)
   const [pickupUnavailable, setPickupUnavailable] = useState(false)
-  // Hosts who are suspended, among the ones this renter has an unpaid host_qr
-  // booking against. GET /api/bookings/[id]/qr refuses those (it is the fifth
-  // money path — see the guard's comment there), so without this the renter
-  // would get a button that only ever fails. Read via is_host_suspended rather
-  // than off the joined host profile: `suspended_at` is deliberately absent
-  // from PROFILE_COLUMNS, and the RPC is already granted to anon+authenticated
-  // (046), so asking it discloses nothing that was not already public.
-  const [suspendedHosts, setSuspendedHosts] = useState<Set<string>>(new Set())
-
-  const qrHostIds = bookings
-    .filter((b) => b.payment_method === 'host_qr' && b.payment_status === 'unpaid' && b.status !== 'cancelled')
-    .map((b) => b.host_id)
-  const qrHostKey = [...new Set(qrHostIds)].sort().join(',')
-
-  const loadSuspendedHosts = useCallback(async () => {
-    if (!isSupabaseConfigured() || !qrHostKey) {
-      setSuspendedHosts(new Set())
-      return
-    }
-    const supabase = createClient()
-    const ids = qrHostKey.split(',')
-    const results = await Promise.all(
-      ids.map(async (id) => {
-        const { data, error } = await supabase.rpc('is_host_suspended', { p_host_id: id })
-        // Fail SAFE for the renter: an unanswerable check is treated as
-        // suspended, so we never encourage a payment we could not verify.
-        return [id, error ? true : Boolean(data)] as const
-      })
-    )
-    setSuspendedHosts(new Set(results.filter(([, s]) => s).map(([id]) => id)))
-  }, [qrHostKey])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- standard fetch-on-mount/on-change pattern used by every data hook in this repo
-    loadSuspendedHosts()
-  }, [loadSuspendedHosts])
-
-  async function toggleQr(booking: BookingWithRefs) {
-    if (qrBookingId === booking.id) {
-      setQrBookingId('')
-      return
-    }
-    setQrBookingId(booking.id)
-    setQr(null)
-    setQrError('')
-    setQrLoading(true)
-    try {
-      const res = await fetch(`/api/bookings/${booking.id}/qr`)
-      const data = await res.json().catch(() => null)
-      if (!res.ok || !data?.url) throw new Error(data?.error ?? 'Could not load the QR code.')
-      setQr({ url: data.url, label: data.label ?? null })
-    } catch (e) {
-      setQrError(e instanceof Error ? e.message : 'Could not load the QR code.')
-    }
-    setQrLoading(false)
-  }
 
   async function togglePickup(booking: BookingWithRefs) {
     if (pickupBookingId === booking.id) {
@@ -251,23 +187,6 @@ export default function RentalsPage() {
                   {pickupBookingId === item.id ? 'Hide Pickup Location' : 'Show Pickup Location'}
                 </button>
               )}
-              {item.payment_method === 'host_qr' &&
-                item.payment_status === 'unpaid' &&
-                item.status !== 'cancelled' &&
-                (suspendedHosts.has(item.host_id) ? (
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    Payment on hold
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => toggleQr(item)}
-                    className="flex items-center gap-1.5 text-xs font-semibold text-purple-700 border border-purple-200 hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    <QrCode className="w-3.5 h-3.5" />
-                    {qrBookingId === item.id ? 'Hide Payment QR' : 'View Payment QR'}
-                  </button>
-                ))}
               {item.status === 'pending' && (
                 <button
                   onClick={() => handleCancel(item)}
@@ -293,23 +212,6 @@ export default function RentalsPage() {
               )}
             </div>
 
-            {/* The QR affordance is withheld above rather than left to fail on
-                click. Say why in the renter's terms — the point is that they
-                must NOT pay this host directly, since Rentivo never holds a
-                host-QR payment and so could not get it back for them. The
-                account's moderation state is not named. */}
-            {item.payment_method === 'host_qr' &&
-              item.payment_status === 'unpaid' &&
-              item.status !== 'cancelled' &&
-              suspendedHosts.has(item.host_id) && (
-                <div className="px-5 py-4 border-t border-gray-100 bg-amber-50/60 text-xs text-amber-800">
-                  This booking can&apos;t be paid right now, so its payment QR isn&apos;t available.{' '}
-                  <strong>Please don&apos;t send any money to the host for it.</strong> Cancel the
-                  booking if you no longer need the gear, or contact Rentivo support — a host-QR
-                  payment goes straight to the host, so Rentivo can&apos;t refund one on your behalf.
-                </div>
-              )}
-
             {pickupBookingId === item.id && (
               <div className="px-5 py-5 border-t border-gray-100 bg-blue-50/30">
                 {pickupLoading ? (
@@ -330,29 +232,6 @@ export default function RentalsPage() {
                     marked their exact pickup point — message them to arrange where to collect the gear.
                   </p>
                 ) : null}
-              </div>
-            )}
-
-            {qrBookingId === item.id && (
-              <div className="px-5 py-5 border-t border-gray-100 bg-purple-50/40 text-center space-y-2">
-                {qrLoading ? (
-                  <div className="w-48 h-48 mx-auto rounded-xl bg-gray-100 flex items-center justify-center text-gray-300">
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  </div>
-                ) : qrError ? (
-                  <div className="w-48 h-48 mx-auto rounded-xl bg-red-50 border border-red-100 flex items-center justify-center px-4 text-xs text-red-600 text-center">
-                    {qrError}
-                  </div>
-                ) : qr ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- signed URL from a private bucket, not a next/image remotePattern candidate
-                  <img src={qr.url} alt="Host's payment QR code" className="w-48 h-48 mx-auto rounded-xl object-cover" />
-                ) : null}
-                {qr?.label && <p className="text-sm font-semibold text-[#111827]">{qr.label}</p>}
-                <p className="text-xs text-gray-500">
-                  Pay ₱{item.total_amount.toLocaleString()}{' '}
-                  directly to your host — Rentivo doesn&apos;t process or hold this payment.
-                  They&apos;ll mark it received once it arrives.
-                </p>
               </div>
             )}
           </div>

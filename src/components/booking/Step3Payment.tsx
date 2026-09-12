@@ -1,14 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { ChevronLeft, Lock, Loader2, Check, AlertCircle } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/hooks/useUser'
 import { calcPricing } from '@/lib/pricing'
 import { enabledPaymentMethods, isPaymentMethodDisabled } from '@/lib/payment-methods'
 import type { Listing } from '@/types'
 
-type PaymentMethod = 'gcash' | 'maya' | 'card' | 'qrph' | 'apple_pay' | 'google_pay' | 'host_qr'
+type PaymentMethod = 'gcash' | 'maya' | 'card' | 'qrph' | 'apple_pay' | 'google_pay'
 
 export interface CheckoutPayload {
   method: PaymentMethod
@@ -100,13 +99,6 @@ async function createCardPaymentMethod(card: {
 
 export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step3PaymentProps) {
   const { user } = useUser()
-  // This default can never be 'host_qr' (it's not in enabledPaymentMethods()).
-  // Selecting 'host_qr' only ever happens by clicking the tile — but the tile
-  // renders OPTIMISTICALLY (hostDelinquent below starts false, before the
-  // delinquency RPC resolves), so a user CAN select it in that window even if
-  // the host turns out delinquent a moment later. Harmless either way: the
-  // database trigger is the real enforcement, regardless of what the client
-  // believed when the tile was clicked.
   const [method, setMethod] = useState<PaymentMethod>(
     () => enabledPaymentMethods()[0] ?? 'qrph'
   )
@@ -119,38 +111,9 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
   const [loading, setLoading] = useState(false)
   const [payError, setPayError] = useState('')
 
-  // Withhold the direct-QR tile while the host has an overdue commission bill
-  // (host commission billing, 061). The database trigger refuses such a
-  // booking anyway; this just never shows an option that would be refused.
-  // is_host_billing_delinquent is anon-callable and security definer, but
-  // unlike is_host_suspended on /dashboard/rentals (which fails SAFE — an
-  // RPC error is treated as suspended), this check fails OPEN: `.then(({data})
-  // => ...)` ignores `error`, so an unanswerable call leaves `data`
-  // undefined, `Boolean(undefined)` is false, and the tile stays visible.
-  // Acceptable here — this is a UX nicety, not the enforcement; the trigger
-  // blocks the actual booking server-side regardless of what this client
-  // believes.
-  const [hostDelinquent, setHostDelinquent] = useState(false)
-  useEffect(() => {
-    let cancelled = false
-    if (!listing.host?.qr_payment_url) return
-    createClient()
-      .rpc('is_host_billing_delinquent', { p_host_id: listing.host_id })
-      .then(({ data }) => {
-        if (!cancelled) setHostDelinquent(Boolean(data))
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [listing.host_id, listing.host?.qr_payment_url])
-
-  // hostDelinquent starts false, so hasHostQr can only ever go true -> false
-  // once the RPC resolves, never false -> true after a flash of the tile.
-  const hasHostQr = Boolean(listing.host?.qr_payment_url) && !hostDelinquent
-  const methods = (hasHostQr
-    ? [...BASE_METHODS, { id: 'host_qr' as const, label: 'GCash/Maya QR (Direct to Host)', logo: '', color: 'border-purple-400', comingSoon: false, unavailable: false }]
-    : BASE_METHODS
-  ).map((m) => (isPaymentMethodDisabled(m.id) ? { ...m, comingSoon: true, unavailable: true } : m))
+  const methods = BASE_METHODS.map((m) =>
+    isPaymentMethodDisabled(m.id) ? { ...m, comingSoon: true, unavailable: true } : m
+  )
 
   // 071: promo codes are discontinued. A discount reduced what the renter paid
   // but not what the host was paid (request_payout pays rental_fee, stored
@@ -159,7 +122,6 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
 
   const isWallet = method === 'gcash' || method === 'maya'
   const isCard = method === 'card'
-  const isHostQr = method === 'host_qr'
   const isQrph = method === 'qrph'
 
   const canPay =
@@ -172,7 +134,6 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
     !isPaymentMethodDisabled(method) &&
     ((isWallet && mobileNumber.replace(/\D/g, '').length === 11) ||
       (isCard && cardNumber.replace(/\s/g, '').length === 16 && cardExpiry && cardCvv.length >= 3 && cardName) ||
-      isHostQr ||
       isQrph)
 
   function formatCard(val: string) {
@@ -360,22 +321,6 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
         </div>
       )}
 
-      {/* Host QR notice */}
-      {isHostQr && (
-        <div className="bg-purple-50 rounded-2xl border border-purple-200 p-5 space-y-2">
-          <p className="text-sm font-bold text-[#111827]">GCash/Maya QR — paid directly to the host</p>
-          {/* Deliberately generic: the host's payment label is their real name +
-              mobile number, so it's only shown once the booking exists (fetched
-              from the party-scoped /api/bookings/[id]/qr route), never to someone
-              merely browsing checkout. */}
-          <p className="text-sm text-purple-800">
-            You&apos;ll pay ₱{total.toLocaleString()}{' '}directly to the host via GCash/Maya QR. Rentivo
-            doesn&apos;t process or hold this payment; your host will confirm they&apos;ve received it.
-            Your host&apos;s payment details and QR code will be shown once your booking is created.
-          </p>
-        </div>
-      )}
-
       {/* Terms */}
       <label className="flex items-start gap-3 cursor-pointer" onClick={() => setAgreed((v) => !v)}>
         <div
@@ -421,11 +366,6 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
               <Loader2 className="w-4 h-4 animate-spin" />
               Processing…
             </>
-          ) : isHostQr ? (
-            <>
-              <Lock className="w-4 h-4" />
-              Create Booking
-            </>
           ) : (
             <>
               <Lock className="w-4 h-4" />
@@ -435,12 +375,9 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
         </button>
       </div>
 
-      {/* PayMongo is never involved in the host-QR flow — claiming it is would be false */}
-      {!isHostQr && (
-        <p className="text-xs text-center text-gray-400 flex items-center justify-center gap-1">
-          <Lock className="w-3 h-3" /> Payments secured by PayMongo
-        </p>
-      )}
+      <p className="text-xs text-center text-gray-400 flex items-center justify-center gap-1">
+        <Lock className="w-3 h-3" /> Payments secured by PayMongo
+      </p>
     </div>
   )
 }

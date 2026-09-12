@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useEffect, useState } from 'react'
 import { CheckCircle2, Download, MessageCircle, Calendar, MapPin, Clock } from 'lucide-react'
 import type { Listing, Booking } from '@/types'
 
@@ -25,27 +24,6 @@ const METHOD_LABELS: Record<string, string> = {
 export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) {
   const days = booking.total_days
   const isConfirmed = booking.status === 'confirmed'
-  const isAwaitingQrPayment = booking.payment_method === 'host_qr' && booking.payment_status === 'unpaid'
-  const [qrUrl, setQrUrl] = useState<string | null>(null)
-  // The host's payment label (name + phone) is PII, so it isn't in the public
-  // listing payload — it comes back from the party-scoped QR route with the image.
-  const [qrLabel, setQrLabel] = useState<string | null>(null)
-  const [qrError, setQrError] = useState(false)
-
-  useEffect(() => {
-    if (!isAwaitingQrPayment) return
-    fetch(`/api/bookings/${booking.id}/qr`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (!d?.url) {
-          setQrError(true)
-          return
-        }
-        setQrUrl(d.url)
-        setQrLabel(d.label ?? null)
-      })
-      .catch(() => setQrError(true))
-  }, [isAwaitingQrPayment, booking.id])
 
   const fmt = (d: string) =>
     new Date(d).toLocaleDateString('en-PH', {
@@ -67,41 +45,18 @@ export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) 
           )}
         </div>
         <h2 className="text-3xl font-bold text-[#111827]">
-          {isAwaitingQrPayment ? 'Booking Created!' : isConfirmed ? 'Booking Confirmed!' : 'Payment Received!'}
+          {isConfirmed ? 'Booking Confirmed!' : 'Payment Received!'}
         </h2>
         <p className="text-gray-500 mt-2">
-          {isAwaitingQrPayment
-            ? 'Scan the QR code below to pay the host directly. They’ll confirm your booking once payment arrives.'
-            : isConfirmed
-              ? 'Your rental is confirmed. The host has been notified.'
-              : 'Your payment is in — the host will confirm your booking shortly.'}
+          {isConfirmed
+            ? 'Your rental is confirmed. The host has been notified.'
+            : 'Your payment is in — the host will confirm your booking shortly.'}
         </p>
         <div className="mt-4 inline-flex items-center gap-2 bg-[#F8FAFC] border border-gray-200 rounded-full px-5 py-2">
           <span className="text-xs text-gray-500 font-medium">Booking Reference</span>
           <span className="text-sm font-bold text-[#003049] tracking-wider">{booking.booking_ref}</span>
         </div>
       </div>
-
-      {isAwaitingQrPayment && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 text-center space-y-3">
-          {qrUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- signed URL from a private bucket, not a next/image remotePattern candidate
-            <img src={qrUrl} alt="Host's payment QR code" className="w-56 h-56 mx-auto rounded-xl object-cover" />
-          ) : qrError ? (
-            <div className="w-56 h-56 mx-auto rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-sm text-red-600 px-4 text-center">
-              Couldn&apos;t load the QR code — open My Rentals to try again, or message your host.
-            </div>
-          ) : (
-            <div className="w-56 h-56 mx-auto rounded-xl bg-gray-100 flex items-center justify-center text-sm text-gray-400">
-              Loading QR code…
-            </div>
-          )}
-          {qrLabel && <p className="text-sm font-semibold text-[#111827]">{qrLabel}</p>}
-          <p className="text-xs text-gray-500">
-            Pay ₱{booking.total_amount.toLocaleString()}{' '}— Rentivo doesn&apos;t process or hold this payment.
-          </p>
-        </div>
-      )}
 
       {/* Digital receipt. `receipt-print-area` is what the print stylesheet in
           globals.css keeps on the page — everything else (navbar, footer,
@@ -210,7 +165,7 @@ export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) 
             </div>
           )}
           <div className="flex justify-between font-bold text-[#111827] text-base border-t border-gray-200 pt-2 mt-1">
-            <span>{isAwaitingQrPayment ? 'Total Due' : 'Total Paid'}</span>
+            <span>Total Paid</span>
             <span className="text-[#003049]">₱{booking.total_amount.toLocaleString()}</span>
           </div>
         </div>
