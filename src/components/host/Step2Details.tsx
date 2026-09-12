@@ -24,7 +24,6 @@ interface DetailsData {
   category: string
   brand: string
   model: string
-  serialNumber: string
   condition: string
   description: string
   accessories: string[]
@@ -51,7 +50,10 @@ export function Step2Details({ data, onChange, onNext, onBack }: Step2DetailsPro
     set('accessories', data.accessories.filter((_, idx) => idx !== i))
   }
 
-  const canContinue = data.category && data.brand && data.model && data.condition && data.description.length >= 30
+  // A description is still required, but with no minimum length — the old
+  // 30-character floor turned a listing into homework without making any
+  // description more useful.
+  const canContinue = data.category && data.brand && data.model && data.condition && data.description.trim().length > 0
 
   const field = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100 transition-all bg-white'
   const label = 'block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5'
@@ -108,17 +110,6 @@ export function Step2Details({ data, onChange, onNext, onBack }: Step2DetailsPro
         </div>
       </div>
 
-      {/* Serial number */}
-      <div>
-        <label className={label}>Serial Number <span className="normal-case text-gray-400 font-normal">(identifies this specific item in case of a dispute)</span></label>
-        <input
-          value={data.serialNumber}
-          onChange={e => set('serialNumber', e.target.value)}
-          placeholder="e.g. 1234567"
-          className={field}
-        />
-      </div>
-
       {/* Condition */}
       <div>
         <label className={label}>Condition</label>
@@ -142,7 +133,7 @@ export function Step2Details({ data, onChange, onNext, onBack }: Step2DetailsPro
 
       {/* Description */}
       <div>
-        <label className={label}>Description <span className="normal-case text-gray-400 font-normal">(min. 30 characters)</span></label>
+        <label className={label}>Description</label>
         <textarea
           value={data.description}
           onChange={e => set('description', e.target.value)}
@@ -150,9 +141,6 @@ export function Step2Details({ data, onChange, onNext, onBack }: Step2DetailsPro
           placeholder="Describe your equipment — features, any quirks, ideal use cases…"
           className={`${field} resize-none`}
         />
-        <p className={`text-xs mt-1 ${data.description.length >= 30 ? 'text-[#22C55E]' : 'text-gray-400'}`}>
-          {data.description.length}/30 minimum
-        </p>
       </div>
 
       {/* Accessories */}
