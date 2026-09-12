@@ -8,7 +8,7 @@ export default function HostTermsPage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
         <div>
           <h1 className="text-3xl font-bold text-[#111827]">Host Terms of Service</h1>
-          <p className="mt-2 text-sm text-gray-500">Last updated September 8, 2026</p>
+          <p className="mt-2 text-sm text-gray-500">Last updated September 13, 2026</p>
         </div>
 
         <section className="space-y-3">

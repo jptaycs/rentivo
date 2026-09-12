@@ -40,13 +40,19 @@ export default function EarningsPage() {
   // request_payout() pays hosts rental_fee + delivery_fee (038) — mirror that
   // arithmetic here.
   //
-  // "Total Earned" deliberately still counts host_qr, and that is correct as of
-  // host commission billing (061): the host receives the full total_amount
-  // directly, but owes the 5% service fee back on a monthly bill and must
-  // return the security deposit, so what they actually keep is rental_fee +
-  // delivery_fee — the same as every other method. Before 061 they kept the
-  // service fee too — money that never reached Rentivo — which is what made
-  // this figure questionable.
+  // For every live payment method (card/gcash/maya/qrph), Rentivo collects
+  // its 5% service fee directly at checkout, so what a host actually
+  // receives via payout is rental_fee + delivery_fee — never the service fee
+  // or the security deposit.
+  //
+  // "Total Earned" also still counts any historical host_qr booking (that
+  // payment method was retired 2026-09-13 — see
+  // .superpowers/sdd/2026-09-13-retire-host-qr-and-billing/ — no new booking
+  // can be one). Those hosts received the full total_amount directly into
+  // their own wallet rather than through Rentivo, so this figure counts them
+  // at rental_fee + delivery_fee too, matching what every other method's
+  // payout would have paid — not the extra service fee/deposit portion that
+  // bypassed Rentivo entirely and was never collected back.
   const totalEarned = live ? paid.reduce((s, b) => s + b.rental_fee + b.delivery_fee, 0) : 154600
   const pending = live ? pendingPayout.reduce((s, b) => s + b.rental_fee + b.delivery_fee, 0) : 7515
 

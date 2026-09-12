@@ -10,7 +10,7 @@ export default function TermsPage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
         <div>
           <h1 className="text-3xl font-bold text-[#111827]">Terms of Service</h1>
-          <p className="mt-2 text-sm text-gray-500">Last updated September 8, 2026</p>
+          <p className="mt-2 text-sm text-gray-500">Last updated September 13, 2026</p>
         </div>
 
         <section className="space-y-3">
@@ -71,12 +71,8 @@ export default function TermsPage() {
             <li>Delivery fees, where a host offers delivery, are set by the host and paid to the host in full — Rentivo does not take a commission on delivery.</li>
             <li>Security deposits, where a host requires one, are arranged directly between the host and the renter and collected by the host at pickup. Rentivo does not charge, hold or return security deposits.</li>
             <li>
-              Hosts who are paid directly by the renter&apos;s GCash or Maya QR code are billed
-              the 5% service fee separately, on a monthly basis. See{' '}
-              <Link href="/host-terms" className="text-[#003049] underline">
-                Host Terms
-              </Link>{' '}
-              for how that billing works.
+              The 5% service fee is collected as part of the renter&apos;s payment at checkout,
+              when the booking is processed — not billed separately afterward.
             </li>
           </ul>
         </section>
@@ -92,9 +88,8 @@ export default function TermsPage() {
             <li>A suspended account is blocked from signing in.</li>
             <li>A suspended host&apos;s listings are hidden from the marketplace, and payouts to that host stop.</li>
             <li>
-              An account cannot be deleted while it has a booking in progress, a payout request
-              awaiting processing, or an unpaid commission bill — deletion is available again once
-              those are resolved.
+              An account cannot be deleted while it has a booking in progress or a payout request
+              awaiting processing — deletion is available again once those are resolved.
             </li>
             <li>
               Where an account is deleted, Rentivo anonymizes the profile rather than erasing it,
