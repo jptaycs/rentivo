@@ -103,15 +103,24 @@ export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) 
         </div>
       )}
 
-      {/* Digital receipt */}
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+      {/* Digital receipt. `receipt-print-area` is what the print stylesheet in
+          globals.css keeps on the page — everything else (navbar, footer,
+          wizard chrome, this button) is hidden, so the browser's own
+          "Save as PDF" produces the receipt alone rather than the whole app. */}
+      <div id="receipt-print-area" className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         {/* Receipt header */}
         <div className="bg-[#003049] px-6 py-4 flex items-center justify-between">
           <div>
             <p className="text-blue-200 text-xs font-medium">Digital Receipt</p>
             <p className="text-white font-bold">{booking.booking_ref}</p>
           </div>
-          <button className="flex items-center gap-1.5 text-xs text-blue-100 hover:text-white transition-colors bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5">
+          {/* Was a styled button with no onClick — it had never done anything.
+              window.print() opens the browser's print dialog, where every
+              desktop and mobile browser offers "Save as PDF". */}
+          <button
+            onClick={() => window.print()}
+            className="no-print flex items-center gap-1.5 text-xs text-blue-100 hover:text-white transition-colors bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1.5"
+          >
             <Download className="w-3.5 h-3.5" />
             Download PDF
           </button>

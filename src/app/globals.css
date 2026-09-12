@@ -144,3 +144,46 @@
 
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Printing a booking receipt.
+   The "Download PDF" button on the confirmation screen calls window.print(),
+   and every desktop and mobile browser offers "Save as PDF" in that dialog —
+   so the PDF is whatever these rules leave on the page. Without them the
+   print would carry the navbar, footer and wizard chrome around the receipt.
+
+   The technique: hide every direct child of body, then walk the receipt's
+   ancestors back into visibility and lift the receipt itself to the top of
+   the page. Targeting #receipt-print-area (set in Step4Confirmation) rather
+   than a page-level selector keeps this scoped to the receipt only. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt-print-area,
+  #receipt-print-area * {
+    visibility: visible;
+  }
+  #receipt-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  /* Browsers drop background colours when printing unless asked not to; the
+     receipt header is white text on the brand blue and would otherwise print
+     as white-on-white. */
+  #receipt-print-area * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* Controls that make no sense on paper. */
+  .no-print {
+    display: none !important;
+  }
+  @page {
+    margin: 12mm;
+  }
+}

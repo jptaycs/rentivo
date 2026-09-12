@@ -33,7 +33,10 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
   const renterPays    = daily + serviceFee
   const hostReceives  = Math.round(daily * 0.95)
 
-  const canContinue = daily >= 100 && Number(data.securityDeposit) >= 0
+  // No minimum daily rate — a host prices their own gear. Still > 0, because
+  // listings.daily_price carries a `check (daily_price > 0)` constraint:
+  // allowing 0 here would just move the failure from this form to the insert.
+  const canContinue = daily > 0 && Number(data.securityDeposit) >= 0
 
   const label = 'block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5'
 
@@ -58,13 +61,13 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
           />
           <span className="pr-4 text-gray-400 text-sm">/day</span>
         </div>
-        {daily < 100 && data.dailyPrice && (
-          <p className="text-xs text-red-500 mt-1">Minimum daily rate is ₱100</p>
+        {daily <= 0 && data.dailyPrice && (
+          <p className="text-xs text-red-500 mt-1">Enter a daily rate above ₱0</p>
         )}
       </div>
 
       {/* Earnings preview */}
-      {daily >= 100 && (
+      {daily > 0 && (
         <div className="bg-[#F8FAFC] rounded-2xl border border-gray-100 p-5">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Earnings Preview (per day)</p>
           <div className="space-y-2 text-sm">
