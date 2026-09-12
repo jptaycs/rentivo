@@ -1,5 +1,3 @@
-import Link from 'next/link'
-import { POLICY_START_LABEL, GRACE_DAYS } from '@/lib/billing'
 import { LegalContact } from '@/components/shared/LegalContact'
 
 export const metadata = { title: 'Host Terms — Rentivo' }
@@ -19,20 +17,7 @@ export default function HostTermsPage() {
             <li>Your identity must be verified by Rentivo before your listings are published.</li>
             <li>Listings must describe equipment you own, accurately, with current photos and a truthful condition.</li>
             <li>Security deposits you set are collected from the renter by you at pickup and returned by you — Rentivo does not charge, hold or return them.</li>
-            <li>Rentivo charges a 5% service fee on the rental fee of every booking. Delivery fees you set are paid to you in full.</li>
-          </ul>
-        </section>
-
-        <section className="space-y-3">
-          <h2 className="text-xl font-bold text-[#111827]">Commission on direct QR payments</h2>
-          <p className="text-sm text-gray-700 leading-relaxed">
-            When a renter pays you through your own GCash or Maya QR code, the full amount — including Rentivo&apos;s 5% service fee — goes straight to your account. That fee is collected from you afterwards:
-          </p>
-          <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 leading-relaxed">
-            <li>Each month, Rentivo bills you the 5% service fee on your unbilled direct-QR bookings once they total at least ₱100 — smaller amounts roll into a later bill automatically, and a booking is only ever billed once.</li>
-            <li>Bills are due {GRACE_DAYS} days after they are issued and are paid in-app via QR Ph from your <Link href="/dashboard/bills" className="text-[#003049] underline">Bills page</Link>. You&apos;ll get an email and an in-app notification when one is issued.</li>
-            <li>If a bill is still unpaid after its due date, renters can no longer pay you by direct QR until it is settled. Your listings stay live and bookable through Rentivo&apos;s other payment methods.</li>
-            <li>This applies to bookings confirmed as paid on or after {POLICY_START_LABEL}.</li>
+            <li>Rentivo charges a 5% service fee on the rental fee of every booking, deducted from the payment when it is processed. Delivery fees you set are paid to you in full.</li>
           </ul>
         </section>
 
