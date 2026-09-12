@@ -23,10 +23,10 @@ import { getCityCoordinates } from '@/lib/ph-locations'
  * .superpowers/sdd/2026-09-13-retire-host-qr-and-billing/) alongside the
  * `host_qr` payment method it existed to bill: once QR Ph activation let
  * Rentivo collect its fee directly at the point of sale, there was nothing
- * left to bill, so nothing further can ever land in `issued` status and the
- * gate had no future use. `host_bills`/`host_bill_items` themselves are left
- * as they are in the database — this module never wrote to them and does
- * not need to now that it no longer reads them either.
+ * left to bill, so nothing further could ever land in `issued` status and the
+ * gate had no future use. Migration 072 dropped `host_bills`/`host_bill_items`
+ * outright — this module never wrote to them and, now that the tables are
+ * gone, cannot read them either.
  */
 
 /**
@@ -262,13 +262,13 @@ export async function deleteAccount(uid: string): Promise<{ ok: true } | { ok: f
   // AGENTS.md's standing obligation so a future reader finds a decision here,
   // not a gap.
   //
-  // `host_bills`/`host_bill_items` (host commission billing, 061, retired
-  // 2026-09-13 — see .superpowers/sdd/2026-09-13-retire-host-qr-and-billing/)
-  // are deliberately LEFT UNTOUCHED here, same as always: they are Rentivo's
-  // own revenue ledger (referencing only `host_id`, carrying no PII), not the
-  // user's data, so there is no PII reason to purge or anonymize them. This
-  // module no longer gates deletion on them (that gate had no future use once
-  // the billing system was retired) or writes to them.
+  // `host_bills`/`host_bill_items` (host commission billing, 061) no longer
+  // exist — migration 072 dropped both tables outright when the billing
+  // system was retired 2026-09-13 (see
+  // .superpowers/sdd/2026-09-13-retire-host-qr-and-billing/), alongside the
+  // `host_qr` payment method they existed to bill. There is nothing left here
+  // to purge, anonymize, or gate deletion on; this module never wrote to them
+  // and cannot read them now that they're gone.
 
   // Storage cleanup: avatars (list, since avatar_url is a public URL not a stored path).
   // Explicit limit: uploadAvatar writes a new timestamped path each time rather than

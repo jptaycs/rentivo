@@ -46,9 +46,14 @@ export interface MonthlyRevenue {
    * Service fee earned on `host_qr`/`test_skip` bookings in this month —
    * money Rentivo earned but never received, and never billed either. Both
    * payment methods were retired 2026-09-13 (see
-   * .superpowers/sdd/2026-09-13-retire-host-qr-and-billing/), so no booking
-   * created after that date can be either one: this is a fixed historical
-   * figure per month, not one that can grow going forward.
+   * .superpowers/sdd/2026-09-13-retire-host-qr-and-billing/): `host_qr` is
+   * blocked at the database by a `before insert` trigger
+   * (block_host_qr_bookings), while `test_skip` is only blocked at the app
+   * layer — `create_booking` still accepts it if called directly, and what
+   * actually keeps this figure from growing is that no route (the checkout
+   * CHARGEABLE allowlist, the webhook) will ever mark such a booking `paid`,
+   * and this figure only counts `paid` bookings. So this is a fixed
+   * historical figure per month in practice, not by a database guarantee.
    */
   uncollectable: number
   /**
@@ -118,10 +123,14 @@ export interface CommissionTotals {
    * the `host_qr` payment method and that billing system were retired
    * 2026-09-13 once QR Ph activation let Rentivo collect the fee directly
    * at the point of sale (see
-   * .superpowers/sdd/2026-09-13-retire-host-qr-and-billing/). No booking
-   * created after that date can be `host_qr` or `test_skip`, so this is now
-   * a FIXED historical number — it cannot grow, and there is nothing left
-   * to bill or collect against it. A label that outlives its meaning is
+   * .superpowers/sdd/2026-09-13-retire-host-qr-and-billing/). `host_qr` is
+   * now blocked at the database by a `before insert` trigger
+   * (block_host_qr_bookings); `test_skip` is only blocked at the app layer —
+   * `create_booking` still accepts it if called directly — but this figure
+   * only counts `paid` bookings (see paidBookings()), and no route left in
+   * the app will ever mark a `test_skip` booking `paid`. So in practice this
+   * is now a FIXED historical number — it cannot grow, and there is nothing
+   * left to bill or collect against it. A label that outlives its meaning is
    * exactly the mistake this repo already made once with "Payouts Owed"
    * (see MonthlyRevenue.payoutsRequestedPending's doc) — this field was
    * renamed from its previous, now-misleading name for the same reason.
