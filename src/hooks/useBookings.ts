@@ -87,16 +87,5 @@ export function useHostBookings() {
     return err
   }
 
-  async function confirmQrPayment(bookingId: string) {
-    const supabase = createClient()
-    const { error } = await supabase.rpc('confirm_host_qr_payment', { p_booking_id: bookingId })
-    if (error) return error.message.replace(/^.*?: /, '')
-    fetch(`/api/bookings/${bookingId}/notify-qr-paid`, { method: 'POST' }).catch((e) =>
-      console.error('[email] notify-qr-paid failed', e)
-    )
-    await base.reload()
-    return null
-  }
-
-  return { ...base, setStatus, confirmQrPayment }
+  return { ...base, setStatus }
 }

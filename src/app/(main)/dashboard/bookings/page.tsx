@@ -31,7 +31,7 @@ function awaitingPayment(b: BookingWithRefs) {
 
 export default function BookingsPage() {
   const [tab, setTab] = useState('All')
-  const { bookings, loading, setStatus, confirmQrPayment } = useHostBookings()
+  const { bookings, loading, setStatus } = useHostBookings()
   const [actingOn, setActingOn] = useState('')
   const [error, setError] = useState('')
   const { reviewedIds, markReviewed } = useReviewedBookings()
@@ -45,14 +45,6 @@ export default function BookingsPage() {
     setError('')
     setActingOn(bookingId)
     const err = await setStatus(bookingId, status)
-    if (err) setError(err)
-    setActingOn('')
-  }
-
-  async function actQr(bookingId: string) {
-    setError('')
-    setActingOn(bookingId)
-    const err = await confirmQrPayment(bookingId)
     if (err) setError(err)
     setActingOn('')
   }
@@ -173,19 +165,7 @@ export default function BookingsPage() {
                   </button>
                 )
               )}
-              {b.payment_method === 'host_qr' && b.payment_status === 'unpaid' && b.status !== 'cancelled' && (
-                <button
-                  onClick={() => actQr(b.id)}
-                  disabled={actingOn === b.id}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors ml-auto"
-                >
-                  {actingOn === b.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Mark Payment Received
-                </button>
-              )}
-              {/* host_qr bookings are unpaid by design until the host taps
-                  "Mark Payment Received" above — that button is their call to
-                  action, so don't also nag them to wait for payment. */}
-              {b.status === 'pending' && awaitingPayment(b) && b.payment_method !== 'host_qr' && (
+              {b.status === 'pending' && awaitingPayment(b) && (
                 <span className="ml-auto text-xs text-gray-500 px-3 py-1.5">
                   Accept or decline once the renter has paid.
                 </span>

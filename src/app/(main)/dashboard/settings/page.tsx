@@ -8,7 +8,6 @@ import { useUser } from '@/hooks/useUser'
 import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { VerificationCard } from '@/components/shared/VerificationCard'
-import { QrPaymentCard } from '@/components/shared/QrPaymentCard'
 import { BUSINESS } from '@/lib/business'
 
 export default function SettingsPage() {
@@ -74,8 +73,8 @@ export default function SettingsPage() {
   const FAQS = [
     { q: 'How do I become a host?', a: 'Click "Become a Host" in the navbar, complete the listing wizard, and submit your gear for review. Your listing stays hidden from the marketplace until Rentivo approves your identity verification.' },
     { q: 'What happens if equipment is damaged?', a: 'Renters are responsible for loss or damage. Rentivo does not offer insurance or a protection plan — what stands behind a rental is the security deposit the host sets on the listing, arranged directly with them at pickup and not charged by Rentivo. Damage is settled between the host and the renter, so report any issue in the booking\'s message thread to keep a record.' },
-    { q: 'How are payments processed?', a: 'You can currently pay by QR Ph, or directly by a host\'s own GCash or Maya QR code where they offer it. GCash, Maya, and Credit/Debit Card checkout are built but not yet active while we complete PayMongo\'s approval process. Hosts request their earnings as a payout from the Payouts page, which Rentivo then settles manually.' },
-    { q: 'Can I cancel a booking?', a: 'You can cancel while a booking is still pending — before the host accepts it — and a paid booking is refunded in full. Once a host accepts, contact them through the booking\'s message thread. Bookings paid directly to a host\'s GCash or Maya QR are settled with that host, since Rentivo never received the money.' },
+    { q: 'How are payments processed?', a: 'You can currently pay by QR Ph. GCash, Maya, and Credit/Debit Card checkout are built but not yet active while we complete PayMongo\'s approval process. Hosts request their earnings as a payout from the Payouts page, which Rentivo then settles manually.' },
+    { q: 'Can I cancel a booking?', a: 'You can cancel while a booking is still pending — before the host accepts it — and a paid booking is refunded in full. Once a host accepts, contact them through the booking\'s message thread.' },
     { q: 'How does identity verification work?', a: 'We require a government-issued ID and a selfie to verify your identity. This protects both hosts and renters on the platform.' },
   ]
 
@@ -254,8 +253,6 @@ export default function SettingsPage() {
       </section>
 
       {live && <VerificationCard />}
-
-      {live && <QrPaymentCard />}
 
       {/* Security */}
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
