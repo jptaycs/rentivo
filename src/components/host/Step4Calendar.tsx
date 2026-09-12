@@ -101,7 +101,7 @@ export function Step4Calendar({ blockedDates, onChange, onNext, onBack }: Step4C
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
         <span className="flex items-center gap-1.5">
-          <span className="w-5 h-5 rounded-full bg-red-100 border border-red-200" /> Blocked
+          <span className="w-5 h-5 rounded-full bg-red-100 border border-red-200" /> Unavailable
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-5 h-5 rounded-full ring-2 ring-[#003049]" /> Today

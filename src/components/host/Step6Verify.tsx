@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { ChevronLeft, Loader2, CheckCircle2, Upload, BadgeCheck, Shield, Clock, XCircle, AlertCircle } from 'lucide-react'
+import { ChevronLeft, Loader2, CheckCircle2, Upload, Camera, BadgeCheck, Shield, Clock, XCircle, AlertCircle } from 'lucide-react'
 import { useVerification } from '@/hooks/useVerification'
 import { validateIdDocument, validateSelfie, messageForCode, type ValidationCode } from '@/lib/id-validation'
 
@@ -43,6 +43,10 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
   const { request, isVerified, loading: statusLoading } = useVerification()
   const idRef = useRef<HTMLInputElement>(null)
   const selfieRef = useRef<HTMLInputElement>(null)
+  // Separate input for the camera path: `capture` is an attribute on the
+  // input itself, so offering both "take a photo" and "pick a file" needs two
+  // inputs rather than one toggled attribute.
+  const selfieCameraRef = useRef<HTMLInputElement>(null)
 
   const [checking, setChecking] = useState(false)
   // Which tile is mid-check, purely for the visible spinner — the on-device
@@ -206,7 +210,15 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
             </button>
           </div>
 
-          {/* Selfie */}
+          {/* Selfie — two ways in: the phone's front camera, or a file the host
+              already has. `capture="user"` is honoured on mobile and silently
+              ignored on desktop, so the upload path has to stay rather than
+              being replaced by it. Both inputs route through the same
+              pick('selfie', …) so the on-device face check, the attempt
+              counter and the override escape hatch behave identically either
+              way, and both reset `e.target.value` for the documented reason
+              above: re-picking the same file fires no `change` event
+              otherwise, and a retry after a false negative would do nothing. */}
           <div>
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Selfie with ID</p>
             <input ref={selfieRef} type="file" accept="image/*" className="sr-only"
@@ -215,27 +227,49 @@ export function Step6Verify({ data, onChange, onSubmit, onBack, loading }: Step6
                 e.target.value = ''
                 pick('selfie', file)
               }} />
-            <button
-              onClick={() => selfieRef.current?.click()}
-              disabled={checking}
-              className={`w-full flex items-center gap-4 p-4 border-2 rounded-xl transition-all disabled:cursor-wait ${
+            <input ref={selfieCameraRef} type="file" accept="image/*" capture="user" className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null
+                e.target.value = ''
+                pick('selfie', file)
+              }} />
+            <div
+              className={`w-full border-2 rounded-xl transition-all ${
                 checkingKind === 'selfie' ? 'border-gray-200 bg-gray-50'
                   : selfieError ? 'border-red-300 bg-red-50'
-                  : data.selfieFile ? 'border-[#22C55E] bg-green-50' : 'border-dashed border-gray-200 hover:border-[#003049] hover:bg-gray-50'
+                  : data.selfieFile ? 'border-[#22C55E] bg-green-50' : 'border-dashed border-gray-200'
               }`}
             >
-              {checkingKind === 'selfie'
-                ? <Loader2 className="w-6 h-6 text-gray-400 shrink-0 animate-spin" />
-                : selfieError
-                  ? <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
-                  : data.selfieFile ? <CheckCircle2 className="w-6 h-6 text-[#22C55E] shrink-0" /> : <Upload className="w-6 h-6 text-gray-400 shrink-0" />}
-              <div className="text-left">
-                <p className={`text-sm font-semibold ${checkingKind === 'selfie' ? 'text-gray-500' : selfieError ? 'text-red-600' : data.selfieFile ? 'text-[#22C55E]' : 'text-gray-700'}`}>
-                  {checkingKind === 'selfie' ? 'Checking your photo…' : data.selfieFile ? data.selfieFile.name : 'Upload selfie holding your ID'}
-                </p>
-                <p className="text-xs text-gray-400">Clear photo of your face and the front of your ID</p>
+              <div className="flex items-center gap-4 p-4">
+                {checkingKind === 'selfie'
+                  ? <Loader2 className="w-6 h-6 text-gray-400 shrink-0 animate-spin" />
+                  : selfieError
+                    ? <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
+                    : data.selfieFile ? <CheckCircle2 className="w-6 h-6 text-[#22C55E] shrink-0" /> : <Camera className="w-6 h-6 text-gray-400 shrink-0" />}
+                <div className="text-left">
+                  <p className={`text-sm font-semibold ${checkingKind === 'selfie' ? 'text-gray-500' : selfieError ? 'text-red-600' : data.selfieFile ? 'text-[#22C55E]' : 'text-gray-700'}`}>
+                    {checkingKind === 'selfie' ? 'Checking your photo…' : data.selfieFile ? data.selfieFile.name : 'Selfie holding your ID'}
+                  </p>
+                  <p className="text-xs text-gray-400">Clear photo of your face and the front of your ID</p>
+                </div>
               </div>
-            </button>
+              <div className="grid grid-cols-2 gap-2 px-4 pb-4">
+                <button
+                  onClick={() => selfieCameraRef.current?.click()}
+                  disabled={checking}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#003049] text-white text-sm font-semibold hover:bg-[#002438] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-wait transition-colors"
+                >
+                  <Camera className="w-4 h-4" /> Take photo
+                </button>
+                <button
+                  onClick={() => selfieRef.current?.click()}
+                  disabled={checking}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 disabled:opacity-50 disabled:cursor-wait transition-colors"
+                >
+                  <Upload className="w-4 h-4" /> Upload image
+                </button>
+              </div>
+            </div>
           </div>
 
           {(idError || selfieError) && (
