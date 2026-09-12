@@ -21,7 +21,7 @@ export default function HostTermsPage() {
           </ul>
         </section>
 
-        <LegalContact purpose="these host terms, a payout, or a commission bill" />
+        <LegalContact purpose="these host terms or a payout" />
       </div>
     </div>
   )
