@@ -27,10 +27,9 @@ interface Step3PaymentProps {
 const PAYMONGO_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY
 
 // PayMongo activates payment methods per-merchant after KYB review. Methods
-// listed here render disabled with a "Coming soon" badge rather than failing at
-// attach time. That label is deliberately the same one Apple/Google Pay carry:
-// a renter only needs to know the method isn't selectable yet, and splitting the
-// copy into "Unavailable" vs "Coming soon" just read as two kinds of broken.
+// listed in NEXT_PUBLIC_DISABLED_PAYMENT_METHODS render disabled rather than
+// failing at attach time, so a renter learns the method isn't selectable
+// before they commit to it rather than after.
 // Clearing the env var re-enables them, but note NEXT_PUBLIC_* is inlined at
 // build time, so it needs a rebuild and redeploy — not just an env edit.
 // The list itself lives in src/lib/payment-methods.ts so the checkout route
@@ -48,8 +47,12 @@ const BASE_METHODS: {
   { id: 'maya', label: 'Maya', logo: '/logos/maya.svg', color: 'border-green-400' },
   { id: 'card', label: 'Credit / Debit Card', logo: '/logos/card.svg', color: 'border-gray-300' },
   { id: 'qrph', label: 'QR Ph', logo: '/logos/qrph.svg', color: 'border-teal-400' },
-  { id: 'apple_pay', label: 'Apple Pay', logo: '/logos/apple-pay.svg', color: 'border-gray-900', comingSoon: true },
-  { id: 'google_pay', label: 'Google Pay', logo: '/logos/google-pay.svg', color: 'border-gray-300', comingSoon: true },
+  // NOTE: the Apple Pay and Google Pay tiles were removed — they had sat here
+  // as permanently disabled "Coming soon" placeholders for methods nothing in
+  // this codebase implements, so they advertised choices a renter could never
+  // make. The payment_method enum keeps both values (dropping one is a
+  // migration) and Step4Confirmation still labels them, so any historical
+  // booking carrying one still renders correctly.
   // NOTE: the pre-launch 'test_skip' ("Skip Payment") tile was removed at
   // launch — it marked a booking paid with no real charge, which would let any
   // signed-in user take equipment for free. The enum value and its payout

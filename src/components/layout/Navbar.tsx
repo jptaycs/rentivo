@@ -7,6 +7,7 @@ import { Bell, MessageCircle, Menu, X, LayoutDashboard, Package, LogOut, Setting
 import { useState, useRef, useEffect } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useUser, initials } from '@/hooks/useUser'
+import { useProfile } from '@/hooks/useProfile'
 import { useNotifications } from '@/hooks/useNotifications'
 
 
@@ -19,6 +20,11 @@ const DROPDOWN_ITEMS = [
 export function Navbar() {
   const pathname = usePathname()
   const { user, loading, signOut } = useUser()
+  // Host status lives on the profile, not the session — useUser() only carries
+  // auth fields. Renders nothing extra for signed-out visitors, since
+  // get_my_profile() returns null for them.
+  const { profile } = useProfile()
+  const isHost = Boolean(profile?.is_host)
   const { unreadCount } = useNotifications()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -55,6 +61,17 @@ export function Navbar() {
             >
               Become a Host
             </Link>
+
+            {/* Hosts only — a renter has nothing to post, so this stays hidden
+                rather than leading them into a wizard that would refuse them. */}
+            {isHost && (
+              <Link
+                href="/host/new"
+                className="flex items-center gap-1.5 text-sm font-semibold text-[#003049] border border-[#003049] px-4 py-2 rounded-full hover:bg-blue-50 transition-colors"
+              >
+                <Package className="w-4 h-4" /> Post a product
+              </Link>
+            )}
 
             {user ? (
               <>
@@ -162,6 +179,11 @@ export function Navbar() {
               <Link href="/host/new" className="px-3 py-2.5 text-sm font-semibold text-[#111827] hover:bg-gray-50 rounded-lg block transition-colors">
                 Become a Host
               </Link>
+              {isHost && (
+                <Link href="/host/new" className="px-3 py-2.5 text-sm font-semibold text-[#003049] hover:bg-blue-50 rounded-lg flex items-center gap-2 transition-colors">
+                  <Package className="w-4 h-4" /> Post a product
+                </Link>
+              )}
               {user ? (
                 <>
                   <Link href="/dashboard/overview" className="px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg flex items-center gap-2 transition-colors">
