@@ -196,6 +196,8 @@ storefront rather than erroring."
 - Modify: `src/lib/email.ts`
 - Modify: `src/components/dashboard/DashboardSidebar.tsx`
 - Modify: `src/app/admin/page.tsx`
+- Modify: `src/app/admin/reports/page.tsx` (import only — see Step 5b)
+- Modify: `src/app/(main)/host-terms/page.tsx`
 - Modify: `src/types/index.ts`
 - Modify: `vercel.json`
 
@@ -233,10 +235,37 @@ Delete `HostBill` / `HostBillItem` (and any bill-shaped types) from `src/types/i
 
 Leave the `bill_issued` value in the `Notification['type']` union and its icon mapping — see Global Constraints.
 
+- [ ] **Step 5b: Clear the remaining `lib/billing` importers**
+
+`src/lib/billing.ts` is imported by eight files. Deleting it in Step 1 while
+any importer survives breaks this task's own build gate, so every one must go
+in this task:
+
+- `src/lib/email.ts` — drop the `periodLabel` import along with
+  `notifyHostBillIssued` (Step 3).
+- `src/app/admin/reports/page.tsx` — drop the `POLICY_START_LABEL` import and
+  whatever renders it. Leave the page's figures alone; Task 4 owns those.
+- `src/app/(main)/host-terms/page.tsx` — drop the
+  `POLICY_START_LABEL, GRACE_DAYS` import, delete the whole "Commission on
+  direct QR payments" section, and make the service-fee line in "Hosting on
+  Rentivo" state the current truth:
+
+```tsx
+<li>Rentivo charges a 5% service fee on the rental fee of every booking, deducted from the payment when it is processed. Delivery fees you set are paid to you in full.</li>
+```
+
+Confirm with:
+
+```bash
+grep -rn "from '@/lib/billing'" src
+```
+
+Expected: nothing.
+
 - [ ] **Step 6: Verify**
 
 ```bash
-grep -rn "host_bill\|HostBill\|useHostBills\|generate_host_bills\|mark_host_bill_paid\|void_host_bill\|is_host_billing_delinquent\|lib/billing\|CRON_SECRET" src vercel.json
+grep -rn "host_bill\|HostBill\|useHostBills\|generate_host_bills\|mark_host_bill_paid\|void_host_bill\|is_host_billing_delinquent\|lib/billing\|CRON_SECRET\|POLICY_START\|GRACE_DAYS" src vercel.json
 ```
 
 Expected: nothing.
@@ -279,7 +308,10 @@ the Vercel dashboard by hand."
 - Modify: `src/lib/admin-reports.ts`
 - Modify: `src/app/admin/reports/page.tsx`
 - Modify: `src/lib/account-deletion.ts`
-- Modify: `src/app/(main)/host-terms/page.tsx`
+
+> The host-terms edit that was here moved into Task 3 (ledger ruling 1): Task 3
+> deletes `src/lib/billing.ts`, which host-terms imports, so its build gate
+> fails unless that file is cleared in the same task.
 
 **Interfaces:**
 - Consumes: Task 3's removal of `src/lib/billing.ts`.
@@ -317,18 +349,10 @@ Leave the in-flight-booking and pending-payout gates exactly as they are.
 
 **This must ship before the migration.** The anonymise update names columns that Task 5 drops; leaving them here would make every account deletion fail.
 
-- [ ] **Step 4: Rewrite the host-terms billing copy**
-
-In `src/app/(main)/host-terms/page.tsx`, delete the "Commission on direct QR payments" section entirely and its `POLICY_START_LABEL` / `GRACE_DAYS` import (from the now-deleted `src/lib/billing.ts`). In the "Hosting on Rentivo" list, keep the service-fee line and make it state the current truth:
-
-```tsx
-<li>Rentivo charges a 5% service fee on the rental fee of every booking, deducted from the payment when it is processed. Delivery fees you set are paid to you in full.</li>
-```
-
 - [ ] **Step 5: Verify**
 
 ```bash
-grep -rn "uncollected\|Billed\|Bill Payments\|POLICY_START\|GRACE_DAYS\|payment-qr-codes" src
+grep -rn "uncollected\|Billed\|Bill Payments\|payment-qr-codes" src
 ```
 
 Expected: nothing.
