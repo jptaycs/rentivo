@@ -95,7 +95,7 @@ export default async function AdminReportsPage() {
 
       {/* ── Commission ── */}
       <section>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Earned</p>
             <p className="mt-1 text-3xl font-bold text-[#003049]">{peso(commission.earned)}</p>
@@ -111,28 +111,17 @@ export default async function AdminReportsPage() {
               processes.
             </p>
           </div>
-          {/* Amber, not red: uncollected revenue here is a fact about the
-              business model (host-QR and test-skip bookings never route
-              money through Rentivo), not an error to fix. */}
+          {/* Amber, not red: this money is a fact about the business's past
+              (host-QR and test-skip bookings never routed money through
+              Rentivo), not an error to fix. Both payment methods were
+              retired 2026-09-13, so this figure is fixed history — no new
+              booking can add to it. */}
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Uncollected</p>
-            <p className="mt-1 text-3xl font-bold text-amber-800">{peso(commission.uncollected)}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Uncollectable (legacy)</p>
+            <p className="mt-1 text-3xl font-bold text-amber-800">{peso(commission.uncollectable)}</p>
             <p className="mt-2 text-xs text-amber-800">
-              Earned on host-QR and test bookings — this money never reached Rentivo.
-            </p>
-          </div>
-          <div className="rounded-2xl bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Billed</p>
-            <p className="mt-1 text-3xl font-bold text-[#003049]">{peso(commission.billed)}</p>
-            <p className="mt-2 text-xs text-gray-500">
-              Commission bills issued or paid to hosts for host-QR bookings.
-            </p>
-          </div>
-          <div className="rounded-2xl bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Bill Payments</p>
-            <p className="mt-1 text-3xl font-bold text-[#003049]">{peso(commission.billPayments)}</p>
-            <p className="mt-2 text-xs text-gray-500">
-              Collected through commission bills. Billed minus this is what hosts still owe.
+              Commission earned on bookings paid outside Rentivo (direct host QR and pre-launch test bookings). No
+              new booking can add to this.
             </p>
           </div>
         </div>
@@ -171,7 +160,7 @@ export default async function AdminReportsPage() {
                 <th className="px-4 py-3">Deposits Held</th>
                 <th className="px-4 py-3">Earned</th>
                 <th className="px-4 py-3">Collected</th>
-                <th className="px-4 py-3">Uncollected</th>
+                <th className="px-4 py-3">Uncollectable</th>
                 <th className="px-4 py-3">Payouts Paid</th>
                 {/* "Payouts Pending", not "Payouts Owed": this counts only
                     payouts a host has actively REQUESTED and that are still
@@ -189,7 +178,7 @@ export default async function AdminReportsPage() {
                   <td className="px-4 py-3 text-amber-800">{peso(m.depositsHeld)}</td>
                   <td className="px-4 py-3">{peso(m.earned)}</td>
                   <td className="px-4 py-3">{peso(m.collected)}</td>
-                  <td className="px-4 py-3">{peso(m.uncollected)}</td>
+                  <td className="px-4 py-3">{peso(m.uncollectable)}</td>
                   <td className="px-4 py-3">{peso(m.payoutsPaid)}</td>
                   <td className="px-4 py-3">{peso(m.payoutsRequestedPending)}</td>
                 </tr>

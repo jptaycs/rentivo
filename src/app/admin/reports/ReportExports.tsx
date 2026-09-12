@@ -25,14 +25,14 @@ export function ExportRevenueButton({ rows }: { rows: MonthlyRevenue[] }) {
       // "Payouts Pending" mirrors the on-page header — it counts only
       // payouts hosts have requested and that are still open, which is not
       // total liability to hosts. See MonthlyRevenue's field docs.
-      ['Month', 'Revenue', 'Deposits Held', 'Earned', 'Collected', 'Uncollected', 'Payouts Paid', 'Payouts Pending'],
+      ['Month', 'Revenue', 'Deposits Held', 'Earned', 'Collected', 'Uncollectable', 'Payouts Paid', 'Payouts Pending'],
       rows.map((r) => [
         r.month,
         r.revenue,
         r.depositsHeld,
         r.earned,
         r.collected,
-        r.uncollected,
+        r.uncollectable,
         r.payoutsPaid,
         r.payoutsRequestedPending,
       ])

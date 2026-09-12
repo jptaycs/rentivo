@@ -45,7 +45,8 @@ export default function EarningsPage() {
   // directly, but owes the 5% service fee back on a monthly bill and must
   // return the security deposit, so what they actually keep is rental_fee +
   // delivery_fee — the same as every other method. Before 061 they kept the
-  // uncollected service fee too, which is what made this figure questionable.
+  // service fee too — money that never reached Rentivo — which is what made
+  // this figure questionable.
   const totalEarned = live ? paid.reduce((s, b) => s + b.rental_fee + b.delivery_fee, 0) : 154600
   const pending = live ? pendingPayout.reduce((s, b) => s + b.rental_fee + b.delivery_fee, 0) : 7515
 

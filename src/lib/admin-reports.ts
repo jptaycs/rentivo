@@ -42,7 +42,15 @@ export interface MonthlyRevenue {
   depositsHeld: number
   earned: number
   collected: number
-  uncollected: number
+  /**
+   * Service fee earned on `host_qr`/`test_skip` bookings in this month —
+   * money Rentivo earned but never received, and never billed either. Both
+   * payment methods were retired 2026-09-13 (see
+   * .superpowers/sdd/2026-09-13-retire-host-qr-and-billing/), so no booking
+   * created after that date can be either one: this is a fixed historical
+   * figure per month, not one that can grow going forward.
+   */
+  uncollectable: number
   /**
    * Payout requests actually SETTLED in this month, bucketed by
    * `payout_requests.processed_at` — the timestamp `mark_payout_paid` sets
@@ -103,20 +111,22 @@ export interface RankedRow {
 export interface CommissionTotals {
   earned: number
   collected: number
-  uncollected: number
   /**
-   * Sum of `host_bills.amount` for bills in `issued` or `paid` status — the
-   * uncollected commission that has actually been turned into a bill a host
-   * owes (as opposed to `uncollected` above, which is every host-QR/test
-   * booking's service fee regardless of whether a bill exists for it yet:
-   * `generate_host_bills` only bills bookings paid at or after
-   * POLICY_START, and only in ₱100+ monthly batches, so `billed` is always
-   * <= `uncollected`, never equal). Void bills are excluded — they were
-   * corrected or waived, not owed.
+   * Service fee earned on `host_qr`/`test_skip` bookings — money Rentivo
+   * earned but never received. This used to be a growing figure with a
+   * monthly billing system (`host_bills`) clawing pieces of it back; both
+   * the `host_qr` payment method and that billing system were retired
+   * 2026-09-13 once QR Ph activation let Rentivo collect the fee directly
+   * at the point of sale (see
+   * .superpowers/sdd/2026-09-13-retire-host-qr-and-billing/). No booking
+   * created after that date can be `host_qr` or `test_skip`, so this is now
+   * a FIXED historical number — it cannot grow, and there is nothing left
+   * to bill or collect against it. A label that outlives its meaning is
+   * exactly the mistake this repo already made once with "Payouts Owed"
+   * (see MonthlyRevenue.payoutsRequestedPending's doc) — this field was
+   * renamed from its previous, now-misleading name for the same reason.
    */
-  billed: number
-  /** Sum of `host_bills.amount` for bills in `paid` status — commission that was uncollected at checkout but has since actually reached Rentivo via a bill payment. */
-  billPayments: number
+  uncollectable: number
 }
 
 /**
@@ -185,14 +195,7 @@ export async function getCommissionTotals(): Promise<CommissionTotals> {
   const earned = rows.reduce((s, b) => s + b.service_fee, 0)
   const collected = rows.filter((b) => isPaymongoMethod(b.payment_method)).reduce((s, b) => s + b.service_fee, 0)
 
-  const admin = createAdminClient()
-  const { data: billRows, error: billError } = await admin.from('host_bills').select('amount, status')
-  if (billError) throw new Error(`Failed to load host_bills: ${billError.message}`)
-  const bills = (billRows ?? []) as { amount: number; status: string }[]
-  const billed = bills.filter((b) => b.status === 'issued' || b.status === 'paid').reduce((s, b) => s + b.amount, 0)
-  const billPayments = bills.filter((b) => b.status === 'paid').reduce((s, b) => s + b.amount, 0)
-
-  return { earned, collected, uncollected: earned - collected, billed, billPayments }
+  return { earned, collected, uncollectable: earned - collected }
 }
 
 /**
@@ -369,7 +372,7 @@ export async function getMonthlyRevenue(months = 12): Promise<MonthlyRevenue[]> 
       depositsHeld: 0,
       earned: 0,
       collected: 0,
-      uncollected: 0,
+      uncollectable: 0,
       payoutsPaid: 0,
       payoutsRequestedPending: 0,
     })
@@ -388,7 +391,7 @@ export async function getMonthlyRevenue(months = 12): Promise<MonthlyRevenue[]> 
     if (isPaymongoMethod(b.payment_method)) {
       row.collected += b.service_fee
     } else {
-      row.uncollected += b.service_fee
+      row.uncollectable += b.service_fee
     }
   }
 
