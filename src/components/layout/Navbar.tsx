@@ -59,12 +59,17 @@ export function Navbar() {
 
           {/* Right actions — desktop */}
           <div className="hidden md:flex items-center gap-1">
-            <Link
-              href="/host/new"
-              className="text-sm font-semibold text-[#111827] px-4 py-2 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              Become a Host
-            </Link>
+            {/* "Become a Host" is an invitation, so it disappears once the
+                invitation has been accepted — a host sees "Post a product"
+                in its place rather than both at once. */}
+            {!isHost && (
+              <Link
+                href="/host/new"
+                className="text-sm font-semibold text-[#111827] px-4 py-2 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                Become a Host
+              </Link>
+            )}
 
             {/* Hosts only — a renter has nothing to post, so this stays hidden
                 rather than leading them into a wizard that would refuse them. */}
@@ -180,9 +185,11 @@ export function Navbar() {
         <div className="md:hidden border-t border-gray-100 bg-white px-4 pb-4 pt-2">
           <nav className="flex flex-col gap-1">
             <div className="border-t border-gray-100 mt-2 pt-2 space-y-1">
-              <Link href="/host/new" className="px-3 py-2.5 text-sm font-semibold text-[#111827] hover:bg-gray-50 rounded-lg block transition-colors">
-                Become a Host
-              </Link>
+              {!isHost && (
+                <Link href="/host/new" className="px-3 py-2.5 text-sm font-semibold text-[#111827] hover:bg-gray-50 rounded-lg block transition-colors">
+                  Become a Host
+                </Link>
+              )}
               {isHost && (
                 <Link href="/host/new" className="px-3 py-2.5 text-sm font-semibold text-[#003049] hover:bg-blue-50 rounded-lg flex items-center gap-2 transition-colors">
                   <Package className="w-4 h-4" /> Post a product
