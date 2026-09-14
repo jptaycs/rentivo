@@ -9,6 +9,7 @@ import { useMyRentals, type BookingWithRefs } from '@/hooks/useBookings'
 import { useReviewedBookings } from '@/hooks/useReviewedBookings'
 import { ReviewModal } from '@/components/shared/ReviewModal'
 import { PickupLocationMap } from '@/components/booking/PickupLocationMap'
+import { DashboardRowsSkeleton } from '@/components/shared/Skeletons'
 
 const TABS = ['Upcoming', 'History']
 
@@ -134,9 +135,7 @@ export default function RentalsPage() {
 
       <div className="space-y-4">
         {loading ? (
-          <div className="flex justify-center py-20 text-gray-300">
-            <Loader2 className="w-8 h-8 animate-spin" />
-          </div>
+          <DashboardRowsSkeleton rows={3} />
         ) : items.length === 0 ? (
           <div className="text-center py-20 text-gray-400 bg-white rounded-2xl border border-gray-100">
             <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />

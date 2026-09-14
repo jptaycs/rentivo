@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { MessageSquare, Loader2 } from 'lucide-react'
+import { MessageSquare } from 'lucide-react'
 import { MOCK_THREADS } from '@/lib/mock-messages'
 import { useThreads } from '@/hooks/useThreads'
 import { useConversation } from '@/hooks/useConversation'
@@ -10,6 +10,7 @@ import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { createClient } from '@/lib/supabase/client'
 import { ThreadList } from '@/components/messages/ThreadList'
 import { ConversationView } from '@/components/messages/ConversationView'
+import { ThreadListSkeleton, ConversationSkeleton, MessagesPageSkeleton } from '@/components/shared/Skeletons'
 
 function MockConversationView({ thread, onBack }: { thread: (typeof MOCK_THREADS)[0]; onBack: () => void }) {
   const header = {
@@ -42,7 +43,7 @@ function MockConversationView({ thread, onBack }: { thread: (typeof MOCK_THREADS
 
 export default function MessagesPage() {
   return (
-    <Suspense fallback={<div className="h-full flex items-center justify-center"><Loader2 className="w-6 h-6 text-gray-300 animate-spin" /></div>}>
+    <Suspense fallback={<MessagesPageSkeleton />}>
       <MessagesPageInner />
     </Suspense>
   )
@@ -132,9 +133,7 @@ function MessagesPageInner() {
       {/* Thread list */}
       <div className={`w-full md:w-80 lg:w-96 border-r border-gray-200 bg-white shrink-0 flex flex-col ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
         {live && threadsLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
-          </div>
+          <ThreadListSkeleton />
         ) : (
           <ThreadList
             threads={live ? threads : MOCK_THREADS.map((t) => ({
@@ -166,9 +165,7 @@ function MessagesPageInner() {
         ) : !activeId ? (
           <EmptyState />
         ) : conversation.loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
-          </div>
+          <ConversationSkeleton />
         ) : conversation.notFound || !conversation.header ? (
           <EmptyState message="Conversation not found." />
         ) : (

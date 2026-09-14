@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { CheckCircle2, Star, CalendarDays, DollarSign, XCircle, Loader2, Bell, ShieldCheck, ShieldX, Receipt } from 'lucide-react'
+import { CheckCircle2, Star, CalendarDays, DollarSign, XCircle, Bell, ShieldCheck, ShieldX, Receipt } from 'lucide-react'
 import { useNotifications } from '@/hooks/useNotifications'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { DashboardRowsSkeleton } from '@/components/shared/Skeletons'
 import type { Notification } from '@/types'
 
 const MOCK_NOTIFICATIONS = [
@@ -65,9 +66,7 @@ export default function NotificationsPage() {
       </div>
 
       {live && loading ? (
-        <div className="flex justify-center py-20 text-gray-300">
-          <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
+        <DashboardRowsSkeleton rows={5} avatar />
       ) : items.length === 0 ? (
         <div className="text-center py-20 text-gray-400 bg-white rounded-2xl border border-gray-100">
           <Bell className="w-10 h-10 mx-auto mb-3 opacity-30" />

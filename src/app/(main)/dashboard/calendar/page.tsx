@@ -6,6 +6,7 @@ import { useMyListings } from '@/hooks/useMyListings'
 import { useAvailabilityBlocks } from '@/hooks/useAvailabilityBlocks'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { MOCK_LISTINGS } from '@/lib/mock-data'
+import { CalendarSkeleton } from '@/components/shared/Skeletons'
 
 const PALETTE = [
   { dot: 'bg-blue-500', light: 'bg-blue-100 text-blue-700' },
@@ -84,7 +85,9 @@ export default function CalendarPage() {
         <p className="text-gray-500 text-sm mt-1">Block dates when your equipment is unavailable</p>
       </div>
 
-      {listings.length === 0 && !loading ? (
+      {listings.length === 0 && loading ? (
+        <CalendarSkeleton />
+      ) : listings.length === 0 && !loading ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 text-gray-400">
           No active listings yet — availability appears here once you have one.
         </div>

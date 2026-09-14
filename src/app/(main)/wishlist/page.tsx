@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Heart, Loader2 } from 'lucide-react'
+import { Heart } from 'lucide-react'
 import Link from 'next/link'
 import { useWishlist } from '@/hooks/useWishlist'
 import { useUser } from '@/hooks/useUser'
@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { MOCK_LISTINGS } from '@/lib/mock-data'
 import { ListingCard } from '@/components/shared/ListingCard'
 import { LISTING_COLUMNS, PROFILE_COLUMNS } from '@/lib/listing-columns'
+import { ListingGridSkeleton } from '@/components/shared/Skeletons'
 import type { Listing } from '@/types'
 
 // Explicit column lists, never `*` — see listing-columns.ts (street_address on
@@ -81,9 +82,7 @@ export default function WishlistPage() {
       )}
 
       {listings === null ? (
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
-        </div>
+        <ListingGridSkeleton count={3} />
       ) : wishlisted.length === 0 ? (
         <div className="text-center py-24 bg-white rounded-2xl border border-gray-100">
           <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">

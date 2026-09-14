@@ -9,6 +9,8 @@ import { SERVICE_FEE_RATE } from '@/lib/pricing'
 import { LISTING_COLUMNS } from '@/lib/listing-columns'
 import { LocationPicker } from '@/components/host/LocationPicker'
 import { deleteOrDeactivateListing, LISTING_KEPT_MESSAGE } from '@/hooks/useMyListings'
+import { FormSkeleton } from '@/components/shared/Skeletons'
+import { Skeleton } from '@/components/ui/skeleton'
 
 // Values must match the listings table's equipment_category / listing_condition
 // enums (001_initial_schema.sql) — same options the host wizard's Step2Details uses.
@@ -239,8 +241,18 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+      <div className="min-h-screen bg-[#F8FAFC]">
+        <div className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-20">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-10 w-32 rounded-xl" />
+          </div>
+        </div>
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+          <Skeleton className="h-48 w-full rounded-2xl" />
+          <FormSkeleton fields={4} />
+          <FormSkeleton fields={3} />
+        </div>
       </div>
     )
   }
