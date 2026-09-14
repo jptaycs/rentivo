@@ -12,12 +12,13 @@ Only `[ ]` items are outstanding.
 
 ## Open right now
 
-Three, and none of them is blocked on code we control. For work that IS actionable, see
+Two, and neither is blocked on code we control (item 2 was closed 2026-09-12 and is kept
+struck through for the record). For work that IS actionable, see
 **Unblocked** below — that section is the real queue.
 
 1. **PayMongo KYB** — `gcash`/`maya`/`card` still *Submitted*, not Active. Blocks the
    real-money charge verification and the `NEXT_PUBLIC_DISABLED_PAYMENT_METHODS` removal.
-2. **Apple Pay / Google Pay** — PayMongo doesn't support them. The tiles were removed
+~~2. **Apple Pay / Google Pay**~~ — **done 2026-09-12**, nothing left to do. PayMongo doesn't support them. The tiles were removed
    entirely on 2026-09-12; they had sat as permanently disabled "Coming soon" placeholders
    advertising a choice no renter could make.
 3. **Duplicate listing `924ca665-…`** — deactivated, not deleted, because it carries a real
@@ -101,13 +102,27 @@ Their full entries, with the reasoning, are in the archive further down.
     only after `mark_booking_paid` returns, so the status it reads is final. In the rare race
     the renter now gets "Payment Received", which is true, instead of a confirmation the
     database had refused.
-  - [ ] `view_count` remains a vanity metric (see AGENTS.md) — label it as such on Analytics or
-    replace it with a deduplicated events table if it ever matters.
-  - [ ] I-2 (storage accepting `..` in object keys and HTML bytes labelled `image/png` in the
+  - [x] `view_count` remains a vanity metric (see AGENTS.md) — label it as such on Analytics or
+    replace it with a deduplicated events table if it ever matters. **Labelled 2026-09-14:**
+    `/dashboard/analytics` now says under the KPI cards that views are approximate and count page
+    loads, not unique visitors. A deduplicated events table was not built — still only worth it
+    if the number starts mattering.
+  - [x] I-2 (storage accepting `..` in object keys and HTML bytes labelled `image/png` in the
     public `listing-images` bucket) and I-6 (`handle_new_user` copying client-supplied
-    `avatar_url`) were not addressed.
-  - [ ] Default privileges still grant `arwd` on new tables to `anon`/`authenticated`
+    `avatar_url`) were not addressed. **Done 2026-09-14, migration 079** (see AGENTS.md's ⚠️ 079
+    entry): every storage INSERT policy (and the avatars UPDATE policy) refuses a `..` segment;
+    `handle_new_user` keeps `avatar_url` only on `lh3.googleusercontent.com` or this project's
+    public storage path. The HTML half **cannot** be closed in the database (it can't read
+    bytes), so it is a client-side magic-byte check (`src/lib/image-bytes.ts`) in all five upload
+    paths — honest limit: a direct Storage API call skips it; origin separation (objects served
+    from `supabase.co`, not `rentivo.live`) bounds what that buys an attacker.
+  - [x] Default privileges still grant `arwd` on new tables to `anon`/`authenticated`
     (`pg_default_acl`), so "enable RLS in the creating migration" remains non-negotiable.
+    **Done 2026-09-14, migration 079** for role `postgres` (the role migrations run as): a new
+    table now has no client privileges until its migration grants them, so a forgotten grant
+    is a visible 403. RLS in the creating migration **stays** mandatory (checklist in AGENTS.md).
+    `supabase_admin`'s identical default ACL can't be changed from a migration (42501,
+    `postgres` isn't a member) — it only covers platform-created objects.
 
 - [x] **Rate limiting — done 2026-09-14 (migration 076).** Security audit MEDIUM-4. Built in
   Postgres (no new service); design in AGENTS.md's Security model. **Worse hole found first
@@ -133,7 +148,8 @@ Their full entries, with the reasoning, are in the archive further down.
   it rendered, the notify route claimed once, nothing throttled). **Not covered:** the auth
   endpoints (login/signup/reset) are Supabase GoTrue's own built-in rate limits, not ours.
 
-- [ ] **Remove `CRON_SECRET` from the Vercel production dashboard.** It authenticated
+- [x] **Remove `CRON_SECRET` from the Vercel production dashboard.** **Done 2026-09-14** — removed
+  with the Vercel CLI and confirmed gone. It authenticated
   `/api/cron/host-bills`, deleted 2026-09-13. Harmless but misleading to a future reader;
   cannot be scripted from the repo.
 
@@ -196,10 +212,15 @@ Their full entries, with the reasoning, are in the archive further down.
   coordinates, no map link). Unpaid bookings keep "Delivery · city", with the address and
   pin absent from the page payload, so an abandoned booking's pin never reaches a host.
 
-- [ ] **Distance-based delivery — deferred Minors** (final whole-branch review 2026-09-14
+- [ ] **Distance-based delivery — deferred Minors** (three closed 2026-09-14 by 079, marked inline) (final whole-branch review 2026-09-14
   judged none must-fix before shipping; recorded here because the review files lived in a
   scratch workspace that was deleted after merge):
-  - **False "price changed" 409 at exact rounding halves on monthly-tier rentals.** The
+  - **[done 2026-09-14]** **False "price changed" 409 at exact rounding halves on monthly-tier rentals.**
+    `pgTierRental` below is now in `calcRentalFee` for both tiers.
+    `scripts/verify/079-rental-rounding-parity.mjs` pulls cases from live Postgres and asserts
+    parity: 75,454 monthly exact ties (the old float formula mismatched 16,096 of them) and
+    124,581 weekly nearest-to-tie cases (fraction 3/7 or 4/7 — true weekly ties can't exist),
+    0 mismatches, prices spanning the numeric-weight boundaries up to 100,000,030. Original text: The
     checkout compares the displayed total with the stored one before any charge. JavaScript
     and Postgres disagree at ties — Postgres `round(1029/30.0*45)` = 1544, JS 1543 — so the
     renter is told the price changed when it didn't. It **fails safe** (no charge; the retry
@@ -230,8 +251,10 @@ Their full entries, with the reasoning, are in the archive further down.
     `useBookings` selects `bookings.*`; the host card hides it, but the data is in the
     response. Same pre-existing pattern as the typed address. Closing it properly needs a
     column-level read restriction or an RPC.
-  - **`quote_delivery_fee` has no rate limit.** CPU only; it leaks nothing, since distance is
-    measured from the public approximate point.
+  - **[done 2026-09-14, 079]** **`quote_delivery_fee` has no rate limit.** CPU only; it leaks nothing, since distance is
+    measured from the public approximate point. Now `quote:<uid>` 120 per 10 minutes (the client
+    debounces at 350ms); the function had to become VOLATILE since the limiter writes. Proven:
+    quote 121 refused, 1–120 and a second renter fine.
   - **The ₱100,000 base / ₱10,000 per-km caps are UI-only.** A host writing an absurd rate
     directly gets a refused booking at checkout — fails closed.
   - **The Philippines bounding box (lat 4.0–21.5, lng 116.0–127.0) excludes Kalayaan
@@ -241,11 +264,15 @@ Their full entries, with the reasoning, are in the archive further down.
   - **`create_booking` keeps a comment "mirrors the host_qr guard above"** pointing at a
     block migration 078 deleted. Fix it only as part of a future rewrite of that function,
     never in a standalone one.
-  - **Verification script gaps:** `scripts/verify/078-distance-based-delivery-fee.mjs` has no
+  - **[done 2026-09-14]** **Verification script gaps:** `scripts/verify/078-distance-based-delivery-fee.mjs` has no
     check that the quote refuses draft/inactive/suspended listings, check 6 has no dedicated
     control, and check 5's refusal and control use different renters.
     `scripts/verify/072-retire-host-qr-and-billing.mjs` deletes its control booking but not
     the notification and `rate_limit_hits` row that booking's triggers write.
+    Now: 078 has check 15 (quote refuses draft, inactive and suspended-host listings, each after
+    a control), a dedicated check-6 control, and check 5's control uses the refusal's renter;
+    072 deletes the control booking's notification and hit (bounded to that transaction's
+    instant) and re-reads to prove all three gone.
   - **A real-phone tap test for the delivery map.** One Leaflet map click didn't register
     under Playwright; a later click did. Not reproduced or root-caused.
 
@@ -257,7 +284,10 @@ Their full entries, with the reasoning, are in the archive further down.
   now redirects there and is still gated. Verified live: hearted two listings as a guest,
   both showed on `/wishlist` with the bottom-nav badge at 2, no overflow at 390px.
 
-- [ ] **REMOVE THE SEEDED DEMO REVIEWS BEFORE REAL LAUNCH.**
+- [x] **REMOVE THE SEEDED DEMO REVIEWS BEFORE REAL LAUNCH.** **Done 2026-09-14** with
+  `scripts/seed-demo-reviews.mjs remove`: 95 demo reviews and 95 `DEMO-` bookings deleted, none
+  on the real host's listing; listing ratings recalculated (19 rated listings → 3); 6 real
+  reviews remain. Original text:
   `node --experimental-strip-types scripts/seed-demo-reviews.mjs remove`
   Added 2026-09-06 at the owner's request so a colleague could see a populated
   storefront during a walkthrough: **95 reviews across the 19 seed listings**, each backed by
@@ -417,7 +447,7 @@ Their full entries, with the reasoning, are in the archive further down.
 **Polish / later**
 - [x] **`/admin/reports`' payouts column relabeled to say what it actually counts** — the field is now `payoutsRequestedPending` (`src/lib/admin-reports.ts`) and the page header/caption read "Payouts Pending" with an explicit note that this is not total liability to hosts, not "Payouts Owed".
 - [x] **Eligible-but-unrequested payout balance — built 2026-09-04.** `/admin/reports` now has an "Unrequested Payouts" section (`getUnrequestedPayouts()` in `src/lib/admin-reports.ts`) mirroring `request_payout()`'s CTE; see the Status entry.
-- [ ] Apple Pay / Google Pay — blocked: PayMongo doesn't support them; keep "Coming soon"
+- [x] Apple Pay / Google Pay — blocked: PayMongo doesn't support them; keep "Coming soon" — **superseded 2026-09-12: the tiles were removed entirely** (see "Open right now")
 - [x] **`profiles.qr_payment_label` raw-PostgREST exposure — closed 2026-09-04 by migration 059 (column-level SELECT grants, not a policy change, so the `!inner` concern below did not bite; every storefront path re-verified). See the Status entry.** Original text kept for the reasoning: `profiles.qr_payment_label` (host QR payment feature) is still fetchable via a direct anon-key raw PostgREST call even though it's no longer reachable through any app query path — needs a deliberate decision on whether/how to close this (see the Status entry above and the ⚠️ grant-audit note below before attempting a fix; a naive column-level `revoke` may not behave as expected on this project). **New consequence as of the suspension work (2026-09-02):** the only real fix on this project would be narrowing `profiles`' `public read using (true)` policy, and `getFeaturedListings`/`getPopularListings`/`getBundles`/`getActiveListingCount`/`searchListings` are now `!inner` joins on `profiles`. An `!inner` embed the caller cannot read returns **zero parent rows**, so narrowing that policy would blank the entire storefront — home, search and the listing count — rather than degrading cosmetically. Migration 046's `is_host_suspended` helper already protects the *RLS predicate* from the same change (see the ⚠️ note above), but nothing protects these five read paths. Any attempt at this must re-check every `!inner` profiles join first.
 - [x] `/dashboard/listings`' "N active listings" header count includes pending-review (`is_draft`) listings — fixed in the host-qa-fixes final-review fix wave (2026-09-02): predicate is now `is_active && !is_draft`.
 - [x] `useBookings.ts`'s `BOOKING_SELECT` joins `listings(*)` and `profiles(*)` rather than the `LISTING_COLUMNS`/`PROFILE_COLUMNS` allowlists — fixed in the host-qa-fixes final-review fix wave (2026-09-02); see the Status entry above.
@@ -443,7 +473,7 @@ Their full entries, with the reasoning, are in the archive further down.
 - [x] **Realtime now delivers — fixed 2026-09-03 by migration 057.** `messages` and `notifications` were never members of the `supabase_realtime` publication, so every `postgres_changes` subscription in the app was correctly wired and silently inert, and every prior "verified live" Realtime claim in this file had never actually been confirmed against an open connection. Proven fixed with a before/after probe on a real signed-in session (`delivered=NO` -> `delivered=YES`) for both tables. `conversations` deliberately not added — no hook subscribes to it. Note the ~45s propagation delay documented in the Status entry.
 - [x] **Migration 060: drop `messages.booking_id` — done 2026-09-04.** See the Status entry. (This idea was numbered 057, then 058, then 059, then 060 as each number was taken by something more urgent.)
 - [x] **Small deferred items from the pre-booking-inquiries final review — all three done 2026-09-04 (migration 058 + `InquiryDialog` rewrite); see the Status entry.** The original text, for the record: (the `useThreads` channel-topic item that was in this list is DONE — it stopped being theoretical the moment a second consumer mounted the hook; see the avatar/scan Status entry)**:** `attach_conversation_to_booking()` (055) doesn't reconcile `host_id` if a listing's host somehow changed between the conversation opening and the booking; `create_inquiry` has no server-side content-length cap beyond the client `maxLength={1000}` on the textarea; `InquiryDialog` has no dialog a11y (`role="dialog"`, Escape-to-close, focus trap). None block the feature; each is a small, independent follow-up.
-- [ ] **Retire host commission billing once PayMongo activates `gcash`/`maya`/`card`** (see the Status entry above — it's explicitly temporary). Retiring it is not simply deleting the code the day those methods go Active: any `host_bills` row already `issued` still represents real money genuinely owed and needs collecting or a deliberate admin waiver-void first; `generate_host_bills` should stop being invoked (unset the Vercel cron, or leave it running harmlessly — it only ever bills `host_qr` bookings, which will presumably taper off once the other methods work) rather than being torn out immediately, since a host could still choose direct QR after that point. Needs its own deliberate decision when the time comes, not a reflexive revert.
+- [x] **Retire host commission billing once PayMongo activates `gcash`/`maya`/`card`** — **done 2026-09-13 by migration 072** (see "Open right now"; QR Ph activation alone was enough). Original text: (see the Status entry above — it's explicitly temporary). Retiring it is not simply deleting the code the day those methods go Active: any `host_bills` row already `issued` still represents real money genuinely owed and needs collecting or a deliberate admin waiver-void first; `generate_host_bills` should stop being invoked (unset the Vercel cron, or leave it running harmlessly — it only ever bills `host_qr` bookings, which will presumably taper off once the other methods work) rather than being torn out immediately, since a host could still choose direct QR after that point. Needs its own deliberate decision when the time comes, not a reflexive revert.
 
 **Done, 2026-08-23**
 - Repo-wide lint cleanup — 22 `react/no-unescaped-entities`, 5 `@typescript-eslint/no-explicit-any`, 8 warnings. Also found and fixed a stale `.claude/worktrees/payout-accounts-history` git worktree (already merged into main) whose unignored `.next` build output was inflating lint output to 1576 errors — removed the worktree and hardened `eslint.config.mjs`'s ignores to also match nested paths (`**/.next/**` etc.) so a future worktree can't repeat this.

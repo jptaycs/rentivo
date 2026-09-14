@@ -50,7 +50,29 @@ async function main() {
   check('CONTROL: qrph booking is accepted', ok.status < 400,
     `HTTP ${ok.status} ${JSON.stringify(ok.body).slice(0, 160)}`)
   const probeBookingId = ok.body?.id ?? ok.body
-  if (probeBookingId) await admin(`bookings?id=eq.${probeBookingId}`, { method: 'DELETE' })
+  if (probeBookingId) {
+    // The control booking's triggers also wrote a host `booking_request`
+    // notification and a `booking:<renter>` rate_limit_hits row, both stamped
+    // with the booking's own transaction time (now() is constant within a
+    // transaction). Delete exactly those, bounded to that instant, so neither
+    // the seed host's real notifications nor the demo renter's other hits go.
+    const renterId = JSON.parse(Buffer.from(renter.split('.')[1], 'base64url').toString()).sub
+    const { body: [probe] } = await admin(`bookings?select=id,created_at&id=eq.${probeBookingId}`)
+    const t0 = encodeURIComponent(probe.created_at)
+    const t1 = encodeURIComponent(new Date(new Date(probe.created_at).getTime() + 1000).toISOString())
+    await admin(`bookings?id=eq.${probeBookingId}`, { method: 'DELETE' })
+    const notifQ = `notifications?user_id=eq.${listing.host_id}&type=eq.booking_request&created_at=gte.${t0}&created_at=lt.${t1}`
+    const hitsQ = `rate_limit_hits?key=eq.booking:${renterId}&hit_at=gte.${t0}&hit_at=lt.${t1}`
+    await admin(notifQ, { method: 'DELETE' })
+    await admin(hitsQ, { method: 'DELETE' })
+    const left = [
+      (await admin(`bookings?select=id&id=eq.${probeBookingId}`)).body.length,
+      (await admin(notifQ.replace('notifications?', 'notifications?select=id&'))).body.length,
+      (await admin(hitsQ.replace('rate_limit_hits?', 'rate_limit_hits?select=key&'))).body.length,
+    ]
+    check('cleanup: control booking, its notification and its rate_limit_hits row are gone',
+      left.every((n) => n === 0), `booking ${left[0]}, notification ${left[1]}, hits ${left[2]}`)
+  }
 
   // 2. The dropped RPCs are gone.
   for (const fn of ['generate_host_bills', 'mark_host_bill_paid', 'void_host_bill',

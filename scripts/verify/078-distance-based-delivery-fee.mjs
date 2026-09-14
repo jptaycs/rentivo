@@ -275,8 +275,9 @@ try {
     const r = await book(R1, L, { p_is_delivery: true, p_delivery_address: 'Probe St, Naga City' })
     check('5. per-km delivery with no destination is refused', raised(r, 'delivery location is required'), `${r.status} ${msg(r).slice(0, 160)}`)
     const d = offset(2)
-    const c = await book(R2, L, deliver(d.lat, d.lng))
-    check('5. CONTROL: same call with coordinates succeeds', ok(c), `${c.status} ${msg(c).slice(0, 120)}`)
+    // Same renter as the refusal, so the control isolates the missing pin.
+    const c = await book(R1, L, deliver(d.lat, d.lng))
+    check('5. CONTROL: same renter, same call with coordinates succeeds', ok(c), `${c.status} ${msg(c).slice(0, 120)}`)
   }
 
   // ── 6. out-of-range coordinates refused ───────────────────────────────────
@@ -285,6 +286,13 @@ try {
     check('6. p_delivery_lat = 200 is refused', raised(r, 'not valid'), `${r.status} ${msg(r).slice(0, 160)}`)
     const rq = await rpc(R2.token, 'quote_delivery_fee', { p_listing_id: L, p_delivery_lat: 200, p_delivery_lng: PIN.lng })
     check('6. quote refuses p_delivery_lat = 200', raised(rq, 'not valid'), `${rq.status} ${msg(rq).slice(0, 120)}`)
+    // Dedicated CONTROL: identical calls with an in-range latitude succeed, so
+    // the refusals are attributable to the coordinate check alone.
+    const d = offset(6)
+    const c = await book(R2, L, deliver(d.lat, PIN.lng))
+    check('6. CONTROL: same renter, same call with an in-range latitude succeeds', ok(c), `${c.status} ${msg(c).slice(0, 120)}`)
+    const cq = await rpc(R2.token, 'quote_delivery_fee', { p_listing_id: L, p_delivery_lat: d.lat, p_delivery_lng: PIN.lng })
+    check('6. CONTROL: quote with an in-range latitude succeeds', ok(cq) && Number.isInteger(cq.body?.[0]?.fee), `${cq.status} ${msg(cq).slice(0, 120)}`)
   }
 
   // ── 7. no delivery offered still refused; control: pickup succeeds ────────
@@ -351,6 +359,29 @@ try {
     const r = await book(R2, L, { p_payment_method: 'host_qr' })
     check('12. host_qr refusal carries the trigger message naming QR Ph', r.status >= 400 && msg(r).includes('QR Ph'), `${r.status} ${msg(r).slice(0, 160)}`)
     check('12. and is not an undefined-column error', !msg(r).includes('42703') && !msg(r).includes('qr_payment_url'), msg(r).slice(0, 160))
+  }
+
+  // ── 15. quote refuses draft, inactive and suspended-host listings ─────────
+  // Each refusal is preceded by a CONTROL — the identical quote on the same
+  // listing, same renter, immediately before the one condition is applied.
+  {
+    const d = offset(4)
+    const quote = () => rpc(STRANGER.token, 'quote_delivery_fee', { p_listing_id: L, p_delivery_lat: d.lat, p_delivery_lng: d.lng })
+    const cases = [
+      ['draft', () => setListing(L, { is_draft: true }), () => setListing(L, { is_draft: false })],
+      ['inactive', () => setListing(L, { is_active: false }), () => setListing(L, { is_active: true })],
+      ['suspended-host',
+        () => admin(`profiles?id=eq.${H.id}`, { method: 'PATCH', body: JSON.stringify({ suspended_at: new Date().toISOString() }) }),
+        () => admin(`profiles?id=eq.${H.id}`, { method: 'PATCH', body: JSON.stringify({ suspended_at: null }) })],
+    ]
+    for (const [label, apply, revert] of cases) {
+      const c = await quote()
+      check(`15. CONTROL: quote succeeds before the listing is ${label}`, ok(c) && Number.isInteger(c.body?.[0]?.fee), `${c.status} ${msg(c).slice(0, 120)}`)
+      await apply()
+      const r = await quote()
+      await revert()
+      check(`15. quote on a ${label} listing is refused`, raised(r, 'Listing not found or no longer available.'), `${r.status} ${msg(r).slice(0, 120)}`)
+    }
   }
 
   // ── 13/14. one overload, grants restored ──────────────────────────────────

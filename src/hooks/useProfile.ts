@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { checkImageFile } from '@/lib/image-bytes'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import type { Profile } from '@/types'
 
@@ -57,9 +58,13 @@ export function useProfile() {
   async function uploadAvatar(file: File) {
     if (!profile) return 'Not signed in.'
     const supabase = createClient()
+    // Check the bytes, not just the declared type (079).
+    const real = await checkImageFile(file, ['image/jpeg', 'image/png', 'image/webp'], 'photo')
+    if (!real.type) return real.error
     const path = `${profile.id}/${Date.now()}-${file.name}`
     const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, {
       upsert: true,
+      contentType: real.type,
     })
     if (uploadError) return uploadError.message
     const {

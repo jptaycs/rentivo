@@ -11,16 +11,38 @@ export interface PricedListing {
 export type RentalTier = 'daily' | 'weekly' | 'monthly'
 
 /**
+ * Exactly `round(price / div.0 * days)` as Postgres evaluates it in
+ * create_booking (integer price, numeric division). Postgres first rounds the
+ * quotient to its numeric division scale — max(16 - 4 * quotient weight, the
+ * divisor's display scale of 1) decimal digits, half away from zero — and only
+ * then multiplies and rounds. Float `Math.round((p / div) * days)` disagrees at
+ * exact halves (e.g. 1029/30*45: Postgres 1544, JS 1543), which made checkout
+ * report a false "price changed". `Math.round(p * days / div)` is ALSO wrong —
+ * it skips the intermediate rounding. This emulation matched every one of
+ * 54,000 live Postgres ties (TODO.md) and is re-proven by
+ * scripts/verify/079-rental-rounding-parity.mjs. Integer-only BigInt math.
+ */
+function pgTierRental(price: number, days: number, div: 30 | 7): number {
+  let w = 0
+  let lead = price
+  while (lead >= 10000) { lead = Math.floor(lead / 10000); w++ }
+  const scale = BigInt(10) ** BigInt(Math.max(16 - 4 * (w - (lead < div ? 1 : 0)), 1))
+  const d = BigInt(div)
+  const q = (BigInt(2) * BigInt(price) * scale + d) / (BigInt(2) * d) // round(p/div, rscale)
+  return Number((BigInt(2) * q * BigInt(days) + scale) / (BigInt(2) * scale)) // round(q*days)
+}
+
+/**
  * Mirrors create_booking's tiering (024_tiered_rental_pricing.sql): once a
  * rental crosses 7 or 30 days, the whole rental is priced at the listing's
  * weekly/monthly rate (if the host set one) instead of the daily rate.
  */
 export function calcRentalFee(listing: PricedListing, days: number): { rentalFee: number; tier: RentalTier } {
   if (days >= 30 && listing.monthly_price) {
-    return { rentalFee: Math.round((listing.monthly_price / 30) * days), tier: 'monthly' }
+    return { rentalFee: pgTierRental(listing.monthly_price, days, 30), tier: 'monthly' }
   }
   if (days >= 7 && listing.weekly_price) {
-    return { rentalFee: Math.round((listing.weekly_price / 7) * days), tier: 'weekly' }
+    return { rentalFee: pgTierRental(listing.weekly_price, days, 7), tier: 'weekly' }
   }
   return { rentalFee: listing.daily_price * days, tier: 'daily' }
 }

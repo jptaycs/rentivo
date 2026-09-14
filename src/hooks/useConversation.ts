@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { checkImageFile } from '@/lib/image-bytes'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { PROFILE_COLUMNS } from '@/lib/listing-columns'
 import type { Profile } from '@/types'
@@ -136,11 +137,14 @@ export function useConversation(conversationId: string | null) {
     // bucket is private and images render through short-lived signed URLs.
     let imageUrl: string | null = null
     if (imageFile) {
-      const ext = imageFile.type.split('/')[1] ?? 'jpg'
+      // Check the bytes, not just the declared type (079).
+      const sniffed = await checkImageFile(imageFile, ['image/jpeg', 'image/png', 'image/webp', 'image/avif'], 'photo')
+      if (!sniffed.type) return sniffed.error
+      const ext = sniffed.type.split('/')[1]
       const path = `${userId}/${crypto.randomUUID()}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('message-images')
-        .upload(path, imageFile, { contentType: imageFile.type })
+        .upload(path, imageFile, { contentType: sniffed.type })
       if (uploadError) return uploadError.message
       imageUrl = path
     }

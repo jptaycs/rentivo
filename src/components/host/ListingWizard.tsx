@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { CheckCircle2, Eye, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { checkImageFile, type ImageMime } from '@/lib/image-bytes'
 import { WizardStep } from './WizardStep'
 import { Step1Photos, type WizardPhoto } from './Step1Photos'
 import { Step2Details } from './Step2Details'
@@ -11,6 +12,8 @@ import { Step3Pricing } from './Step3Pricing'
 import { Step4Calendar } from './Step4Calendar'
 import { Step5Address } from './Step5Address'
 import { Step6Verify, type VerifyData } from './Step6Verify'
+
+const IMAGE_TYPES: ImageMime[] = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
 
 interface WizardState {
   photos: WizardPhoto[]
@@ -82,6 +85,7 @@ export function ListingWizard() {
       // the submit halfway through.
       const MAX_BYTES = 10 * 1024 * 1024
       const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
+      const realTypes = new Map<File, ImageMime>()
       const toCheck: { file: File; what: string }[] = [
         ...state.photos.map(p => ({ file: p.file, what: 'photo' })),
         ...(state.verify.idFile ? [{ file: state.verify.idFile, what: 'ID document' }] : []),
@@ -94,6 +98,11 @@ export function ListingWizard() {
         if (file.size > MAX_BYTES) {
           throw new Error(`Your ${what} "${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is 10 MB.`)
         }
+        // The declared type is only a label; check the bytes (079). Upload with
+        // the sniffed type so the stored label is always what the file is.
+        const sniffed = await checkImageFile(file, IMAGE_TYPES, what)
+        if (!sniffed.type) throw new Error(sniffed.error)
+        realTypes.set(file, sniffed.type)
       }
 
       // Upload photos to the listing-images bucket (policy requires <uid>/ prefix)
@@ -109,7 +118,7 @@ export function ListingWizard() {
         const path = `${user.id}/${crypto.randomUUID()}.${ext}`
         const { error: uploadError } = await supabase.storage
           .from('listing-images')
-          .upload(path, file, { contentType: file.type })
+          .upload(path, file, { contentType: realTypes.get(file) })
         if (uploadError) throw new Error(`Photo upload failed: ${uploadError.message}`)
         const url = supabase.storage.from('listing-images').getPublicUrl(path).data.publicUrl
         uploadedImagesRef.current.set(key, url)
@@ -187,12 +196,12 @@ export function ListingWizard() {
 
           const { error: idUploadError } = await supabase.storage
             .from('verification-docs')
-            .upload(idPath, state.verify.idFile, { contentType: state.verify.idFile.type })
+            .upload(idPath, state.verify.idFile, { contentType: realTypes.get(state.verify.idFile) })
           if (idUploadError) throw new Error(idUploadError.message)
 
           const { error: selfieUploadError } = await supabase.storage
             .from('verification-docs')
-            .upload(selfiePath, state.verify.selfieFile, { contentType: state.verify.selfieFile.type })
+            .upload(selfiePath, state.verify.selfieFile, { contentType: realTypes.get(state.verify.selfieFile) })
           if (selfieUploadError) throw new Error(selfieUploadError.message)
 
           const { error: verifyInsertError } = await supabase.from('verification_requests').insert({

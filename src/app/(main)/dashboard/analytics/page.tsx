@@ -91,6 +91,8 @@ export default function AnalyticsPage() {
               </div>
             ))}
           </div>
+          {/* view_count is a capped counter (077), not a deduplicated events log. */}
+          <p className="-mt-5 text-xs text-gray-400">Views are approximate — they count page loads, not unique visitors.</p>
 
           {/* Bookings chart */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">

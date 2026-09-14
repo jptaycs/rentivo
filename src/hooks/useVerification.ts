@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { checkImageFile } from '@/lib/image-bytes'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import type { VerificationRequest } from '@/types'
 
@@ -55,6 +56,12 @@ export function useVerification() {
     } = await supabase.auth.getUser()
     if (!user) return 'You must be signed in.'
 
+    // Check the bytes, not just the declared type (079).
+    const idReal = await checkImageFile(idFile, ['image/jpeg', 'image/png', 'image/webp'], 'ID document')
+    if (!idReal.type) return idReal.error
+    const selfieReal = await checkImageFile(selfieFile, ['image/jpeg', 'image/png', 'image/webp'], 'selfie')
+    if (!selfieReal.type) return selfieReal.error
+
     const idExt = idFile.name.split('.').pop()?.toLowerCase() || 'jpg'
     const selfieExt = selfieFile.name.split('.').pop()?.toLowerCase() || 'jpg'
     const idPath = `${user.id}/id-${Date.now()}.${idExt}`
@@ -62,12 +69,12 @@ export function useVerification() {
 
     const { error: idError } = await supabase.storage
       .from('verification-docs')
-      .upload(idPath, idFile, { contentType: idFile.type })
+      .upload(idPath, idFile, { contentType: idReal.type })
     if (idError) return `ID upload failed: ${idError.message}`
 
     const { error: selfieError } = await supabase.storage
       .from('verification-docs')
-      .upload(selfiePath, selfieFile, { contentType: selfieFile.type })
+      .upload(selfiePath, selfieFile, { contentType: selfieReal.type })
     if (selfieError) return `Selfie upload failed: ${selfieError.message}`
 
     const { error: insertError } = await supabase.from('verification_requests').insert({

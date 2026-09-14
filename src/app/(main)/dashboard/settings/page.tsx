@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [avatarError, setAvatarError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [currentPw, setCurrentPw] = useState('')
@@ -96,7 +97,9 @@ export default function SettingsPage() {
     const file = e.target.files?.[0]
     if (!file || !live) return
     setUploadingAvatar(true)
-    await uploadAvatar(file)
+    setAvatarError('')
+    const err = await uploadAvatar(file)
+    if (err) setAvatarError(err)
     setUploadingAvatar(false)
     e.target.value = ''
   }
@@ -202,6 +205,7 @@ export default function SettingsPage() {
                 Change photo
               </button>
             )}
+            {avatarError && <p role="alert" className="text-xs text-red-600 mt-1">{avatarError}</p>}
           </div>
         </div>
 
