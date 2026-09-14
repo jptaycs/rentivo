@@ -2,8 +2,8 @@ import { Logo } from '@/components/layout/Logo'
 
 interface AuthShellProps {
   children: React.ReactNode
-  heading: string
-  subheading: string
+  heading: React.ReactNode
+  subheading: React.ReactNode
 }
 
 const TESTIMONIALS = [

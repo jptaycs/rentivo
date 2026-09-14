@@ -73,12 +73,12 @@ export function SearchResults({ query, listings }: SearchResultsProps) {
       {/* Results */}
       <div className="flex-1 min-w-0">
         {/* Results header */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
           <p className="text-sm text-gray-500">
             <span className="font-semibold text-[#111827]">{results.length}</span> listings found
             {query && <span> for &quot;<span className="text-[#003049]">{query}</span>&quot;</span>}
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
               <button
                 type="button"

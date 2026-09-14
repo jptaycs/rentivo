@@ -72,7 +72,7 @@ export function CalendarMonth({
             <div
               key={i}
               className={[
-                'relative h-10 flex items-center justify-center',
+                'relative h-11 md:h-10 flex items-center justify-center',
                 inRange ? 'bg-gray-100' : '',
                 isRangeStart && !isRangeEnd ? 'rounded-l-full' : '',
                 isRangeEnd && !isRangeStart ? 'rounded-r-full' : '',
@@ -91,7 +91,7 @@ export function CalendarMonth({
                       : undefined
                 }
                 className={[
-                  'w-9 h-9 flex items-center justify-center rounded-full text-sm transition-colors',
+                  'w-11 h-11 md:w-9 md:h-9 flex items-center justify-center rounded-full text-sm transition-colors',
                   isPast ? 'text-gray-300 cursor-default' : '',
                   isBlocked && !isPast && !returnOnly && !isSelected ? 'text-gray-400 line-through bg-gray-100 cursor-not-allowed' : '',
                   returnOnly && !isSelected ? 'text-gray-500 line-through bg-gray-100 cursor-pointer hover:ring-2 hover:ring-[#003049]/30' : '',

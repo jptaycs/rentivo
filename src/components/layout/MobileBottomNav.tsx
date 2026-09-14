@@ -27,7 +27,7 @@ export function MobileBottomNav() {
             <Link
               key={href}
               href={href}
-              className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors relative ${
+              className={`flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors active:bg-gray-100 active:scale-95 relative ${
                 isActive ? 'text-[#003049]' : 'text-gray-400'
               }`}
             >

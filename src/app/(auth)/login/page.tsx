@@ -1,5 +1,6 @@
 import { AuthShell } from '@/components/auth/AuthShell'
 import { LoginForm } from '@/components/auth/LoginForm'
+import { LoginHeading, LoginSubheading } from '@/components/auth/LoginHeading'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -9,8 +10,8 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
     <AuthShell
-      heading="Welcome back"
-      subheading="Sign in to your Rentivo account to continue."
+      heading={<LoginHeading />}
+      subheading={<LoginSubheading />}
     >
       <LoginForm />
     </AuthShell>

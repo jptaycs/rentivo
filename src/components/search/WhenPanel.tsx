@@ -37,7 +37,7 @@ export function WhenPanel({
   setFlexMonth: (v: number | null) => void
 }) {
   return (
-    <div ref={calRef} style={style} className="animate-dropdown bg-white rounded-3xl shadow-2xl p-8">
+    <div ref={calRef} style={style} className="animate-dropdown bg-white rounded-3xl shadow-2xl p-4 md:p-8">
       {/* Dates / Flexible toggle */}
       <div className="flex justify-center mb-8">
         <div className="flex bg-gray-100 rounded-full p-1">
@@ -75,15 +75,20 @@ export function WhenPanel({
               onDateHover={onDateHover}
             />
 
-            <div className="w-px bg-gray-100 shrink-0" />
+            {/* Second month: desktop only. Two full months side by side on a
+                phone-width panel left ~20px-wide date cells — render one
+                month below md and let the nav arrows page through months. */}
+            <div className="hidden md:contents">
+              <div className="w-px bg-gray-100 shrink-0" />
 
-            <CalendarMonth
-              year={rightYear} month={rightMonth}
-              startDate={startDate} endDate={endDate} hoverDate={hoverDate}
-              today={today}
-              onDateClick={onDateClick}
-              onDateHover={onDateHover}
-            />
+              <CalendarMonth
+                year={rightYear} month={rightMonth}
+                startDate={startDate} endDate={endDate} hoverDate={hoverDate}
+                today={today}
+                onDateClick={onDateClick}
+                onDateHover={onDateHover}
+              />
+            </div>
 
             <button
               type="button"

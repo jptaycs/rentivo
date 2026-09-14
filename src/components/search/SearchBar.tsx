@@ -13,7 +13,7 @@ import { SUGGESTIONS } from './searchBarData'
 const VARIANT = {
   hero: {
     container: 'rounded-full',
-    fieldPadding: 'px-8 py-4',
+    fieldPadding: 'px-4 sm:px-8 py-4',
     label: 'text-xs font-bold text-gray-900 mb-0.5',
     inputText: 'text-sm text-gray-500 placeholder-gray-400',
     whenValueText: 'text-sm',
@@ -109,7 +109,11 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
         const calWidth = Math.min(760, window.innerWidth * 0.95)
         let left = rect.left + rect.width / 2 - calWidth / 2
         left = Math.max(8, Math.min(left, window.innerWidth - calWidth - 8))
-        setCalStyle(s => ({ ...s, top: rect.bottom + 8, left }))
+        const top = rect.bottom + 8
+        // Keep the panel inside the viewport (it scrolls internally instead)
+        // regardless of where the When button ends up after scroll/resize.
+        const maxHeight = Math.max(240, window.innerHeight - top - 16)
+        setCalStyle(s => ({ ...s, top, left, maxHeight, overflowY: 'auto' }))
       }
     }
     window.addEventListener('scroll', reposition, { passive: true })
@@ -157,11 +161,18 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
       const calWidth = Math.min(760, window.innerWidth * 0.95)
       let left = rect.left + rect.width / 2 - calWidth / 2
       left = Math.max(8, Math.min(left, window.innerWidth - calWidth - 8))
+      const top = rect.bottom + 8
+      // Never let the panel extend past the bottom of the viewport — it
+      // scrolls internally instead (the quick-filter row used to be
+      // unreachable without scrolling the page behind the panel first).
+      const maxHeight = Math.max(240, window.innerHeight - top - 16)
       setCalStyle({
         position: 'fixed',
-        top: rect.bottom + 8,
+        top,
         left,
         width: calWidth,
+        maxHeight,
+        overflowY: 'auto',
         zIndex: 99999,
       })
     }
@@ -301,7 +312,7 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
         <div
           ref={whatDivRef}
           onClick={openWhat}
-          className={`relative flex-1 flex items-center gap-2 ${styles.fieldPadding} rounded-full cursor-text transition-all duration-200 ${
+          className={`relative flex-1 min-w-0 flex items-center gap-2 ${styles.fieldPadding} rounded-full cursor-text transition-all duration-200 ${
             activeField === 'what' ? 'bg-white shadow-md' : activeField ? 'opacity-50 hover:opacity-75' : 'hover:bg-gray-50'
           }`}
         >
@@ -331,7 +342,7 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
         <div
           ref={whereDivRef}
           onClick={openWhere}
-          className={`relative flex-1 flex items-center gap-2 ${styles.fieldPadding} rounded-full cursor-text transition-all duration-200 ${
+          className={`relative flex-1 min-w-0 flex items-center gap-2 ${styles.fieldPadding} rounded-full cursor-text transition-all duration-200 ${
             activeField === 'where' ? 'bg-white shadow-md' : activeField ? 'opacity-50 hover:opacity-75' : 'hover:bg-gray-50'
           }`}
         >
@@ -362,7 +373,7 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
           ref={whenBtnRef}
           type="button"
           onClick={openCalendar}
-          className={`relative flex-1 flex items-center justify-between ${styles.fieldPadding} rounded-full text-left transition-all duration-200 ${
+          className={`relative flex-1 min-w-0 flex items-center justify-between ${styles.fieldPadding} rounded-full text-left transition-all duration-200 ${
             activeField === 'when' ? 'bg-white shadow-md' : activeField ? 'opacity-50 hover:opacity-75' : 'hover:bg-gray-50'
           }`}
         >

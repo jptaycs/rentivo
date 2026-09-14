@@ -187,3 +187,37 @@
     margin: 12mm;
   }
 }
+
+/* MobileBottomNav's own safe-area clearance — env() falls back to 0 on
+   devices/browsers with no inset (Android, older iOS), so this is a no-op
+   there and only adds real padding on an iPhone with a home-indicator bar. */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Clears the fixed MobileBottomNav (nav content ~4rem tall, see
+   MobileBottomNav's py-2.5 + icon/label, plus its own safe-area inset above)
+   for whatever sits below it in normal flow — currently the (main) layout's
+   <main>+<Footer> wrapper. Scoped to below md via a media query, rather than
+   a Tailwind md:pb-0 override, so the class is a no-op above md with nothing
+   to override. */
+@media (max-width: 767.98px) {
+  .pb-bottom-nav {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Tap feedback — the owner explicitly asked for "something happens" when you
+   press a button. A brief press-dip on every interactive control. */
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled):not([aria-disabled='true']):active,
+  a[role='button']:active,
+  [data-press]:not([data-disabled]):active {
+    transform: scale(0.975);
+  }
+  button, a[role='button'], [data-press] {
+    transition-property: transform, color, background-color, border-color, box-shadow, opacity;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
