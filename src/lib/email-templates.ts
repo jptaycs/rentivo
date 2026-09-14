@@ -52,6 +52,7 @@ const fmtDate = (d: string) =>
 function layout(preheader: string, bodyHtml: string) {
   return `<!doctype html>
 <html>
+  <head><meta charset="utf-8"></head>
   <body style="margin:0;padding:0;background:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
     <span style="display:none;max-height:0;overflow:hidden;">${escapeHtml(preheader)}</span>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;padding:32px 16px;">

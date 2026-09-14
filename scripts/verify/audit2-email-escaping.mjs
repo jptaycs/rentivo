@@ -118,7 +118,7 @@ for (const [shape, render] of Object.entries(deliveryShapes)) {
   const benignBr = (benign.match(/<br>/g) ?? []).length
   for (const payload of DELIVERY_HOSTILE) {
     const html = render(payload)
-    const leaked = [...RAW_MARKERS, '<b>'].filter((m) => html.includes(m))
+    const leaked = [...RAW_MARKERS, '<b>'].filter((m) => html.split(m).length > benign.split(m).length)
     check(`delivery ${shape} :: no raw markup from ${JSON.stringify(payload)}`, leaked.length === 0, `leaked ${leaked.join(', ')}`)
     const extraBr = (payload.match(/\r\n|\r|\n/g) ?? []).length
     check(
