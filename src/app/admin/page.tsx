@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { formatFeeRate } from '@/lib/pricing'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,33 +34,52 @@ async function userCounts() {
   }
 }
 
+/**
+ * The service fee is a rate, not a count, so it renders as a formatted string.
+ * A missing settings row is shown as "—" rather than a guessed percentage —
+ * create_booking raises in that state (080), so a number here would be a lie.
+ */
+async function serviceFeeLabel() {
+  const admin = createAdminClient()
+  const { data } = await admin
+    .from('platform_settings')
+    .select('service_fee_bps')
+    .eq('id', true)
+    .maybeSingle()
+  return typeof data?.service_fee_bps === 'number' ? formatFeeRate(data.service_fee_bps) : '—'
+}
+
 export default async function AdminOverviewPage() {
-  const [verifications, payoutAccounts, payoutRequests, users] = await Promise.all([
+  const [verifications, payoutAccounts, payoutRequests, users, serviceFee] = await Promise.all([
     pendingCount('verification_requests'),
     pendingCount('payout_accounts'),
     pendingCount('payout_requests'),
     userCounts(),
+    serviceFeeLabel(),
   ])
 
+  // `value` is a string, not a number: the service-fee card shows a rate and the
+  // rest show counts, and one shape for both beats special-casing a card.
   const cards = [
-    { label: 'Pending identity verifications', count: verifications, href: '/admin/verifications' },
-    { label: 'Payout accounts awaiting review', count: payoutAccounts, href: '/admin/payouts' },
-    { label: 'Pending payout requests', count: payoutRequests, href: '/admin/payouts' },
-    { label: 'Total users', count: users.total, href: '/admin/users' },
-    { label: 'Suspended users', count: users.suspended, href: '/admin/users?status=suspended' },
+    { label: 'Pending identity verifications', value: String(verifications), href: '/admin/verifications' },
+    { label: 'Payout accounts awaiting review', value: String(payoutAccounts), href: '/admin/payouts' },
+    { label: 'Pending payout requests', value: String(payoutRequests), href: '/admin/payouts' },
+    { label: 'Total users', value: String(users.total), href: '/admin/users' },
+    { label: 'Suspended users', value: String(users.suspended), href: '/admin/users?status=suspended' },
+    { label: 'Service fee', value: serviceFee, href: '/admin/settings' },
   ]
 
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold text-gray-900">Overview</h1>
-      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((c) => (
           <Link
             key={c.label}
             href={c.href}
             className="rounded-2xl bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
-            <p className="text-3xl font-bold text-[#003049]">{c.count}</p>
+            <p className="text-3xl font-bold text-[#003049]">{c.value}</p>
             <p className="mt-1 text-sm text-gray-500">{c.label}</p>
           </Link>
         ))}
