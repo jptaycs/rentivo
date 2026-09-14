@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import {
   getCommissionTotals,
   getMonthlyRevenue,
@@ -5,13 +6,13 @@ import {
   getTopListings,
   getTopHosts,
   getTopRenters,
-  getUnrequestedPayouts,
+  getPayoutsOwed,
   type RankedRow,
 } from '@/lib/admin-reports'
 import { requireAdminPage } from '@/lib/admin'
 import { formatFeeRate } from '@/lib/pricing'
 import { getServiceFeeBps } from '@/lib/service-fee'
-import { ExportRevenueButton, ExportInFlightButton, ExportRankedButton, ExportUnrequestedButton } from './ReportExports'
+import { ExportRevenueButton, ExportInFlightButton, ExportRankedButton, ExportOwedButton } from './ReportExports'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,16 +75,22 @@ export default async function AdminReportsPage() {
   // Defense in depth: see the matching comment in /admin/users/page.tsx.
   await requireAdminPage()
 
-  const [commission, monthly, inFlight, topListings, topHosts, topRenters, unrequested, serviceFeeBps] = await Promise.all([
+  const [commission, monthly, inFlight, topListings, topHosts, topRenters, owed, serviceFeeBps] = await Promise.all([
     getCommissionTotals(),
     getMonthlyRevenue(),
     getInFlightRentals(),
     getTopListings(),
     getTopHosts(),
     getTopRenters(),
-    getUnrequestedPayouts(),
+    getPayoutsOwed(),
     getServiceFeeBps(),
   ])
+
+  // getPayoutsOwed() returns rows, not totals — the two summary cards below
+  // sum them here so the SQL function stays one thing (the eligibility answer)
+  // rather than also owning the page's presentation.
+  const owedTotal = owed.reduce((s, h) => s + h.amount, 0)
+  const owedBookings = owed.reduce((s, h) => s + h.bookings, 0)
 
   return (
     <div className="space-y-10">
@@ -147,10 +154,10 @@ export default async function AdminReportsPage() {
             visible without either one misrepresenting the other. */}
         <p className="mb-4 text-xs text-gray-500">
           Revenue excludes refundable security deposits — see Deposits Held for the money Rentivo is holding, not
-          earning. Payouts Paid is bucketed by the month a payout was actually settled, not the month it was
-          requested. Payouts Pending counts only payouts hosts have <em>requested</em> and that are still open — it
-          is not total liability to hosts; eligible earnings a host hasn&apos;t yet requested are in Unrequested
-          Payouts below.
+          earning. Payouts Paid is bucketed by the month a payout was actually transferred, not the month its
+          draft was prepared. Payouts Pending counts only <em>drafts</em> an admin has already prepared and not yet
+          recorded a transfer for — it is not total liability to hosts; eligible earnings nobody has drafted a
+          statement for are in Owed To Hosts below.
         </p>
         <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
           <table className="w-full text-left text-sm">
@@ -164,10 +171,10 @@ export default async function AdminReportsPage() {
                 <th className="px-4 py-3">Uncollectable</th>
                 <th className="px-4 py-3">Payouts Paid</th>
                 {/* "Payouts Pending", not "Payouts Owed": this counts only
-                    payouts a host has actively REQUESTED and that are still
-                    open. Eligible-but-unrequested host earnings are owed too
-                    and are not on this page, so "Owed" read as a liability
-                    total it never was. */}
+                    DRAFT statements an admin has prepared and not yet
+                    transferred. Everything else a host is owed is not in this
+                    column, so "Owed" read as a liability total it never was.
+                    The full figure is in Owed To Hosts below. */}
                 <th className="px-4 py-3">Payouts Pending</th>
               </tr>
             </thead>
@@ -189,43 +196,49 @@ export default async function AdminReportsPage() {
         </div>
       </section>
 
-      {/* ── Unrequested payouts ──
-          The other half of host liability. "Payouts Pending" above only
-          counts money a host has asked for; this is money request_payout()
-          WOULD pay today that nobody has asked for. Together they are what
-          the platform owes hosts. Eligibility mirrors request_payout()'s CTE
-          — see getUnrequestedPayouts() for the rule and the drift warning. */}
+      {/* ── Owed to hosts ──
+          The other half of host liability. "Payouts Pending" above only counts
+          drafts an admin already prepared; this is money a statement WOULD pay
+          today that nobody has drafted. Together they are what the platform
+          owes hosts. Read straight from payouts_owed() — the same SQL
+          create_payout_statement itemizes with, not a second copy of the rule
+          (see getPayoutsOwed()). */}
       <section>
         <div className="mb-1 flex items-center justify-between gap-2">
-          <h2 className="text-xl font-bold text-gray-900">Unrequested Payouts</h2>
-          <ExportUnrequestedButton rows={unrequested.hosts} />
+          <h2 className="text-xl font-bold text-gray-900">Owed To Hosts</h2>
+          <ExportOwedButton rows={owed} />
         </div>
         <p className="mb-4 text-xs text-gray-500">
-          Completed, paid, payout-eligible bookings not yet claimed by any payout request — what Request Payout would
-          pay each host right now. Host-QR and test bookings are excluded, exactly as <code>request_payout()</code>{' '}
-          excludes them. Blocker says why the host can&apos;t request yet, when the data can tell.
+          Completed, paid, payout-eligible bookings no statement has claimed — what a statement prepared right
+          now would pay each host. Host-QR and test bookings are excluded, exactly as{' '}
+          <code>payouts_owed()</code> excludes them. Blocker says what would stop a payout, when the data can
+          tell. Prepare statements from the{' '}
+          <Link className="underline" href="/admin/payouts">
+            Payouts
+          </Link>{' '}
+          page.
         </p>
         <div className="mb-4 grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Owed, Unrequested</p>
-            <p className="mt-1 text-3xl font-bold text-[#003049]">{peso(unrequested.total)}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Owed, Not Yet Drafted</p>
+            <p className="mt-1 text-3xl font-bold text-[#003049]">{peso(owedTotal)}</p>
             <p className="mt-2 text-xs text-gray-500">
-              {`Across ${unrequested.bookings} eligible ${unrequested.bookings === 1 ? 'booking' : 'bookings'} and ${unrequested.hosts.length} ${unrequested.hosts.length === 1 ? 'host' : 'hosts'}.`}
+              {`Across ${owedBookings} eligible ${owedBookings === 1 ? 'booking' : 'bookings'} and ${owed.length} ${owed.length === 1 ? 'host' : 'hosts'}.`}
             </p>
           </div>
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Total Owed To Hosts</p>
             <p className="mt-1 text-3xl font-bold text-[#003049]">
-              {peso(unrequested.total + monthly.reduce((s, m) => s + m.payoutsRequestedPending, 0))}
+              {peso(owedTotal + monthly.reduce((s, m) => s + m.payoutsRequestedPending, 0))}
             </p>
             <p className="mt-2 text-xs text-gray-500">
-              Unrequested plus the requested-and-still-pending payouts in the table above.
+              Not-yet-drafted plus the open drafts in the table above.
             </p>
           </div>
         </div>
         <div className="overflow-x-auto rounded-2xl bg-white shadow-sm">
-          {unrequested.hosts.length === 0 ? (
-            <p className="p-6 text-center text-sm text-gray-500">Nothing owed that hasn&apos;t been requested.</p>
+          {owed.length === 0 ? (
+            <p className="p-6 text-center text-sm text-gray-500">Nothing owed to any host right now.</p>
           ) : (
             <table className="w-full text-left text-sm">
               <thead>
@@ -237,7 +250,7 @@ export default async function AdminReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {unrequested.hosts.map((h) => (
+                {owed.map((h) => (
                   <tr key={h.hostId} className="border-b border-gray-50">
                     <td className="px-4 py-3">
                       <p className="font-medium text-gray-900">{h.hostName}</p>
@@ -251,7 +264,7 @@ export default async function AdminReportsPage() {
                           {h.blocker}
                         </span>
                       ) : (
-                        <span className="text-xs text-gray-500">None — not yet requested</span>
+                        <span className="text-xs text-gray-500">None — no statement prepared yet</span>
                       )}
                     </td>
                   </tr>

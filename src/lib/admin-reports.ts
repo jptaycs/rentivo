@@ -57,25 +57,29 @@ export interface MonthlyRevenue {
    */
   uncollectable: number
   /**
-   * Payout requests actually SETTLED in this month, bucketed by
-   * `payout_requests.processed_at` — the timestamp `mark_payout_paid` sets
-   * (020:47) — not by `requested_at`. Those differ: a payout requested Jan 28
-   * and paid Feb 3 is February's cash outflow, and bucketing it by the request
-   * date put it in January, in a column an owner reads as money that left the
-   * business that month.
+   * Payout statements actually ISSUED in this month, bucketed by
+   * `payout_requests.processed_at` — the timestamp `issue_payout_statement`
+   * stamps (082; `mark_payout_paid` used to, before it was stubbed) — not by
+   * `requested_at`. Those differ: a payout drafted Jan 28 and transferred Feb 3
+   * is February's cash outflow, and bucketing it by the draft date put it in
+   * January, in a column an owner reads as money that left the business that
+   * month. A reversed statement leaves `status = 'paid'`, so it stops counting
+   * here automatically.
    */
   payoutsPaid: number
   /**
-   * Payouts a host has REQUESTED that are still `pending`, bucketed by
-   * `requested_at` (a pending request has no processed_at yet, by definition).
+   * DRAFT statements — `payout_requests` rows still `pending` — bucketed by
+   * `requested_at` (a draft has no processed_at yet, by definition).
    *
-   * This is NOT total liability to hosts. A host only appears here once they
-   * have actively asked for their money; completed, paid, payout-eligible
-   * bookings whose host has not yet clicked Request Payout are owed all the
-   * same — that figure is getUnrequestedPayouts(), shown in its own section
-   * on the reports page since 2026-09-04. The field is named
-   * `payoutsRequestedPending`, not `payoutsOwed`, precisely so the identifier
-   * cannot be read as the broader figure — see the on-page caption too.
+   * Since 082 a `pending` row is a draft **the admin has prepared**, not a
+   * host request: hosts no longer request payouts at all. The field name is
+   * kept (renaming a money field mid-flight is its own hazard) but it now
+   * means "money already itemized into an unissued draft".
+   *
+   * This is NOT total liability to hosts. Completed, paid, payout-eligible
+   * bookings nobody has drafted a statement for yet are owed all the same —
+   * that figure is getPayoutsOwed(), shown in the "Owed to hosts" section on
+   * the reports page.
    */
   payoutsRequestedPending: number
 }
@@ -139,34 +143,27 @@ export interface CommissionTotals {
 }
 
 /**
- * One host's payout-eligible earnings that no payout request has claimed.
- * See getUnrequestedPayouts() for the eligibility definition.
+ * One host's payout-eligible earnings that no statement has claimed.
+ * See getPayoutsOwed() for where the eligibility rule lives (SQL, not here).
  */
-export interface UnrequestedPayoutRow {
+export interface OwedRow {
   hostId: string
   hostName: string
   /** City, or the deleted-account disambiguator — same shape as RankedRow.sublabel. */
   sublabel: string
   /** Eligible, unclaimed bookings behind `amount`. */
   bookings: number
-  /** Sum of rental_fee + delivery_fee over those bookings — what request_payout() would pay. */
+  /** Sum of rental_fee + delivery_fee over those bookings — what a statement would pay. */
   amount: number
   /**
    * Why this money is still sitting here, when it can be told from the data:
-   * the host has no payout account, theirs isn't verified yet, was rejected,
-   * they're suspended (046 blocks request_payout), or they already have a
-   * pending request (only one at a time; these bookings would join the next
-   * one). `null` means nothing is stopping them — they just haven't asked.
+   * the host is suspended, has no payout account, theirs isn't verified yet or
+   * was rejected, or a draft statement is already open for them. Computed in
+   * create_payout_statement's OWN guard order, so the blocker shown is the one
+   * the admin would actually hit. `null` means nothing is stopping a payout —
+   * the admin just hasn't prepared one.
    */
   blocker: string | null
-}
-
-export interface UnrequestedPayouts {
-  /** Platform-wide total owed to hosts that nobody has requested yet. */
-  total: number
-  bookings: number
-  /** Per host, largest amount first. */
-  hosts: UnrequestedPayoutRow[]
 }
 
 const MONEY_SELECT =
@@ -208,118 +205,66 @@ export async function getCommissionTotals(): Promise<CommissionTotals> {
 }
 
 /**
- * Host earnings that are eligible for a payout but that no host has requested.
+ * What each host is owed right now, from payouts_owed() — the SAME SQL
+ * predicate create_payout_statement itemizes with. This is deliberately NOT a
+ * TypeScript mirror: the previous getUnrequestedPayouts() was one, and keeping
+ * a second copy of an eligibility rule is exactly the drift 082 collapsed.
  *
- * This is the figure "Payouts Pending" deliberately does NOT include (see
- * MonthlyRevenue.payoutsRequestedPending): liability the platform carries
- * whether or not anyone has clicked Request Payout. The eligibility rule is a
- * line-for-line mirror of the `eligible` CTE in request_payout() — 046 is the
- * authoritative body — minus its `host_id = auth.uid()` scope:
- *   status = 'completed' and payment_status = 'paid'
- *   and payment_method is distinct from 'host_qr'   (029: paid to the host directly)
- *   and payment_method is distinct from 'test_skip' (033: never charged)
- *   and not itemized in a payout_request whose status is 'pending' or 'paid'
- *   payable = rental_fee + delivery_fee                (038)
- * If request_payout()'s CTE changes, change this in the same commit — the
- * whole value of the number is that it predicts what request_payout() would
- * pay, and the one prior enumeration-style figure on this page drifted from
- * create_booking exactly this way (see MonthlyRevenue.revenue's doc).
+ * (That mirror was also already wrong: it blamed a host with an open request
+ * for not having "requested" their money, copy that stopped being true the
+ * moment payouts became admin-initiated.)
  *
- * A `failed` payout request releases its bookings (they are NOT in the
- * exclusion), matching request_payout(): a host whose payout bounced is owed
- * that money again.
+ * Only the presentation lives here — names, the deleted-account disambiguator,
+ * and the blocker, which is computed in create_payout_statement's own guard
+ * order so the reason shown is the one the admin would actually hit.
  */
-export async function getUnrequestedPayouts(): Promise<UnrequestedPayouts> {
+export async function getPayoutsOwed(): Promise<OwedRow[]> {
   const admin = createAdminClient()
 
-  const [{ data: bookingData, error: bookingError }, { data: itemData, error: itemError }] =
-    await Promise.all([
-      admin
-        .from('bookings')
-        .select(
-          `id, host_id, rental_fee, delivery_fee,
-           host:profiles!bookings_host_id_fkey(${PROFILE_COLUMNS})`
-        )
-        .eq('status', 'completed')
-        .eq('payment_status', 'paid')
-        // PostgREST has no `is distinct from`; `payment_method` is nullable
-        // and a null method (pre-payment-method bookings) IS eligible in the
-        // RPC, so build the same truth table explicitly: null, or not one of
-        // the two excluded values.
-        .or('payment_method.is.null,payment_method.not.in.(host_qr,test_skip)'),
-      admin
-        .from('payout_items')
-        .select('booking_id, request:payout_requests!payout_items_payout_request_id_fkey(status)'),
-    ])
-  if (bookingError) throw new Error(`Failed to load completed bookings: ${bookingError.message}`)
-  if (itemError) throw new Error(`Failed to load payout_items: ${itemError.message}`)
+  // p_host_id null = every host. The function is service_role-only precisely
+  // because of that; this module is `server-only` and uses the service key.
+  const { data, error } = await admin.rpc('payouts_owed', { p_host_id: null })
+  if (error) throw new Error(`Failed to load payouts owed: ${error.message}`)
+  const owed = (data ?? []) as { host_id: string; bookings: number; amount: number }[]
+  if (owed.length === 0) return []
 
-  const claimed = new Set(
-    ((itemData ?? []) as unknown as { booking_id: string; request: { status: string } | null }[])
-      .filter((i) => i.request?.status === 'pending' || i.request?.status === 'paid')
-      .map((i) => i.booking_id)
-  )
+  const hostIds = owed.map((o) => o.host_id)
+  const [{ data: profiles }, { data: accounts }, { data: drafts }] = await Promise.all([
+    // Explicit columns rather than PROFILE_COLUMNS: this needs `suspended_at`,
+    // which that public allowlist deliberately excludes (059).
+    admin.from('profiles').select('id, full_name, city, suspended_at').in('id', hostIds),
+    admin.from('payout_accounts').select('user_id, status').in('user_id', hostIds),
+    admin.from('payout_requests').select('host_id').eq('status', 'pending').in('host_id', hostIds),
+  ])
 
-  type Row = {
-    id: string
-    host_id: string
-    rental_fee: number
-    delivery_fee: number
-    host: { full_name: string; city: string | null } | null
-  }
-  const eligible = ((bookingData ?? []) as unknown as Row[]).filter((b) => !claimed.has(b.id))
+  type ProfileRow = { id: string; full_name: string; city: string | null; suspended_at: string | null }
+  const profileRows = (profiles ?? []) as unknown as ProfileRow[]
+  const profileById = new Map(profileRows.map((p) => [p.id, p]))
+  const suspended = new Set(profileRows.filter((p) => p.suspended_at !== null).map((p) => p.id))
+  const accountStatus = new Map((accounts ?? []).map((a) => [a.user_id as string, a.status as string]))
+  const hasDraft = new Set((drafts ?? []).map((r) => r.host_id as string))
 
-  const byHost = new Map<string, UnrequestedPayoutRow>()
-  for (const b of eligible) {
-    let row = byHost.get(b.host_id)
-    if (!row) {
-      const name = b.host?.full_name ?? 'Unknown host'
-      row = {
-        hostId: b.host_id,
-        hostName: name,
-        sublabel: deletedSublabel(name, b.host_id, b.host?.city ?? null),
-        bookings: 0,
-        amount: 0,
-        blocker: null,
-      }
-      byHost.set(b.host_id, row)
+  const rows: OwedRow[] = owed.map((o) => {
+    const profile = profileById.get(o.host_id)
+    const name = profile?.full_name ?? 'Unknown host'
+    const status = accountStatus.get(o.host_id)
+    let blocker: string | null = null
+    if (suspended.has(o.host_id)) blocker = 'Suspended — payouts on hold'
+    else if (!status) blocker = 'No payout account'
+    else if (status === 'pending') blocker = 'Payout account awaiting review'
+    else if (status === 'rejected') blocker = 'Payout account rejected'
+    else if (hasDraft.has(o.host_id)) blocker = 'Draft statement open'
+    return {
+      hostId: o.host_id,
+      hostName: name,
+      sublabel: deletedSublabel(name, o.host_id, profile?.city ?? null),
+      bookings: o.bookings,
+      amount: o.amount,
+      blocker,
     }
-    row.bookings += 1
-    row.amount += b.rental_fee + b.delivery_fee
-  }
+  })
 
-  // Explain, where the data can, why each host hasn't requested. Only
-  // fetched for the hosts that actually appear — usually a handful.
-  const hostIds = [...byHost.keys()]
-  if (hostIds.length > 0) {
-    const [{ data: accounts }, { data: pendingRequests }, { data: profiles }] = await Promise.all([
-      admin.from('payout_accounts').select('user_id, status').in('user_id', hostIds),
-      admin.from('payout_requests').select('host_id').eq('status', 'pending').in('host_id', hostIds),
-      admin.from('profiles').select('id, suspended_at').in('id', hostIds),
-    ])
-    const accountStatus = new Map((accounts ?? []).map((a) => [a.user_id as string, a.status as string]))
-    const hasPending = new Set((pendingRequests ?? []).map((r) => r.host_id as string))
-    const suspended = new Set(
-      (profiles ?? []).filter((p) => p.suspended_at !== null).map((p) => p.id as string)
-    )
-    // Order matches request_payout()'s own guard order, so the blocker shown
-    // is the one the host would actually hit first.
-    for (const row of byHost.values()) {
-      const status = accountStatus.get(row.hostId)
-      if (suspended.has(row.hostId)) row.blocker = 'Suspended — payouts on hold'
-      else if (!status) row.blocker = 'No payout account'
-      else if (status === 'pending') row.blocker = 'Payout account awaiting review'
-      else if (status === 'rejected') row.blocker = 'Payout account rejected'
-      else if (hasPending.has(row.hostId)) row.blocker = 'Has a pending request — joins the next one'
-    }
-  }
-
-  const hosts = [...byHost.values()].sort((a, b) => b.amount - a.amount)
-  return {
-    total: hosts.reduce((s, h) => s + h.amount, 0),
-    bookings: eligible.length,
-    hosts,
-  }
+  return rows.sort((a, b) => b.amount - a.amount)
 }
 
 /**
@@ -407,15 +352,15 @@ export async function getMonthlyRevenue(months = 12): Promise<MonthlyRevenue[]> 
   for (const p of payouts) {
     if (p.status === 'paid') {
       // Settled money belongs to the month it actually settled in.
-      // `mark_payout_paid` always stamps processed_at, so the fallback should
-      // be unreachable — it exists so a row hand-fixed in the SQL editor
+      // `issue_payout_statement` always stamps processed_at, so the fallback
+      // should be unreachable — it exists so a row hand-fixed in the SQL editor
       // still lands somewhere rather than silently vanishing from the report.
       const row = byMonth.get(monthKey(p.processed_at ?? p.requested_at))
       if (row) row.payoutsPaid += p.amount
     }
     if (p.status === 'pending') {
-      // Still-open requests have no processed_at; requested_at is the only
-      // date they have.
+      // Open drafts have no processed_at; requested_at is the only date they
+      // have.
       const row = byMonth.get(monthKey(p.requested_at))
       if (row) row.payoutsRequestedPending += p.amount
     }

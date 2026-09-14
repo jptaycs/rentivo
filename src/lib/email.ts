@@ -362,3 +362,27 @@ export async function notifyAccountReinstated(userId: string) {
     })
   )
 }
+
+// ── Payout statements (082) ────────────────────────────────────────────────
+// SEAM FOR TASK C5. C5 replaces these two bodies with the real templates and
+// senders (email-templates.ts gains payoutStatementIssuedHtml /
+// payoutStatementReversedHtml, and send() starts returning a boolean).
+//
+// The contract they must keep is the one the admin routes depend on: resolve
+// TRUE only when a send was actually attempted and Resend returned no error,
+// FALSE on any failure or when RESEND_API_KEY is absent. That boolean is what
+// decides whether `payout_requests.statement_emailed_at` is stamped, so a
+// placeholder must return FALSE — the admin page then shows "Email not sent —
+// Resend", which is the honest state until C5 lands. Never return true here.
+
+/** @see the seam note above — C5 supplies the real sender. */
+export async function notifyPayoutStatementIssued(requestId: string): Promise<boolean> {
+  console.log(`[email] payout statement issued email not implemented yet (request ${requestId})`)
+  return false
+}
+
+/** @see the seam note above — C5 supplies the real sender. */
+export async function notifyPayoutStatementReversed(requestId: string): Promise<boolean> {
+  console.log(`[email] payout statement reversed email not implemented yet (request ${requestId})`)
+  return false
+}

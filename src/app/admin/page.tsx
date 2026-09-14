@@ -63,7 +63,10 @@ export default async function AdminOverviewPage() {
   const cards = [
     { label: 'Pending identity verifications', value: String(verifications), href: '/admin/verifications' },
     { label: 'Payout accounts awaiting review', value: String(payoutAccounts), href: '/admin/payouts' },
-    { label: 'Pending payout requests', value: String(payoutRequests), href: '/admin/payouts' },
+    // A `pending` payout_requests row is a DRAFT the admin prepared (082) —
+    // hosts no longer request payouts at all, so the old "Pending payout
+    // requests" label described a thing that can no longer happen.
+    { label: 'Draft payout statements', value: String(payoutRequests), href: '/admin/payouts' },
     { label: 'Total users', value: String(users.total), href: '/admin/users' },
     { label: 'Suspended users', value: String(users.suspended), href: '/admin/users?status=suspended' },
     { label: 'Service fee', value: serviceFee, href: '/admin/settings' },

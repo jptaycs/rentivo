@@ -1,7 +1,7 @@
 'use client'
 
 import { toCsv } from '@/lib/csv'
-import type { MonthlyRevenue, InFlightRental, RankedRow, UnrequestedPayoutRow } from '@/lib/admin-reports'
+import type { MonthlyRevenue, InFlightRental, RankedRow, OwedRow } from '@/lib/admin-reports'
 
 // Client component: takes the already-fetched rows the server page fetched
 // via Task 9's report functions as props and does not re-query anything —
@@ -101,15 +101,15 @@ export function ExportRankedButton({
   )
 }
 
-export function ExportUnrequestedButton({ rows }: { rows: UnrequestedPayoutRow[] }) {
+export function ExportOwedButton({ rows }: { rows: OwedRow[] }) {
   const handleClick = () => {
     const csv = toCsv(
       // "Owed" is correct here, unlike the revenue CSV's "Payouts Pending":
-      // this is exactly the unrequested liability that column excludes.
+      // this is exactly the liability that column excludes.
       ['Host', 'Detail', 'Eligible Bookings', 'Owed', 'Blocker'],
       rows.map((r) => [r.hostName, r.sublabel, r.bookings, r.amount, r.blocker ?? ''])
     )
-    download('rentivo-unrequested-payouts.csv', csv)
+    download('rentivo-payouts-owed.csv', csv)
   }
   return (
     <button type="button" className={buttonClass} onClick={handleClick}>
