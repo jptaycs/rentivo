@@ -38,6 +38,11 @@ const stamp = Date.now()
 const created = { users: [], listings: [], bookings: [] }
 const FAKE_STATEMENT_NUMBER = 'PS-2026-999999'
 let fakeRequestId = null
+// Review fix (C10): a REVERSED statement's reversal_reason is admin free text
+// that usually quotes the account — the deletion must redact it. Seeded
+// directly with a number outside the live series, like the paid fixture.
+const FAKE_REVERSED_NUMBER = 'PS-2026-999998'
+let fakeReversedId = null
 
 function cookieHeaderFor(session) {
   const value = 'base64-' + Buffer.from(JSON.stringify(session), 'utf8').toString('base64url')
@@ -284,6 +289,19 @@ async function main() {
       })
       check('3. fixture payout_items row seeded', itemStatus >= 200 && itemStatus < 300, `HTTP ${itemStatus}`)
 
+      const { status: revStatus, body: revBody } = await admin('payout_requests', {
+        method: 'POST',
+        body: JSON.stringify({
+          host_id: HOST.id, payout_account_id: acct.id, amount: PAYABLE, status: 'failed',
+          statement_number: FAKE_REVERSED_NUMBER, reference: 'PROBE-C6-REVERSED-REF',
+          transferred_on: '2026-06-05', processed_at: '2026-06-05T00:00:00+08:00',
+          reversed_at: '2026-06-07T00:00:00+08:00', reversal_reason: 'GCash 09171234567 is closed',
+          account_method: 'GCash', account_name: 'Probe C6 Host Original', account_number: '09171234567',
+        }),
+      })
+      fakeReversedId = revBody?.[0]?.id
+      check('3. fixture REVERSED statement row seeded directly', revStatus >= 200 && revStatus < 300 && !!fakeReversedId, `HTTP ${revStatus} ${JSON.stringify(revBody)}`)
+
       const self = await del(HOST.cookie, '/api/account/delete', { confirm: 'DELETE' })
       check('3. self-service delete now succeeds (200) — nothing owed, no draft', self.status === 200, `HTTP ${self.status} ${JSON.stringify(self.body)}`)
     }
@@ -322,6 +340,23 @@ async function main() {
         JSON.stringify(item)
       )
 
+      const { body: [rev] } = await admin(
+        `payout_requests?select=reversal_reason,account_name,account_number,statement_number,reversed_at&id=eq.${fakeReversedId}`
+      )
+      check('4. reversed statement: reversal_reason redacted to "Redacted"', rev?.reversal_reason === 'Redacted', JSON.stringify(rev))
+      check(
+        '4. reversed statement: account scrubbed, number and reversed_at kept',
+        rev?.account_name === 'Deleted User' && rev?.account_number === '4567' &&
+          rev?.statement_number === FAKE_REVERSED_NUMBER && Boolean(rev?.reversed_at),
+        JSON.stringify(rev)
+      )
+      const { body: [acctAfter] } = await admin(`payout_accounts?select=status,account_number,account_name&user_id=eq.${HOST.id}`)
+      check(
+        '4. payout account scrubbed AND status rejected (cannot back a new draft)',
+        acctAfter?.status === 'rejected' && acctAfter?.account_number === 'DELETED' && acctAfter?.account_name === 'Deleted User',
+        JSON.stringify(acctAfter)
+      )
+
       const { body: [profile] } = await admin(`profiles?select=full_name,is_host,is_verified&id=eq.${HOST.id}`)
       check('4. profile anonymized', profile?.full_name === 'Deleted User' && profile?.is_host === false && profile?.is_verified === false, JSON.stringify(profile))
       const authAfter = await getAuthUser(HOST.id)
@@ -344,6 +379,10 @@ async function main() {
       const { body: goneItems } = await admin(`payout_items?select=payout_request_id&payout_request_id=eq.${fakeRequestId}`)
       check('cleanup: its payout_items row cascaded away', goneItems.length === 0, `${goneItems.length} rows`)
       fakeRequestId = null
+      await admin(`payout_requests?id=eq.${fakeReversedId}`, { method: 'DELETE' })
+      const { body: goneRev } = await admin(`payout_requests?select=id&id=eq.${fakeReversedId}`)
+      check('cleanup: fixture reversed row confirmed gone', goneRev.length === 0, `${goneRev.length} rows`)
+      fakeReversedId = null
     }
 
     // ── The counter was never touched by any of this ──────────────────────
@@ -358,6 +397,7 @@ async function main() {
   } finally {
     // ── Cleanup ──────────────────────────────────────────────────────────
     if (fakeRequestId) await admin(`payout_requests?id=eq.${fakeRequestId}`, { method: 'DELETE' })
+    if (fakeReversedId) await admin(`payout_requests?id=eq.${fakeReversedId}`, { method: 'DELETE' })
     for (const b of created.bookings) {
       await admin(`payout_items?booking_id=eq.${b}`, { method: 'DELETE' })
       await admin(`bookings?id=eq.${b}`, { method: 'DELETE' })

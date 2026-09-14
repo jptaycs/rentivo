@@ -73,11 +73,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     p_admin_email: gate.email,
   })
   if (error) {
-    return NextResponse.json({ error: error.message.replace(/^.*?: /, '') }, { status: 400 })
+    return NextResponse.json({ error: error.message }, { status: 400 })
   }
   const request = Array.isArray(data) ? data[0] : data
 
-  const emailed = await emailStatement(request.id, true)
+  // reverse_payout_statement clears statement_emailed_at when it reverses (084),
+  // so a set stamp here means this is a retry of a reversal whose email already
+  // went out — don't send "Payout Reversed" twice.
+  const emailed = request.statement_emailed_at ? true : await emailStatement(request.id, true)
 
   return NextResponse.json({ request, emailed })
 }

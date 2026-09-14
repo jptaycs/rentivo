@@ -25,12 +25,13 @@ export default function EarningsPage() {
 
   const paid = bookings.filter((b) => b.payment_status === 'paid')
 
-  // "Pending Payout" must mirror what request_payout() would actually settle,
-  // so it excludes the two methods that RPC excludes (029/033): a host_qr
+  // "Upcoming Earnings" is a FORECAST: paid rentals that are confirmed or under
+  // way but not finished, so not payable yet. What Rentivo owes the host right
+  // now is `my_payout_balance()` on /dashboard/payouts (082) — the one
+  // eligibility definition — and this page deliberately does not recompute it.
+  // It still excludes the two methods payouts never pay (029/033): a host_qr
   // booking was paid straight into the host's own wallet and test_skip was
-  // never charged at all. Counting either forecast money Rentivo will never
-  // send. Unpaid bookings are out for the same reason — request_payout()
-  // requires payment_status 'paid'.
+  // never charged at all. Unpaid bookings are out for the same reason.
   const pendingPayout = bookings.filter(
     (b) =>
       (b.status === 'confirmed' || b.status === 'active') &&
@@ -39,8 +40,8 @@ export default function EarningsPage() {
       b.payment_method !== 'test_skip'
   )
 
-  // request_payout() pays hosts rental_fee + delivery_fee (038) — mirror that
-  // arithmetic here.
+  // Payout statements pay hosts rental_fee + delivery_fee (038; 082's
+  // payout_eligible_bookings) — the same arithmetic here.
   //
   // For every live payment method (card/gcash/maya/qrph), Rentivo collects
   // its service fee (rate is admin-set, 080/081) directly at checkout, so
@@ -132,7 +133,7 @@ export default function EarningsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { label: 'Total Earned', value: `₱${totalEarned.toLocaleString()}`, icon: DollarSign, color: 'text-[#22C55E] bg-green-50' },
-              { label: 'Pending Payout', value: `₱${pending.toLocaleString()}`, icon: Clock, color: 'text-amber-500 bg-amber-50' },
+              { label: 'Upcoming Earnings', value: `₱${pending.toLocaleString()}`, icon: Clock, color: 'text-amber-500 bg-amber-50' },
               { label: 'This Month', value: `₱${thisMonth.toLocaleString()}`, icon: TrendingUp, color: 'text-[#003049] bg-blue-50' },
             ].map((s) => {
               const Icon = s.icon

@@ -62,7 +62,12 @@ interface StatementRow {
 
 export default async function AdminPayoutsPage() {
   const admin = createAdminClient()
-  const [{ data: accountsData }, { data: statementData }, owed] = await Promise.all([
+  const STATEMENT_COLUMNS = `id, host_id, amount, status, reference, notes, requested_at, processed_at,
+         statement_number, account_method, account_name, account_number, transferred_on,
+         reversed_at, reversal_reason, statement_emailed_at,
+         profiles!payout_requests_host_id_fkey(full_name),
+         payout_items(booking_id, amount, booking_ref, listing_title, pickup_date, return_date)`
+  const [{ data: accountsData }, { data: draftData }, { data: statementData }, owed] = await Promise.all([
     admin
       .from('payout_accounts')
       .select(
@@ -70,27 +75,30 @@ export default async function AdminPayoutsPage() {
       )
       .eq('status', 'pending')
       .order('created_at', { ascending: true }),
+    // Drafts are queried on their own with NO limit: at most one per host (the
+    // one-pending-per-host index), and every one blocks that host's next
+    // draft — so a draft must never fall off this page behind a row limit.
     admin
       .from('payout_requests')
-      .select(
-        `id, host_id, amount, status, reference, notes, requested_at, processed_at,
-         statement_number, account_method, account_name, account_number, transferred_on,
-         reversed_at, reversal_reason, statement_emailed_at,
-         profiles!payout_requests_host_id_fkey(full_name),
-         payout_items(booking_id, amount, booking_ref, listing_title, pickup_date, return_date)`
-      )
+      .select(STATEMENT_COLUMNS)
+      .eq('status', 'pending')
+      .order('requested_at', { ascending: true }),
+    // "Issued" is defined by the NUMBER, not by the status: a reversed statement
+    // is `failed` but keeps its number and must still appear. A cancelled draft
+    // has no number and was never shown to the host, so it belongs in neither
+    // list. Most recent 50.
+    admin
+      .from('payout_requests')
+      .select(STATEMENT_COLUMNS)
+      .not('statement_number', 'is', null)
       .order('requested_at', { ascending: false })
       .limit(50),
     getPayoutsOwed(),
   ])
   const accounts = (accountsData ?? []) as unknown as AccountRow[]
-  const statements = (statementData ?? []) as unknown as StatementRow[]
-  const drafts = statements.filter((r) => r.status === 'pending')
-  // "Issued" is defined by the NUMBER, not by the status: a reversed statement
-  // is `failed` but keeps its number and must still appear. A cancelled draft
-  // has no number and was never shown to the host, so it belongs in neither
-  // list.
-  const issued = statements.filter((r) => r.statement_number !== null)
+  const drafts = (draftData ?? []) as unknown as StatementRow[]
+  const issued = (statementData ?? []) as unknown as StatementRow[]
+  const statements = [...drafts, ...issued]
 
   const hostIds = Array.from(
     new Set([...accounts.map((a) => a.user_id), ...statements.map((r) => r.host_id)])

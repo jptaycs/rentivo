@@ -46,7 +46,7 @@ export async function POST(req: Request) {
   if (error) {
     // Postgres prefixes a raise with its own context ("...: <message>"); show
     // the RPC's sentence, which is written to be read by the admin.
-    return NextResponse.json({ error: error.message.replace(/^.*?: /, '') }, { status: 400 })
+    return NextResponse.json({ error: error.message }, { status: 400 })
   }
 
   const request = Array.isArray(data) ? data[0] : data

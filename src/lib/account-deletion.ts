@@ -36,7 +36,8 @@ import { getCityCoordinates } from '@/lib/ph-locations'
  * or write the balance off some other way), not a side effect of deletion.
  *
  * `payout_requests`' `account_name`/`account_number` snapshot columns (082)
- * are PII and are anonymized in place by `deleteAccount`, same reasoning as
+ * are PII and are anonymized in place by `deleteAccount` (so is
+ * `reversal_reason`, admin free text that usually quotes the account), same reasoning as
  * `payout_accounts` below — the rows are the platform's financial record of
  * money actually paid (or a cancelled/reversed attempt) and `payout_items`
  * points at them, so the rows themselves survive; only the account identity
@@ -311,10 +312,25 @@ export async function deleteAccount(uid: string): Promise<{ ok: true } | { ok: f
   // financial value once the request is settled; the eligibility gate
   // guarantees none is still pending. So it is nulled. `reference` (the
   // disbursement reference) is kept as the money trail.
+  // `reversal_reason` (082) is the same kind of admin free text — a reversal is
+  // usually explained by the account ("GCash 0917… is closed") — so it is
+  // scrubbed too. Placeholder, not null: payout_requests_reversal_shape requires
+  // a reason on every reversed row, and the 'Redacted' value still tells a
+  // reader the statement WAS reversed for a reason.
   const { error: payoutNotesError } = await admin
     .from('payout_requests')
     .update({ notes: null })
     .eq('host_id', uid)
+  if (!payoutNotesError) {
+    const { error: reversalReasonError } = await admin
+      .from('payout_requests')
+      .update({ reversal_reason: 'Redacted' })
+      .eq('host_id', uid)
+      .not('reversal_reason', 'is', null)
+    if (reversalReasonError) {
+      return { ok: false, error: `Failed to clean up payout_requests: ${reversalReasonError.message}` }
+    }
+  }
   if (payoutNotesError) {
     return { ok: false, error: `Failed to clean up payout_requests: ${payoutNotesError.message}` }
   }
@@ -463,10 +479,13 @@ export async function deleteAccount(uid: string): Promise<{ ok: true } | { ok: f
   // references it with no ON DELETE clause, and payout_requests must never be touched,
   // so deleting this row would throw an unrecoverable FK violation for any host who has
   // ever requested a payout. account_number/account_name are NOT NULL, so scrub with a
-  // placeholder rather than nulling them.
+  // placeholder rather than nulling them. Status goes to `rejected`: the row can
+  // no longer receive money, and a `verified` status would let a later reversal
+  // of this host's statement offer "Prepare statement" against it
+  // (create_payout_statement requires `verified`, so this makes it refuse).
   const { error: payoutAccountError } = await admin
     .from('payout_accounts')
-    .update({ account_number: 'DELETED', account_name: 'Deleted User' })
+    .update({ account_number: 'DELETED', account_name: 'Deleted User', status: 'rejected' })
     .eq('user_id', uid)
   if (payoutAccountError) {
     return { ok: false, error: `Failed to clean up payout_accounts: ${payoutAccountError.message}` }

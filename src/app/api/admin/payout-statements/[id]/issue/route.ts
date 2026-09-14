@@ -54,14 +54,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     p_admin_email: gate.email,
   })
   if (error) {
-    return NextResponse.json({ error: error.message.replace(/^.*?: /, '') }, { status: 400 })
+    return NextResponse.json({ error: error.message }, { status: 400 })
   }
   const request = Array.isArray(data) ? data[0] : data
 
   // Awaited, not fire-and-forget: the result decides statement_emailed_at. A
   // failed send does NOT fail the request — the transfer really happened and
   // must stay recorded; the admin page shows "Email not sent — Resend".
-  const emailed = await emailStatement(request.id, false)
+  //
+  // A retry that hit the RPC's idempotent same-reference return must not send
+  // the host a second "Payout Sent": if the stamp is already set, the email
+  // already went out. (A retry after a FAILED send still sends.)
+  const emailed = request.statement_emailed_at ? true : await emailStatement(request.id, false)
 
   return NextResponse.json({ request, emailed })
 }

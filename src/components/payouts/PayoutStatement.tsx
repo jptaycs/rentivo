@@ -46,7 +46,10 @@ interface Props {
   items: PayoutItem[]
 }
 
-export function PayoutStatement({ request, items }: Props) {
+export function PayoutStatement({ request, items: unsortedItems }: Props) {
+  // Pickup-date order, the same order the emailed copy uses, so a host
+  // comparing the two sees the same lines in the same place.
+  const items = [...unsortedItems].sort((a, b) => a.pickup_date.localeCompare(b.pickup_date))
   const reversed = Boolean(request.reversed_at)
 
   // Every figure on this document comes from the item snapshots. Rentivo's

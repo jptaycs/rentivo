@@ -33,7 +33,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     p_admin_email: gate.email,
   })
   if (error) {
-    return NextResponse.json({ error: error.message.replace(/^.*?: /, '') }, { status: 400 })
+    return NextResponse.json({ error: error.message }, { status: 400 })
   }
 
   const request = Array.isArray(data) ? data[0] : data
