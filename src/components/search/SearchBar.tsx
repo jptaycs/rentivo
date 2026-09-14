@@ -13,6 +13,14 @@ import { SUGGESTIONS } from './searchBarData'
 // Tailwind's `sm` breakpoint — below it the fields stack into rows.
 const MOBILE_BREAKPOINT = 640
 
+// Inline (phone) panels sit inside the white search card, so they drop the
+// floating shadow for a hairline border.
+const INLINE_PANEL_STYLE: React.CSSProperties = {
+  boxShadow: 'none',
+  border: '1px solid #e5e7eb',
+  margin: '4px 0',
+}
+
 const VARIANT = {
   hero: {
     container: 'rounded-3xl sm:rounded-full',
@@ -70,6 +78,10 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
   const [whatOpen, setWhatOpen] = useState(false)
   const [whatStyle, setWhatStyle] = useState<React.CSSProperties>({})
   const [mounted, setMounted] = useState(false)
+  // Phone layout: the fields are stacked rows, and each panel renders inline
+  // directly under its own row. A floating panel there would cover the rows
+  // below it (tapping When with Where's list open would hit the list).
+  const [stacked, setStacked] = useState(false)
 
   const today = toMidnight(new Date())
   const initialAnchor = startDate ?? today
@@ -91,15 +103,18 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
   // eslint-disable-next-line react-hooks/set-state-in-effect -- standard mounted-flag pattern; no test suite to safely verify a rewrite (see AGENTS.md)
   useEffect(() => { setMounted(true) }, [])
 
-  // Where a dropdown panel should sit. On desktop it hangs under its own
-  // field; on a phone the fields are stacked, so a panel under the Where row
-  // would cover the When row (and swallow taps meant for it) — there every
-  // panel hangs under the whole form instead.
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
+    const update = () => setStacked(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+
+  // Desktop: a floating panel positioned under its own field.
   function panelPosition(field: HTMLElement | null, maxWidth: number) {
-    const stacked = window.innerWidth < MOBILE_BREAKPOINT
-    const anchor = stacked ? formRef.current : field
-    if (!anchor) return null
-    const rect = anchor.getBoundingClientRect()
+    if (!field) return null
+    const rect = field.getBoundingClientRect()
     const width = Math.min(maxWidth, window.innerWidth * 0.95)
     let left = rect.left + rect.width / 2 - width / 2
     left = Math.max(8, Math.min(left, window.innerWidth - width - 8))
@@ -249,7 +264,7 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
     <WhatPanel
       query={query}
       panelRef={whatPanelRef}
-      style={whatStyle}
+      style={stacked ? INLINE_PANEL_STYLE : whatStyle}
       onSelectQuery={value => { setQuery(value); setWhatOpen(false); setActiveField(null) }}
       onNavigate={href => { setWhatOpen(false); setActiveField(null); router.push(href) }}
     />
@@ -259,7 +274,7 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
     <WherePanel
       location={location}
       panelRef={wherePanelRef}
-      style={whereStyle}
+      style={stacked ? INLINE_PANEL_STYLE : whereStyle}
       onSelectLocation={value => { setLocation(value); setWhereOpen(false); setActiveField(null) }}
     />
   )
@@ -267,7 +282,7 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
   const calendarPanel = (
     <WhenPanel
       calRef={calRef}
-      style={calStyle}
+      style={stacked ? INLINE_PANEL_STYLE : calStyle}
       calMode={calMode}
       setCalMode={setCalMode}
       startDate={startDate}
@@ -325,6 +340,7 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
             </button>
           )}
         </div>
+        {stacked && whatOpen && whatPanel}
 
         <div className={`h-px mx-4 sm:mx-0 sm:w-px sm:h-6 bg-gray-200 shrink-0 transition-opacity duration-200 ${activeField === 'what' || activeField === 'where' ? 'opacity-0' : 'opacity-100'}`} />
 
@@ -355,6 +371,7 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
             </button>
           )}
         </div>
+        {stacked && whereOpen && wherePanel}
 
         <div className={`h-px mx-4 sm:mx-0 sm:w-px sm:h-6 bg-gray-200 shrink-0 transition-opacity duration-200 ${activeField === 'where' || activeField === 'when' ? 'opacity-0' : 'opacity-100'}`} />
 
@@ -378,6 +395,7 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
             </span>
           )}
         </button>
+        {stacked && calOpen && calendarPanel}
 
         {/* Search button — expands with label when fields are filled */}
         <div className="pt-1.5 sm:pt-0 sm:pr-2 sm:pl-2 shrink-0">
@@ -410,9 +428,9 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
         </div>
       )}
 
-      {mounted && whatOpen && createPortal(whatPanel, document.body)}
-      {mounted && whereOpen && createPortal(wherePanel, document.body)}
-      {mounted && calOpen && createPortal(calendarPanel, document.body)}
+      {mounted && !stacked && whatOpen && createPortal(whatPanel, document.body)}
+      {mounted && !stacked && whereOpen && createPortal(wherePanel, document.body)}
+      {mounted && !stacked && calOpen && createPortal(calendarPanel, document.body)}
     </>
   )
 }
