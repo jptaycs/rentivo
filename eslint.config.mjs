@@ -21,6 +21,9 @@ const eslintConfig = defineConfig([
     // @mediapipe/tasks-vision into public/models/ so it's self-hosted (see
     // src/lib/id-validation.ts) — generated third-party code, not ours to lint.
     "public/models/**",
+    // Agent git worktrees are separate checkouts of this repo; lint them from
+    // inside the worktree, not from here.
+    ".claude/**",
   ]),
 ]);
 
