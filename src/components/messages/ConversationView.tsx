@@ -6,8 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
 import type { ConversationHeader } from '@/hooks/useConversation'
 import type { Message } from '@/types'
-
-const IMAGE_URL_PREFIX = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/message-images/`
+import { isMessageImagePath, useMessageImageUrls } from '@/hooks/useMessageImageUrls'
 
 interface ConversationViewProps {
   header: ConversationHeader
@@ -33,6 +32,9 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
   const fileInputRef = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const activeConversationId = useRef(header.conversationId)
+  // Private bucket (migration 075): image_url is a storage path, rendered via
+  // one batched set of short-lived signed URLs for the whole thread.
+  const signedImageUrls = useMessageImageUrls(messages.map((m) => m.image_url))
   const previewUrl = useMemo(
     () => (pendingImage ? URL.createObjectURL(pendingImage) : null),
     [pendingImage]
@@ -136,7 +138,8 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
             </p>
             {messages.map((msg) => {
               const isMe = msg.sender_id === currentUserId
-              const imageUrl = msg.image_url?.startsWith(IMAGE_URL_PREFIX) ? msg.image_url : null
+              const hasImage = isMessageImagePath(msg.image_url)
+              const imageUrl = hasImage ? signedImageUrls[msg.image_url as string] ?? null : null
               return (
                 <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                   <div className="max-w-[75%] group">
@@ -145,6 +148,9 @@ export function ConversationView({ header, messages, currentUserId, onSend, onBa
                         ? 'bg-[#003049] text-white rounded-br-sm'
                         : 'bg-white border border-gray-200 text-[#111827] rounded-bl-sm shadow-sm'
                     }`}>
+                      {hasImage && !imageUrl && (
+                        <div className="h-40 w-56 max-w-full bg-gray-100 animate-pulse" aria-label="Loading photo" />
+                      )}
                       {imageUrl && (
                         <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="block">
                           {/* eslint-disable-next-line @next/next/no-img-element */}

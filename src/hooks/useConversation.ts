@@ -132,6 +132,8 @@ export function useConversation(conversationId: string | null) {
     if (!content.trim() && !imageFile) return null
     const supabase = createClient()
 
+    // messages.image_url holds the STORAGE PATH, not a URL (migration 075): the
+    // bucket is private and images render through short-lived signed URLs.
     let imageUrl: string | null = null
     if (imageFile) {
       const ext = imageFile.type.split('/')[1] ?? 'jpg'
@@ -140,7 +142,7 @@ export function useConversation(conversationId: string | null) {
         .from('message-images')
         .upload(path, imageFile, { contentType: imageFile.type })
       if (uploadError) return uploadError.message
-      imageUrl = supabase.storage.from('message-images').getPublicUrl(path).data.publicUrl
+      imageUrl = path
     }
 
     const { data, error } = await supabase

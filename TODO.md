@@ -34,7 +34,7 @@ Their full entries, with the reasoning, are in the archive further down.
 
 ## Unblocked — actionable now
 
-- [ ] **`message-images` is a PUBLIC storage bucket — private DM attachments are
+- [x] **`message-images` is a PUBLIC storage bucket — private DM attachments are
   anonymously fetchable by URL, forever.** Found by the 2026-09-13 security audit
   (MEDIUM-3). Nothing is exposed *today*: the bucket holds **0 objects**. That is exactly
   why this is worth doing now rather than after people start attaching photos to messages —
@@ -44,6 +44,20 @@ Their full entries, with the reasoning, are in the archive further down.
   signed-URL plumbing wherever a message image is rendered (`useConversation.send()`
   uploads; the message bubbles read). Deliberately kept out of migrations 073/074 so a
   schema change and an app change would not ride together.
+  **Done 2026-09-14 (migration 075, applied to the hosted DB).** Bucket flipped private;
+  the all-roles read policy replaced by uploader-or-conversation-party read, answered by a
+  `security definer` helper (`can_read_message_image`) so it can't drift with
+  `messages`/`conversations` RLS; a `messages_image_path_shape` CHECK pins `image_url` to
+  a bare `<sender uid>/<uuid>.<ext>` path in the sender's own folder (no arbitrary URLs,
+  no attaching someone else's object to leak it). App stores the path and renders via one
+  batched `createSignedUrls` call per thread (1h). Migration guarded to abort if any
+  object/message didn't match the new shape (0/0 at apply time). Verified:
+  `scripts/verify/075-private-message-images.mjs` 37/37 (real sessions; every denial paired
+  with a control), plus a production-build browser pass — renter attached and sent a real
+  PNG, both renter and host saw it rendered from `/object/sign/` URLs, old public URL 400;
+  probe message/object deleted and re-read gone. **Deploy promptly:** the production app
+  still stores public URLs, which the new CHECK rejects, so image sends fail on prod until
+  this commit ships (text messages unaffected).
 
 - [ ] **No rate limiting anywhere.** Security audit MEDIUM-4. `create_booking` is uncapped
   and each call writes a notification and sends email, so a signed-in user can generate
