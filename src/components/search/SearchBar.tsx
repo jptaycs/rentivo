@@ -10,29 +10,32 @@ import { WherePanel } from './WherePanel'
 import { WhenPanel } from './WhenPanel'
 import { SUGGESTIONS } from './searchBarData'
 
+// Tailwind's `sm` breakpoint — below it the fields stack into rows.
+const MOBILE_BREAKPOINT = 640
+
 const VARIANT = {
   hero: {
-    container: 'rounded-full',
-    fieldPadding: 'px-4 sm:px-8 py-4',
+    container: 'rounded-3xl sm:rounded-full',
+    fieldPadding: 'px-4 sm:px-8 py-3 sm:py-4',
     label: 'text-xs font-bold text-gray-900 mb-0.5',
     inputText: 'text-sm text-gray-500 placeholder-gray-400',
     whenValueText: 'text-sm',
     shadow: (active: boolean) => (active ? 'shadow-2xl' : 'shadow-xl hover:shadow-2xl'),
-    searchBtnIdle: 'w-14 h-14 justify-center',
-    searchBtnActive: 'px-5 h-14 text-sm font-semibold',
+    searchBtnIdle: 'sm:w-14 sm:h-14',
+    searchBtnActive: 'sm:w-auto sm:px-5 sm:h-14 sm:text-sm sm:font-semibold',
     searchIcon: 'w-5 h-5',
     clearBtn: 'w-5 h-5',
     clearIcon: 'w-3 h-3',
   },
   compact: {
-    container: 'rounded-full border border-gray-200',
+    container: 'rounded-2xl sm:rounded-full border border-gray-200',
     fieldPadding: 'px-5 py-2.5',
     label: 'text-[10px] font-bold text-gray-900 mb-0.5 uppercase tracking-wide',
     inputText: 'text-sm text-gray-800 placeholder-gray-400',
     whenValueText: 'text-sm',
     shadow: (active: boolean) => (active ? 'shadow-md' : 'shadow-sm hover:shadow-md'),
-    searchBtnIdle: 'w-9 h-9 justify-center',
-    searchBtnActive: 'px-4 py-2 text-sm font-semibold',
+    searchBtnIdle: 'sm:w-9 sm:h-9',
+    searchBtnActive: 'sm:w-auto sm:h-auto sm:px-4 sm:py-2 sm:text-sm sm:font-semibold',
     searchIcon: 'w-4 h-4',
     clearBtn: 'w-4 h-4',
     clearIcon: 'w-2.5 h-2.5',
@@ -88,32 +91,37 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
   // eslint-disable-next-line react-hooks/set-state-in-effect -- standard mounted-flag pattern; no test suite to safely verify a rewrite (see AGENTS.md)
   useEffect(() => { setMounted(true) }, [])
 
+  // Where a dropdown panel should sit. On desktop it hangs under its own
+  // field; on a phone the fields are stacked, so a panel under the Where row
+  // would cover the When row (and swallow taps meant for it) — there every
+  // panel hangs under the whole form instead.
+  function panelPosition(field: HTMLElement | null, maxWidth: number) {
+    const stacked = window.innerWidth < MOBILE_BREAKPOINT
+    const anchor = stacked ? formRef.current : field
+    if (!anchor) return null
+    const rect = anchor.getBoundingClientRect()
+    const width = Math.min(maxWidth, window.innerWidth * 0.95)
+    let left = rect.left + rect.width / 2 - width / 2
+    left = Math.max(8, Math.min(left, window.innerWidth - width - 8))
+    const top = rect.bottom + 8
+    // Keep the panel inside the viewport (it scrolls internally instead).
+    const maxHeight = Math.max(240, window.innerHeight - top - 16)
+    return { top, left, width, maxHeight }
+  }
+
   useEffect(() => {
     function reposition() {
-      if (whatOpen && whatDivRef.current) {
-        const rect = whatDivRef.current.getBoundingClientRect()
-        const panelWidth = Math.min(380, window.innerWidth * 0.95)
-        let left = rect.left + rect.width / 2 - panelWidth / 2
-        left = Math.max(8, Math.min(left, window.innerWidth - panelWidth - 8))
-        setWhatStyle(s => ({ ...s, top: rect.bottom + 8, left }))
+      if (whatOpen) {
+        const pos = panelPosition(whatDivRef.current, 380)
+        if (pos) setWhatStyle(s => ({ ...s, ...pos, overflowY: 'auto' }))
       }
-      if (whereOpen && whereDivRef.current) {
-        const rect = whereDivRef.current.getBoundingClientRect()
-        const panelWidth = Math.min(380, window.innerWidth * 0.95)
-        let left = rect.left + rect.width / 2 - panelWidth / 2
-        left = Math.max(8, Math.min(left, window.innerWidth - panelWidth - 8))
-        setWhereStyle(s => ({ ...s, top: rect.bottom + 8, left }))
+      if (whereOpen) {
+        const pos = panelPosition(whereDivRef.current, 380)
+        if (pos) setWhereStyle(s => ({ ...s, ...pos, overflowY: 'auto' }))
       }
-      if (calOpen && whenBtnRef.current) {
-        const rect = whenBtnRef.current.getBoundingClientRect()
-        const calWidth = Math.min(760, window.innerWidth * 0.95)
-        let left = rect.left + rect.width / 2 - calWidth / 2
-        left = Math.max(8, Math.min(left, window.innerWidth - calWidth - 8))
-        const top = rect.bottom + 8
-        // Keep the panel inside the viewport (it scrolls internally instead)
-        // regardless of where the When button ends up after scroll/resize.
-        const maxHeight = Math.max(240, window.innerHeight - top - 16)
-        setCalStyle(s => ({ ...s, top, left, maxHeight, overflowY: 'auto' }))
+      if (calOpen) {
+        const pos = panelPosition(whenBtnRef.current, 760)
+        if (pos) setCalStyle(s => ({ ...s, ...pos, overflowY: 'auto' }))
       }
     }
     window.addEventListener('scroll', reposition, { passive: true })
@@ -156,38 +164,25 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
   }, [calOpen, whereOpen, whatOpen])
 
   function openCalendar() {
-    if (whenBtnRef.current) {
-      const rect = whenBtnRef.current.getBoundingClientRect()
-      const calWidth = Math.min(760, window.innerWidth * 0.95)
-      let left = rect.left + rect.width / 2 - calWidth / 2
-      left = Math.max(8, Math.min(left, window.innerWidth - calWidth - 8))
-      const top = rect.bottom + 8
-      // Never let the panel extend past the bottom of the viewport — it
-      // scrolls internally instead (the quick-filter row used to be
-      // unreachable without scrolling the page behind the panel first).
-      const maxHeight = Math.max(240, window.innerHeight - top - 16)
-      setCalStyle({
-        position: 'fixed',
-        top,
-        left,
-        width: calWidth,
-        maxHeight,
-        overflowY: 'auto',
-        zIndex: 99999,
-      })
+    if (calOpen) {
+      closeAll()
+      return
     }
-    setCalOpen(v => !v)
+    const pos = panelPosition(whenBtnRef.current, 760)
+    if (pos) setCalStyle({ position: 'fixed', ...pos, overflowY: 'auto', zIndex: 99999 })
+    // The When field is a button, so tapping it never blurs-and-closes the
+    // What/Where panels on its own — close them explicitly.
+    whatInputRef.current?.blur()
+    whereInputRef.current?.blur()
+    setWhatOpen(false)
+    setWhereOpen(false)
+    setCalOpen(true)
     setActiveField('when')
   }
 
   function openWhat() {
-    if (whatDivRef.current) {
-      const rect = whatDivRef.current.getBoundingClientRect()
-      const panelWidth = Math.min(380, window.innerWidth * 0.95)
-      let left = rect.left + rect.width / 2 - panelWidth / 2
-      left = Math.max(8, Math.min(left, window.innerWidth - panelWidth - 8))
-      setWhatStyle({ position: 'fixed', top: rect.bottom + 8, left, width: panelWidth, zIndex: 99999 })
-    }
+    const pos = panelPosition(whatDivRef.current, 380)
+    if (pos) setWhatStyle({ position: 'fixed', ...pos, overflowY: 'auto', zIndex: 99999 })
     setWhatOpen(true)
     setActiveField('what')
     setCalOpen(false)
@@ -196,13 +191,8 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
   }
 
   function openWhere() {
-    if (whereDivRef.current) {
-      const rect = whereDivRef.current.getBoundingClientRect()
-      const panelWidth = Math.min(380, window.innerWidth * 0.95)
-      let left = rect.left + rect.width / 2 - panelWidth / 2
-      left = Math.max(8, Math.min(left, window.innerWidth - panelWidth - 8))
-      setWhereStyle({ position: 'fixed', top: rect.bottom + 8, left, width: panelWidth, zIndex: 99999 })
-    }
+    const pos = panelPosition(whereDivRef.current, 380)
+    if (pos) setWhereStyle({ position: 'fixed', ...pos, overflowY: 'auto', zIndex: 99999 })
     setWhereOpen(true)
     setActiveField('where')
     setCalOpen(false)
@@ -306,13 +296,13 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
       <form
         ref={formRef}
         onSubmit={handleSearch}
-        className={`bg-white ${styles.container} flex items-center transition-all duration-300 ${styles.shadow(!!activeField)}`}
+        className={`bg-white ${styles.container} flex flex-col sm:flex-row items-stretch sm:items-center p-1.5 sm:p-0 transition-all duration-300 ${styles.shadow(!!activeField)}`}
       >
         {/* What */}
         <div
           ref={whatDivRef}
           onClick={openWhat}
-          className={`relative flex-1 min-w-0 flex items-center gap-2 ${styles.fieldPadding} rounded-full cursor-text transition-all duration-200 ${
+          className={`relative w-full sm:w-auto sm:flex-1 min-w-0 flex items-center gap-2 ${styles.fieldPadding} rounded-2xl sm:rounded-full cursor-text transition-all duration-200 ${
             activeField === 'what' ? 'bg-white shadow-md' : activeField ? 'opacity-50 hover:opacity-75' : 'hover:bg-gray-50'
           }`}
         >
@@ -336,13 +326,13 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
           )}
         </div>
 
-        <div className={`w-px h-6 bg-gray-200 shrink-0 transition-opacity duration-200 ${activeField === 'what' || activeField === 'where' ? 'opacity-0' : 'opacity-100'}`} />
+        <div className={`h-px mx-4 sm:mx-0 sm:w-px sm:h-6 bg-gray-200 shrink-0 transition-opacity duration-200 ${activeField === 'what' || activeField === 'where' ? 'opacity-0' : 'opacity-100'}`} />
 
         {/* Where */}
         <div
           ref={whereDivRef}
           onClick={openWhere}
-          className={`relative flex-1 min-w-0 flex items-center gap-2 ${styles.fieldPadding} rounded-full cursor-text transition-all duration-200 ${
+          className={`relative w-full sm:w-auto sm:flex-1 min-w-0 flex items-center gap-2 ${styles.fieldPadding} rounded-2xl sm:rounded-full cursor-text transition-all duration-200 ${
             activeField === 'where' ? 'bg-white shadow-md' : activeField ? 'opacity-50 hover:opacity-75' : 'hover:bg-gray-50'
           }`}
         >
@@ -366,14 +356,14 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
           )}
         </div>
 
-        <div className={`w-px h-6 bg-gray-200 shrink-0 transition-opacity duration-200 ${activeField === 'where' || activeField === 'when' ? 'opacity-0' : 'opacity-100'}`} />
+        <div className={`h-px mx-4 sm:mx-0 sm:w-px sm:h-6 bg-gray-200 shrink-0 transition-opacity duration-200 ${activeField === 'where' || activeField === 'when' ? 'opacity-0' : 'opacity-100'}`} />
 
         {/* When */}
         <button
           ref={whenBtnRef}
           type="button"
           onClick={openCalendar}
-          className={`relative flex-1 min-w-0 flex items-center justify-between ${styles.fieldPadding} rounded-full text-left transition-all duration-200 ${
+          className={`relative w-full sm:w-auto sm:flex-1 min-w-0 flex items-center justify-between ${styles.fieldPadding} rounded-2xl sm:rounded-full text-left transition-all duration-200 ${
             activeField === 'when' ? 'bg-white shadow-md' : activeField ? 'opacity-50 hover:opacity-75' : 'hover:bg-gray-50'
           }`}
         >
@@ -390,15 +380,17 @@ export function SearchBar({ variant, initialQuery = '', initialCity = '', initia
         </button>
 
         {/* Search button — expands with label when fields are filled */}
-        <div className="pr-2 pl-2 shrink-0">
+        <div className="pt-1.5 sm:pt-0 sm:pr-2 sm:pl-2 shrink-0">
+          {/* Phone: a full-width row. Desktop: the round button that widens to
+              show its label once a field is filled. */}
           <button
             type="submit"
-            className={`flex items-center gap-2 rounded-full bg-[#003049] hover:bg-[#002438] active:scale-95 text-white transition-all duration-200 ${
+            className={`flex w-full items-center justify-center gap-2 rounded-full bg-[#003049] hover:bg-[#002438] active:scale-95 text-white transition-all duration-200 h-12 px-5 text-sm font-semibold sm:p-0 sm:font-normal ${
               query || location || startDate ? styles.searchBtnActive : styles.searchBtnIdle
             }`}
           >
             <Search className={`${styles.searchIcon} shrink-0`} />
-            {(query || location || startDate) && <span className="hidden sm:block">Search</span>}
+            <span className={query || location || startDate ? '' : 'sm:hidden'}>Search</span>
           </button>
         </div>
       </form>
