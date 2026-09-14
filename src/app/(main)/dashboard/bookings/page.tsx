@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useHostBookings, type BookingWithRefs } from '@/hooks/useBookings'
 import { useReviewedBookings } from '@/hooks/useReviewedBookings'
 import { ReviewModal } from '@/components/shared/ReviewModal'
+import { DeliveryDetails } from '@/components/booking/DeliveryDetails'
 
 const TABS = ['All', 'Pending', 'Confirmed', 'Completed']
 
@@ -143,6 +144,20 @@ export default function BookingsPage() {
                   <p className="font-bold text-[#003049]">₱{b.total_amount.toLocaleString()}</p>
                 </div>
               </div>
+
+              {/* Only once PAID: a host needs the destination to decide on a
+                  paid request, but an abandoned unpaid checkout must not put the
+                  renter's address or pin on the host's screen (final review I1/M2). */}
+              {b.is_delivery && b.payment_status === 'paid' && (
+                <DeliveryDetails
+                  address={b.delivery_address}
+                  distanceKm={b.delivery_distance_km}
+                  fee={b.delivery_fee}
+                  lat={b.delivery_latitude}
+                  lng={b.delivery_longitude}
+                  awaitingDecision={b.status === 'pending'}
+                />
+              )}
             </div>
 
             {/* Actions */}

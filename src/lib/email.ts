@@ -52,6 +52,10 @@ interface BookingRow {
   total_amount: number
   payment_method: string | null
   status: string
+  is_delivery: boolean
+  delivery_address: string | null
+  delivery_distance_km: number | null
+  delivery_fee: number
   listing: { title: string; is_instant_book: boolean } | null
 }
 
@@ -60,7 +64,7 @@ async function loadBookingContext(bookingId: string) {
   const { data } = await admin
     .from('bookings')
     .select(
-      'id, booking_ref, renter_id, host_id, pickup_date, return_date, total_amount, payment_method, status, listing:listings(title, is_instant_book)'
+      'id, booking_ref, renter_id, host_id, pickup_date, return_date, total_amount, payment_method, status, is_delivery, delivery_address, delivery_distance_km, delivery_fee, listing:listings(title, is_instant_book)'
     )
     .eq('id', bookingId)
     .maybeSingle()
@@ -120,7 +124,20 @@ export async function notifyBookingPaid(bookingId: string) {
       ? send(
           hostEmail,
           instant ? `New Instant Booking — ${booking.booking_ref}` : `New Booking Request — ${booking.booking_ref}`,
-          hostNewBookingHtml({ ...base, otherPartyName: renterName }, instant)
+          hostNewBookingHtml(
+            { ...base, otherPartyName: renterName },
+            instant,
+            // The host must see where they are delivering, and the distance the
+            // fee was priced on, to catch a pin that doesn't match the address
+            // (distance-based delivery final review, I1). No coordinates here.
+            booking.is_delivery
+              ? {
+                  address: booking.delivery_address,
+                  distanceKm: booking.delivery_distance_km,
+                  fee: booking.delivery_fee,
+                }
+              : null
+          )
         )
       : Promise.resolve(),
     send(

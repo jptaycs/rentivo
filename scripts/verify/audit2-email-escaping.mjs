@@ -75,6 +75,50 @@ for (const [name, render] of Object.entries(templates)) {
   }
 }
 
+// Distance-based delivery (final review I1): the host new-booking email now
+// carries the renter-TYPED delivery address. Render it hostile in the address
+// field only, everything else benign, and in every shape the email can take.
+const deliveryShapes = {
+  'per-km instant': (addr) => t.hostNewBookingHtml(ctx(BENIGN), true, { address: addr, distanceKm: 31, fee: 720 }),
+  'per-km request': (addr) => t.hostNewBookingHtml(ctx(BENIGN), false, { address: addr, distanceKm: 31, fee: 720 }),
+  'flat-fee request': (addr) => t.hostNewBookingHtml(ctx(BENIGN), false, { address: addr, distanceKm: null, fee: 350 }),
+}
+const DELIVERY_HOSTILE = [
+  ...HOSTILE,
+  // Line breaks become <br> only AFTER escaping; a payload split across lines
+  // must not reassemble into a tag.
+  '12 Real St\n<script>alert(1)</script>\r\n"><img src=x onerror=alert(1)>',
+  'Null\x00byte <b>bold</b>',
+]
+for (const [shape, render] of Object.entries(deliveryShapes)) {
+  const benign = render(BENIGN)
+  check(`delivery ${shape} :: benign address rendered`, benign.includes('Delivery to:') && benign.includes(BENIGN))
+  check(`delivery ${shape} :: fee rendered`, benign.includes('Delivery fee: ₱'))
+  const benignBr = (benign.match(/<br>/g) ?? []).length
+  for (const payload of DELIVERY_HOSTILE) {
+    const html = render(payload)
+    const leaked = [...RAW_MARKERS, '<b>'].filter((m) => html.includes(m))
+    check(`delivery ${shape} :: no raw markup from ${JSON.stringify(payload)}`, leaked.length === 0, `leaked ${leaked.join(', ')}`)
+    const extraBr = (payload.match(/\r\n|\r|\n/g) ?? []).length
+    check(
+      `delivery ${shape} :: '<' count only grows by the address's own line breaks for ${JSON.stringify(payload)}`,
+      ltCount(html) === ltCount(benign) + extraBr && (html.match(/<br>/g) ?? []).length === benignBr + extraBr,
+      `benign=${ltCount(benign)} hostile=${ltCount(html)} extraBr=${extraBr}`
+    )
+    check(`delivery ${shape} :: '"' count unchanged by ${JSON.stringify(payload)}`, qCount(html) === qCount(benign))
+    check(`delivery ${shape} :: address present escaped`, html.includes('&lt;script&gt;') || html.includes('&lt;a href=') || html.includes('&quot;&gt;&lt;img') || html.includes('&#39;&gt;&lt;svg') || html.includes('&lt;b&gt;'))
+  }
+}
+const perKm = t.hostNewBookingHtml(ctx(BENIGN), false, { address: '12 Real St', distanceKm: 31, fee: 720 })
+check('delivery per-km :: distance shown', perKm.includes('(31 km)'))
+check('delivery per-km :: pin-check prompt shown', perKm.includes("renter&#39;s map pin") || perKm.includes("renter's map pin"))
+check('delivery per-km :: no coordinates or map link', !/maps\.|lat=|lng=|\d+\.\d{4,}/.test(perKm))
+const flat = t.hostNewBookingHtml(ctx(BENIGN), false, { address: '12 Real St', distanceKm: null, fee: 350 })
+check('delivery flat :: no distance, no pin prompt', !flat.includes(' km)') && !flat.includes('map pin'))
+const pickup = t.hostNewBookingHtml(ctx(BENIGN), false, null)
+check('pickup :: no delivery block', !pickup.includes('Delivery to:'))
+check('pickup :: identical to the two-argument call', pickup === t.hostNewBookingHtml(ctx(BENIGN), false))
+
 // Subjects: plain text, no control characters may survive.
 const subj = t.plainSubject('New message from Evil\r\nBcc: victim@example.com\n<b>x</b>')
 check('plainSubject strips CR/LF', !/[\r\n]/.test(subj), JSON.stringify(subj))

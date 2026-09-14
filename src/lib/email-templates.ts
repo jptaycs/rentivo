@@ -90,7 +90,36 @@ export interface EmailContext {
   otherPartyName: string
 }
 
-export function hostNewBookingHtml(ctx: EmailContext, instant: boolean) {
+/**
+ * A delivery booking's destination, for the host. The address is typed by the
+ * renter, so it is untrusted like every other value here. Deliberately no
+ * coordinates and no map link: a link in an inbox outlives any access control,
+ * and the in-app bookings page (paid bookings only) is where the pin lives.
+ */
+export interface DeliveryDetails {
+  address: string | null
+  /** Stored road km; null for flat-fee delivery. */
+  distanceKm: number | null
+  fee: number
+}
+
+function deliveryBlock(d: DeliveryDetails) {
+  // Escape FIRST, then turn the renter's own line breaks into <br>; the
+  // replacement only ever inserts our literal tag into already-escaped text.
+  const address = d.address?.trim()
+    ? escapeHtml(d.address.trim()).replace(/\r\n|\r|\n/g, '<br>')
+    : 'No address given — message the renter before you accept.'
+  const distance = d.distanceKm != null ? `${escapeHtml(Number(d.distanceKm))} km` : null
+  return `<p style="margin:0 0 16px;color:#4b5563;font-size:14px;line-height:1.6;">
+       <strong>Delivery to:</strong><br>${address}<br>
+       Delivery fee: ${escapeHtml(fmtPeso(d.fee))}${distance ? ` (${distance})` : ''}
+     </p>
+     ${distance
+       ? `<p style="margin:0 0 16px;color:#92400e;font-size:13px;line-height:1.6;">The delivery fee was calculated from the renter's map pin. Check the pin matches this address on your Bookings page.</p>`
+       : ''}`
+}
+
+export function hostNewBookingHtml(ctx: EmailContext, instant: boolean, delivery?: DeliveryDetails | null) {
   const name = escapeHtml(ctx.otherPartyName)
   const title = escapeHtml(ctx.listingTitle)
   const ref = escapeHtml(ctx.bookingRef)
@@ -105,6 +134,7 @@ export function hostNewBookingHtml(ctx: EmailContext, instant: boolean) {
        Booking ref: ${ref}<br>
        Rental amount: ${fmtPeso(ctx.totalAmount)} (paid)
      </p>
+     ${delivery ? deliveryBlock(delivery) : ''}
      ${instant
        ? `<p style="margin:0;color:#4b5563;font-size:14px;">This booking is already confirmed — no action needed.</p>`
        : `<p style="margin:0;color:#4b5563;font-size:14px;">Please confirm or decline within 24 hours.</p>${button(`${APP_URL}/dashboard/bookings`, 'Review Booking')}`}`
