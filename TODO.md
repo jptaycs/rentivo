@@ -64,9 +64,46 @@ Their full entries, with the reasoning, are in the archive further down.
   went with it — the renter pays the fee on top and the host is paid in full. Full write-up,
   including what the live bracketed rate change did and did not prove, is the
   **Admin-controlled service fee** Status entry in `AGENTS.md`.
-  **Next: Phase C — admin-issued payout statements**, which replaces host-requested payouts
-  with numbered statements and **snapshots `bookings.service_fee_bps` per line**, so it
-  could only start once Phase B was deployed. Same plan file, Task C1 onward.
+  **Phase C — admin-issued payout statements — done 2026-09-15**, entry below.
+
+- [x] **Hosts had to request their own payouts, and nothing documented what was paid.**
+  **Done 2026-09-15** (migrations 082 + 083, applied to production and deployed; Phase C of
+  `docs/superpowers/plans/2026-09-14-admin-service-fee-and-payout-statements.md`). Rentivo now
+  prepares, issues, cancels and reverses numbered payout statements from `/admin/payouts`; the
+  host sees a balance, a "Being prepared" line for a draft, and the statement document at
+  `/dashboard/payouts/[id]`, and is emailed when a statement is issued or reversed. The Request
+  Payout button, `request_payout()`, `mark_payout_paid()` and `mark_payout_failed()` are gone.
+  Full write-up is the **Payouts — admin-issued statements** architecture bullet and the
+  Status entry in `AGENTS.md`.
+
+- [ ] **The owner's first real payout statement — `PS-2026-000002`.** This is the first
+  committed use of the issue path; every test of it so far ran inside a rolled-back
+  transaction, because a test issue would permanently occupy a gapless number. When the first
+  real host is owed money:
+  1. On `/admin/payouts`, **Prepare statement** for the host under *Owed to Hosts*.
+  2. **Before transferring**, confirm the draft's account snapshot (method, name, number)
+     matches what the host actually wants to be paid to. If it's wrong, cancel the draft, have
+     the host fix their payout account, get it re-verified, and prepare again — the statement
+     will say the money went to whatever the draft snapshot says.
+  3. Transfer the money (GCash/Maya/bank) for **exactly** the draft amount.
+  4. On the draft, **Record transfer** with the real reference and the real transfer date
+     (today or earlier — a future date is refused).
+  5. Confirm the issued statement is numbered **`PS-2026-000002`**, that the host's
+     `/dashboard/payouts` shows it, and that the host received the email.
+  6. If the Emailed column says **"Email not sent — Resend"**, open the statement and press
+     **Send email**; if that also fails, check the Vercel function logs for `[email]` lines.
+  7. Only **Reverse** a statement if the transfer genuinely bounced or never arrived —
+     reversing makes those bookings owed again, and preparing another statement for them
+     would pay twice if the first transfer actually landed.
+
+- [ ] **Two old verification scripts still call the dropped `request_payout()`** —
+  `scripts/verify/020-mark-payout-failed.mjs` and
+  `scripts/verify/077-booking-lifecycle-and-insert-hardening.mjs` (its MEDIUM-3
+  early-payout section). Those checks could not pass once 082 stubbed the function (not re-run to
+  confirm), and now hit not-found. Their subject (a failed payout releasing its bookings; no payout
+  before `return_date`) is covered by `082-payout-statements.mjs`'s cancel/reverse and
+  eligibility checks. Either delete those sections or rewrite them against
+  `payouts_owed()`/the lifecycle RPCs; don't restore the functions.
 
 - [x] **`message-images` is a PUBLIC storage bucket — private DM attachments are
   anonymously fetchable by URL, forever.** Found by the 2026-09-13 security audit
