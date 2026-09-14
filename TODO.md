@@ -159,8 +159,16 @@ Their full entries, with the reasoning, are in the archive further down.
   per-km pricing — and today only a small number of listings have one.** Placing a pin has
   always been optional (065/067); most listings, including the demo host's own three before
   this task placed one on a probe, still carry only the 066 city-centre backfill. A host with
-  no pin can still offer flat-fee delivery exactly as before 078; the per-km field on both the
-  wizard and the edit page stays disabled until a pin exists, with copy saying so.
+  no pin can still offer flat-fee delivery exactly as before 078. The two host surfaces guard
+  this differently, because the wizard's pricing step (3) runs before its location step (5):
+  the **edit page** disables the per-km field for a pinless (legacy) listing, with copy
+  explaining why (`src/app/(main)/dashboard/listings/[id]/edit/page.tsx:453`); the **wizard**
+  needs no such gate, since it requires a pin before Step 5 will let the host continue and
+  always inserts `location_is_exact: true` — every listing the wizard creates already has an
+  exact pin, so its per-km field (`src/components/host/Step3Pricing.tsx:178-200`) is never
+  reachable without one. The database is the backstop either way: `delivery_fee_for` (078)
+  refuses a per-km booking against any listing without an exact pin, regardless of what either
+  UI does or doesn't enforce.
   **Verified end-to-end 2026-09-14** (task 4 of the plan, independent of task 1's own
   migration script): built and served on port 3100, signed in as the demo host through the
   real login form, placed a pin and set Delivery Base Fee ₱100 / Per Kilometre ₱20 on a real
