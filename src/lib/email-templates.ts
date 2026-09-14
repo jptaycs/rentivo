@@ -267,9 +267,162 @@ export const notesBlock = (notes: string | null) =>
     ? `<p style="margin:16px 0 0;color:#4b5563;font-size:14px;line-height:1.6;">Reviewer notes: ${escapeHtml(notes)}</p>`
     : ''
 
-export function payoutPaidBodyHtml(amount: number, reference: string | null) {
-  return `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">
-          Your payout of <strong>${fmtPeso(amount)}</strong> has been sent to your payout account.
-          ${reference ? `<br>Reference: ${escapeHtml(reference)}` : ''}
-        </p>`
+// ── Payout statements (082) ───────────────────────────────────
+
+/**
+ * Everything both statement emails render. Every figure here is a SNAPSHOT
+ * taken when the draft was prepared — never a live join back to bookings or
+ * listings. A host reading this email a month later must see what was paid,
+ * not what the listing happens to be called today.
+ *
+ * `accountLabel` arrives already masked ("GCash •••• 4567"). The full account
+ * number must never reach this module: an inbox is the least private place
+ * that data could travel.
+ */
+export interface PayoutStatementEmailContext {
+  hostName: string
+  statementNumber: string
+  amount: number
+  transferredOn: string
+  reference: string
+  accountLabel: string
+  grossBookingValue: number
+  serviceFeeTotal: number
+  deliveryFeeTotal: number
+  requestId: string
+  items: {
+    bookingRef: string
+    listingTitle: string
+    pickupDate: string
+    returnDate: string
+    rentalFee: number
+    deliveryFee: number
+    serviceFee: number
+    earnings: number
+  }[]
+  /** Reversed only. */
+  reversedOn?: string
+  reversalReason?: string
+}
+
+/**
+ * Date-only columns (`transferred_on`, `pickup_date`, `return_date`) are plain
+ * 'YYYY-MM-DD'. `new Date()` reads those as UTC midnight, which renders as the
+ * previous day west of Greenwich — so parse by parts, exactly as
+ * PayoutStatement.tsx does, or the emailed copy and the document disagree.
+ */
+function fmtStatementDate(value: string, month: 'short' | 'long' = 'long') {
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00`) : new Date(value)
+  return escapeHtml(d.toLocaleDateString('en-PH', { month, day: 'numeric', year: 'numeric' }))
+}
+
+const cell = 'padding:8px 0;font-size:12px;color:#111827;'
+const numCell = `${cell}text-align:right;white-space:nowrap;padding-left:8px;`
+
+/** Booking refs and listing titles are host-authored; both are escaped here. */
+function statementBookingTable(ctx: PayoutStatementEmailContext) {
+  const rows = ctx.items
+    .map(
+      (item) => `<tr style="border-top:1px solid #f1f4f8;">
+              <td style="${cell}vertical-align:top;">
+                <span style="font-weight:700;letter-spacing:0.05em;">${escapeHtml(item.bookingRef)}</span><br>
+                <span style="color:#6b7280;">${escapeHtml(item.listingTitle)}</span><br>
+                <span style="color:#9aa3af;">${fmtStatementDate(item.pickupDate, 'short')} – ${fmtStatementDate(item.returnDate, 'short')}</span>
+              </td>
+              <td style="${numCell}vertical-align:top;">${escapeHtml(fmtPeso(item.rentalFee))}</td>
+              <td style="${numCell}vertical-align:top;">${escapeHtml(fmtPeso(item.deliveryFee))}</td>
+              <td style="${numCell}vertical-align:top;color:#6b7280;">${escapeHtml(fmtPeso(item.serviceFee))}</td>
+              <td style="${numCell}vertical-align:top;font-weight:700;">${escapeHtml(fmtPeso(item.earnings))}</td>
+            </tr>`
+    )
+    .join('')
+  return `<p style="margin:24px 0 8px;color:#9aa3af;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">Bookings (${escapeHtml(ctx.items.length)})</p>
+     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;">
+       <tr>
+         <th align="left" style="${cell}color:#9aa3af;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;">Booking</th>
+         <th align="right" style="${numCell}color:#9aa3af;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;">Rental</th>
+         <th align="right" style="${numCell}color:#9aa3af;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;">Delivery</th>
+         <th align="right" style="${numCell}color:#9aa3af;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;">Fee</th>
+         <th align="right" style="${numCell}color:#9aa3af;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;">Earnings</th>
+       </tr>
+       ${rows}
+     </table>`
+}
+
+/**
+ * The four summary lines of spec §8, in the document's order and with its
+ * definitions: gross is what renters paid, the fee is what Rentivo kept, and
+ * the difference is exactly what was transferred. If the items don't reconcile
+ * to the recorded amount, say so — PayoutStatement.tsx does the same rather
+ * than printing a number nobody can check.
+ */
+function statementSummary(ctx: PayoutStatementEmailContext) {
+  const net = ctx.grossBookingValue - ctx.serviceFeeTotal
+  const line = (label: string, value: string, style = '') =>
+    `<tr><td style="padding:4px 0;color:#4b5563;font-size:13px;${style}">${label}</td>
+         <td style="padding:4px 0;color:#111827;font-size:13px;text-align:right;white-space:nowrap;${style}">${value}</td></tr>`
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;margin-top:20px;border-top:1px solid #eef1f5;padding-top:8px;">
+       ${line('Gross booking value', escapeHtml(fmtPeso(ctx.grossBookingValue)))}
+       ${line('Less: Rentivo service fee', `−${escapeHtml(fmtPeso(ctx.serviceFeeTotal))}`)}
+       ${line('&nbsp;&nbsp;of which delivery fees (paid to you in full)', escapeHtml(fmtPeso(ctx.deliveryFeeTotal)), 'color:#9aa3af;')}
+       ${line('<strong>Net paid to you</strong>', `<strong>${escapeHtml(fmtPeso(net))}</strong>`, 'border-top:1px solid #eef1f5;padding-top:10px;')}
+     </table>
+     ${net !== ctx.amount
+       ? `<p style="margin:16px 0 0;color:#b91c1c;font-size:13px;line-height:1.6;font-weight:700;">The bookings listed total ${escapeHtml(fmtPeso(net))} but ${escapeHtml(fmtPeso(ctx.amount))} was recorded as transferred. Please reply to this email.</p>`
+       : ''}
+     <p style="margin:16px 0 0;color:#9aa3af;font-size:12px;line-height:1.6;">
+       The service fee was charged to renters on top of your rental price at checkout. It was not deducted from your rental rate.
+     </p>`
+}
+
+export function payoutStatementIssuedHtml(ctx: PayoutStatementEmailContext) {
+  return layout(
+    `Payout statement ${ctx.statementNumber} — ${fmtPeso(ctx.amount)} sent to your payout account`,
+    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">Payout Sent 💸</h1>
+     <p style="margin:0 0 16px;color:#4b5563;font-size:14px;line-height:1.6;">
+       Hi ${escapeHtml(ctx.hostName)}, we've sent <strong>${escapeHtml(fmtPeso(ctx.amount))}</strong> to your payout account.
+     </p>
+     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;background:#F8FAFC;border-radius:12px;">
+       <tr><td style="padding:16px;color:#4b5563;font-size:13px;line-height:1.7;">
+         Statement: <strong style="letter-spacing:0.05em;">${escapeHtml(ctx.statementNumber)}</strong><br>
+         Transfer date: ${fmtStatementDate(ctx.transferredOn)}<br>
+         Reference: ${escapeHtml(ctx.reference)}<br>
+         Sent to: ${escapeHtml(ctx.accountLabel)}
+       </td></tr>
+     </table>
+     ${statementBookingTable(ctx)}
+     ${statementSummary(ctx)}
+     ${button(`${APP_URL}/dashboard/payouts/${ctx.requestId}`, 'View Statement')}`
+  )
+}
+
+export function payoutStatementReversedHtml(ctx: PayoutStatementEmailContext) {
+  return layout(
+    `Payout statement ${ctx.statementNumber} was reversed`,
+    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">Payout Reversed</h1>
+     <p style="margin:0 0 16px;color:#4b5563;font-size:14px;line-height:1.6;">
+       Hi ${escapeHtml(ctx.hostName)}, the payout of <strong>${escapeHtml(fmtPeso(ctx.amount))}</strong> recorded under statement
+       <strong style="letter-spacing:0.05em;">${escapeHtml(ctx.statementNumber)}</strong> was reversed${ctx.reversedOn ? ` on ${fmtStatementDate(ctx.reversedOn)}` : ''}.
+       That money is not yours to spend — if it reached your account, it is being taken back.
+     </p>
+     ${ctx.reversalReason
+       ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;background:#fef2f2;border-radius:12px;">
+            <tr><td style="padding:16px;color:#b91c1c;font-size:13px;line-height:1.6;">
+              <strong>Reason:</strong> ${escapeHtml(ctx.reversalReason)}
+            </td></tr>
+          </table>`
+       : ''}
+     <p style="margin:16px 0 0;color:#4b5563;font-size:14px;line-height:1.6;">
+       The bookings this statement covered are <strong>owed to you again</strong> and will appear on a future statement.
+       Please check your payout account details are correct — a wrong or closed account is the usual reason a transfer
+       has to be reversed.
+     </p>
+     <p style="margin:16px 0 0;color:#4b5563;font-size:13px;line-height:1.7;">
+       Original transfer date: ${fmtStatementDate(ctx.transferredOn)}<br>
+       Reference: ${escapeHtml(ctx.reference)}<br>
+       Payout account: ${escapeHtml(ctx.accountLabel)}
+     </p>
+     ${statementBookingTable(ctx)}
+     ${button(`${APP_URL}/dashboard/payouts/${ctx.requestId}`, 'View Statement')}`
+  )
 }

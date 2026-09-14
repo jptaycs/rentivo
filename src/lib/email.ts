@@ -12,7 +12,9 @@ import {
   newMessageHtml,
   adminDecisionHtml,
   notesBlock,
-  payoutPaidBodyHtml,
+  payoutStatementIssuedHtml,
+  payoutStatementReversedHtml,
+  type PayoutStatementEmailContext,
 } from './email-templates'
 
 // Every HTML template lives in ./email-templates.ts, which escapes each user- or
@@ -25,20 +27,33 @@ export function isEmailConfigured() {
 
 const FROM = process.env.EMAIL_FROM || 'Rentivo <onboarding@resend.dev>'
 
-async function send(to: string, subject: string, html: string) {
+/**
+ * Returns TRUE only when a send was actually attempted and Resend returned no
+ * error; FALSE when the key is absent or the send failed or threw. Most callers
+ * ignore the value — they are fire-and-forget notifications. The payout
+ * statement senders do not: that boolean is what decides whether
+ * `payout_requests.statement_emailed_at` is stamped, and the stamp is the
+ * difference between "the host knows" and "we assume they know".
+ */
+async function send(to: string, subject: string, html: string): Promise<boolean> {
   // Subjects are built from user-set values (a sender's full_name); strip
   // control characters so nothing can carry a newline into the header.
   const safeSubject = plainSubject(subject)
   if (!isEmailConfigured()) {
     console.log(`[email] RESEND_API_KEY not set — skipped "${safeSubject}" to ${to}`)
-    return
+    return false
   }
   try {
     const resend = new Resend(process.env.RESEND_API_KEY)
     const { error } = await resend.emails.send({ from: FROM, to, subject: safeSubject, html })
-    if (error) console.error('[email] send failed', error)
+    if (error) {
+      console.error('[email] send failed', error)
+      return false
+    }
+    return true
   } catch (err) {
     console.error('[email] send threw', err)
+    return false
   }
 }
 
@@ -282,41 +297,8 @@ export async function notifyPayoutAccountReviewed(
     adminDecisionHtml({
       heading: approved ? 'Payout Account Verified ✅' : 'Payout Account Not Approved',
       bodyHtml: approved
-        ? `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">Your payout account was verified — you can now request payouts for your completed bookings.</p>`
+        ? `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">Your payout account was verified. Rentivo will send your payouts to this account.</p>`
         : `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">We couldn't verify your payout account. Please update it and it will be re-reviewed.</p>${notesBlock(notes)}`,
-      ctaPath: '/dashboard/payouts',
-      ctaLabel: 'Go to Payouts',
-    })
-  )
-}
-
-export async function notifyPayoutPaid(hostId: string, amount: number, reference: string | null) {
-  const to = await emailForUser(hostId)
-  if (!to) return
-  await send(
-    to,
-    `Your payout of ${fmtPeso(amount)} has been sent`,
-    adminDecisionHtml({
-      heading: 'Payout Sent 💸',
-      bodyHtml: payoutPaidBodyHtml(amount, reference),
-      ctaPath: '/dashboard/payouts',
-      ctaLabel: 'View Payout History',
-    })
-  )
-}
-
-export async function notifyPayoutFailed(hostId: string, amount: number, notes: string | null) {
-  const to = await emailForUser(hostId)
-  if (!to) return
-  await send(
-    to,
-    `Your payout of ${fmtPeso(amount)} could not be completed`,
-    adminDecisionHtml({
-      heading: 'Payout Failed',
-      bodyHtml: `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">
-          Your payout of <strong>${fmtPeso(amount)}</strong> couldn't be completed. The bookings it covered
-          are eligible again — please check your payout account details and request again.
-        </p>${notesBlock(notes)}`,
       ctaPath: '/dashboard/payouts',
       ctaLabel: 'Go to Payouts',
     })
@@ -364,25 +346,114 @@ export async function notifyAccountReinstated(userId: string) {
 }
 
 // ── Payout statements (082) ────────────────────────────────────────────────
-// SEAM FOR TASK C5. C5 replaces these two bodies with the real templates and
-// senders (email-templates.ts gains payoutStatementIssuedHtml /
-// payoutStatementReversedHtml, and send() starts returning a boolean).
-//
-// The contract they must keep is the one the admin routes depend on: resolve
-// TRUE only when a send was actually attempted and Resend returned no error,
-// FALSE on any failure or when RESEND_API_KEY is absent. That boolean is what
-// decides whether `payout_requests.statement_emailed_at` is stamped, so a
-// placeholder must return FALSE — the admin page then shows "Email not sent —
-// Resend", which is the honest state until C5 lands. Never return true here.
+// Both senders resolve TRUE only when a send was actually attempted and Resend
+// returned no error. That boolean decides whether
+// `payout_requests.statement_emailed_at` is stamped (payout-statement-email.ts),
+// so every early exit returns FALSE — the admin page then honestly shows the
+// email as not sent. Neither is gated on a notification preference: a payout
+// statement is a financial record, like the renter's payment receipt.
 
-/** @see the seam note above — C5 supplies the real sender. */
-export async function notifyPayoutStatementIssued(requestId: string): Promise<boolean> {
-  console.log(`[email] payout statement issued email not implemented yet (request ${requestId})`)
-  return false
+type StatementKind = 'issued' | 'reversed'
+
+/** Last four only. PayoutStatement.tsx has the same rule, but it is a client
+ *  module and cannot be called from here. The full number never leaves this
+ *  function. */
+function maskedAccountLabel(method: string | null, number: string | null) {
+  const masked = number ? `•••• ${number.slice(-4)}` : '—'
+  return `${method ?? 'Payout account'} ${masked}`
 }
 
-/** @see the seam note above — C5 supplies the real sender. */
+async function buildStatementContext(
+  requestId: string,
+  kind: StatementKind
+): Promise<{ to: string; ctx: PayoutStatementEmailContext } | null> {
+  const admin = createAdminClient()
+  const { data: request, error } = await admin
+    .from('payout_requests')
+    .select('*, payout_items(*)')
+    .eq('id', requestId)
+    .maybeSingle()
+  if (error) {
+    console.error('[email] payout statement read failed:', error.message)
+    return null
+  }
+  if (!request || !request.statement_number || !request.transferred_on || !request.reference) return null
+  if (kind === 'reversed' && !request.reversed_at) return null
+  if (kind === 'issued' && request.reversed_at) return null
+
+  const to = await emailForUser(request.host_id)
+  if (!to) return null
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('full_name')
+    .eq('id', request.host_id)
+    .maybeSingle()
+
+  type ItemRow = {
+    booking_ref: string | null
+    listing_title: string | null
+    pickup_date: string
+    return_date: string
+    rental_fee: number | null
+    delivery_fee: number | null
+    service_fee: number | null
+  }
+  const items = ((request.payout_items ?? []) as ItemRow[]).map((i) => {
+    const rentalFee = i.rental_fee ?? 0
+    const deliveryFee = i.delivery_fee ?? 0
+    return {
+      bookingRef: i.booking_ref ?? '—',
+      listingTitle: i.listing_title ?? '—',
+      pickupDate: i.pickup_date,
+      returnDate: i.return_date,
+      rentalFee,
+      deliveryFee,
+      serviceFee: i.service_fee ?? 0,
+      earnings: rentalFee + deliveryFee,
+    }
+  })
+  items.sort((a, b) => a.pickupDate.localeCompare(b.pickupDate))
+
+  // Same totals as PayoutStatement.tsx: gross is what renters paid, the fee is
+  // what Rentivo kept, and gross − fee is what was transferred.
+  const totalRental = items.reduce((s, i) => s + i.rentalFee, 0)
+  const deliveryFeeTotal = items.reduce((s, i) => s + i.deliveryFee, 0)
+  const serviceFeeTotal = items.reduce((s, i) => s + i.serviceFee, 0)
+
+  return {
+    to,
+    ctx: {
+      hostName: profile?.full_name || 'there',
+      statementNumber: request.statement_number,
+      amount: request.amount,
+      transferredOn: request.transferred_on,
+      reference: request.reference,
+      accountLabel: maskedAccountLabel(request.account_method, request.account_number),
+      grossBookingValue: totalRental + deliveryFeeTotal + serviceFeeTotal,
+      serviceFeeTotal,
+      deliveryFeeTotal,
+      requestId: request.id,
+      items,
+      reversedOn: request.reversed_at ?? undefined,
+      reversalReason: request.reversal_reason ?? undefined,
+    },
+  }
+}
+
+export async function notifyPayoutStatementIssued(requestId: string): Promise<boolean> {
+  const built = await buildStatementContext(requestId, 'issued')
+  if (!built) return false
+  const { to, ctx } = built
+  return send(
+    to,
+    `Payout statement ${ctx.statementNumber} — ${fmtPeso(ctx.amount)} sent`,
+    payoutStatementIssuedHtml(ctx)
+  )
+}
+
 export async function notifyPayoutStatementReversed(requestId: string): Promise<boolean> {
-  console.log(`[email] payout statement reversed email not implemented yet (request ${requestId})`)
-  return false
+  const built = await buildStatementContext(requestId, 'reversed')
+  if (!built) return false
+  const { to, ctx } = built
+  return send(to, `Payout statement ${ctx.statementNumber} was reversed`, payoutStatementReversedHtml(ctx))
 }

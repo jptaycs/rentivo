@@ -15,6 +15,10 @@
 //
 // Usage:
 //   RESEND_API_KEY= node --experimental-strip-types scripts/verify/C4-admin-payout-statements.mjs [appUrl]
+//
+// The APP SERVER must also run with RESEND_API_KEY blank. Since Task C5 the
+// senders are real: with a key set, the `emailed:false` checks below would
+// fail and a real statement email would be attempted.
 import { URL as SUPABASE_URL, ANON, SECRET, admin, signIn, check, done } from './env.mjs'
 
 const APP = process.argv[2] ?? 'http://localhost:3100'
@@ -187,11 +191,11 @@ try {
   {
     // resend-email has no body to validate, so its admin-reached proof is the
     // RPC-side truth about the LEGACY row: it IS issued, so the route gets past
-    // every guard and reaches the (C5-pending) sender, which returns false.
+    // every guard and reaches the sender, which returns false with RESEND_API_KEY blank.
     // That is only reachable past the admin gate.
     const a = await post(`/api/admin/payout-statements/${LEGACY_ID}/resend-email`, adminCookie, {})
     check(
-      'MATRIX route resend-email admin → 200 and reaches the sender (emailed:false, C5 pending)',
+      'MATRIX route resend-email admin → 200 and reaches the sender (emailed:false, Resend unconfigured)',
       a.status === 200 && a.body?.emailed === false,
       `${a.status} ${JSON.stringify(a.body)}`
     )
@@ -468,7 +472,7 @@ try {
       JSON.stringify(out.body?.request)
     )
     check(
-      'ISSUE reports emailed:false while C5 has not landed (the honest state)',
+      'ISSUE reports emailed:false when no email was actually sent (Resend unconfigured)',
       out.body?.emailed === false,
       JSON.stringify(out.body?.emailed)
     )
@@ -531,7 +535,7 @@ try {
   {
     const out = await post(`/api/admin/payout-statements/${DRAFT2}/resend-email`, adminCookie, {})
     check(
-      'RESEND on an issued statement → 200 (emailed:false, C5 pending)',
+      'RESEND on an issued statement → 200 (emailed:false, Resend unconfigured)',
       out.status === 200 && out.body?.emailed === false,
       `${out.status} ${JSON.stringify(out.body)}`
     )

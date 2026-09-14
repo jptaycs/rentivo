@@ -50,16 +50,37 @@ const templates = {
     t.newMessageHtml({ senderName: v, listingTitle: v, preview: v, conversationId: v }),
   'adminDecisionHtml+notesBlock': (v) =>
     t.adminDecisionHtml({ heading: 'Verification Not Approved', bodyHtml: `<p>x</p>${t.notesBlock(v)}`, ctaPath: '/dashboard/settings', ctaLabel: 'Resubmit' }),
-  'adminDecisionHtml+payoutPaidBodyHtml': (v) =>
-    t.adminDecisionHtml({ heading: 'Payout Sent', bodyHtml: t.payoutPaidBodyHtml(1500, v), ctaPath: '/dashboard/payouts', ctaLabel: 'View' }),
+  // Payout statements (082): every host-, admin- or user-authored field hostile
+  // at once — listing title and booking ref (host), reference and reversal
+  // reason (admin), host name and account label (user-set).
+  payoutStatementIssuedHtml: (v) => t.payoutStatementIssuedHtml(statementCtx(v)),
+  'payoutStatementReversedHtml(reason)': (v) => t.payoutStatementReversedHtml({ ...statementCtx(v), reversedOn: '2026-09-20T03:00:00Z', reversalReason: v }),
+  'payoutStatementReversedHtml(no reason)': (v) => t.payoutStatementReversedHtml({ ...statementCtx(v), reversedOn: '2026-09-20T03:00:00Z' }),
+}
+
+function statementCtx(v) {
+  const item = (ref) => ({
+    bookingRef: `${ref}${v}`, listingTitle: v, pickupDate: '2026-09-01', returnDate: '2026-09-03',
+    rentalFee: 2000, deliveryFee: 350, serviceFee: 100, earnings: 2350,
+  })
+  return {
+    hostName: v, statementNumber: 'PS-2026-000001', amount: 4700, transferredOn: '2026-09-15',
+    reference: v, accountLabel: `GCash •••• 4567 ${v}`, grossBookingValue: 4900, serviceFeeTotal: 200,
+    deliveryFeeTotal: 700, requestId: '00000000-0000-4000-8000-000000000001', items: [item('A'), item('B')],
+  }
 }
 
 for (const [name, render] of Object.entries(templates)) {
-  const baseline = ltCount(render(BENIGN))
-  const qBaseline = qCount(render(BENIGN))
+  const benignHtml = render(BENIGN)
+  const baseline = ltCount(benignHtml)
+  const qBaseline = qCount(benignHtml)
+  // A marker counts as leaked only if the hostile render has MORE of it than
+  // the benign one — a template's own markup (e.g. `style="…"><strong>`) may
+  // legitimately contain the same character sequence.
+  const occurrences = (h, m) => h.split(m).length - 1
   for (const payload of HOSTILE) {
     const html = render(payload)
-    const leaked = RAW_MARKERS.filter((m) => html.includes(m))
+    const leaked = RAW_MARKERS.filter((m) => occurrences(html, m) > occurrences(benignHtml, m))
     check(`${name} :: no raw markup from ${JSON.stringify(payload)}`, leaked.length === 0, `leaked ${leaked.join(', ')}`)
     check(
       `${name} :: '<' count unchanged by ${JSON.stringify(payload)}`,
@@ -118,6 +139,34 @@ check('delivery flat :: no distance, no pin prompt', !flat.includes(' km)') && !
 const pickup = t.hostNewBookingHtml(ctx(BENIGN), false, null)
 check('pickup :: no delivery block', !pickup.includes('Delivery to:'))
 check('pickup :: identical to the two-argument call', pickup === t.hostNewBookingHtml(ctx(BENIGN), false))
+
+// Payout statements: the spec's named payloads, and the table must survive them.
+{
+  const hostile = {
+    ...statementCtx(BENIGN),
+    reference: '"><script>alert(1)</script>',
+    items: statementCtx(BENIGN).items.map((i) => ({ ...i, listingTitle: '<img src=x onerror=alert(1)>' })),
+  }
+  for (const [name, html] of [
+    ['issued', t.payoutStatementIssuedHtml(hostile)],
+    ['reversed', t.payoutStatementReversedHtml({ ...hostile, reversedOn: '2026-09-20T03:00:00Z', reversalReason: '</td></tr><script>alert(1)</script>' })],
+  ]) {
+    check(`statement ${name} :: no <script`, !html.includes('<script'))
+    check(`statement ${name} :: no raw onerror attribute`, !/<[^>]*\sonerror=/.test(html))
+    check(`statement ${name} :: no unescaped <img`, !html.includes('<img'))
+    check(`statement ${name} :: booking rows intact`, (html.match(/<tr style="border-top/g) ?? []).length === 2)
+    check(`statement ${name} :: table closed`, html.includes('</table>'))
+    check(`statement ${name} :: CTA points at the statement`, html.includes('/dashboard/payouts/00000000-0000-4000-8000-000000000001'))
+  }
+  const ok = t.payoutStatementIssuedHtml(statementCtx(BENIGN))
+  check('statement issued :: net line equals transferred amount', ok.includes('₱4,700') && !ok.includes('Please reply to this email'))
+  check('statement issued :: renter-pays note present', ok.includes('It was not deducted from your rental rate.'))
+  const off = t.payoutStatementIssuedHtml({ ...statementCtx(BENIGN), amount: 4000 })
+  check('statement issued :: flags a mismatch with the recorded amount', off.includes('Please reply to this email'))
+  const rev = t.payoutStatementReversedHtml({ ...statementCtx(BENIGN), reversedOn: '2026-09-20T03:00:00Z', reversalReason: 'Account closed' })
+  check('statement reversed :: says bookings are owed again', rev.includes('owed to you again'))
+  check('statement reversed :: reason shown', rev.includes('Account closed'))
+}
 
 // Subjects: plain text, no control characters may survive.
 const subj = t.plainSubject('New message from Evil\r\nBcc: victim@example.com\n<b>x</b>')
