@@ -12,20 +12,57 @@ Only `[ ]` items are outstanding.
 
 ## Open right now
 
-Four, and none of them is blocked on code we control. For work that IS actionable, see
+Three, and none of them is blocked on code we control. For work that IS actionable, see
 **Unblocked** below — that section is the real queue.
 
 1. **PayMongo KYB** — `gcash`/`maya`/`card` still *Submitted*, not Active. Blocks the
    real-money charge verification and the `NEXT_PUBLIC_DISABLED_PAYMENT_METHODS` removal.
-2. **Apple Pay / Google Pay** — PayMongo doesn't support them. Stays "Coming soon".
+2. **Apple Pay / Google Pay** — PayMongo doesn't support them. The tiles were removed
+   entirely on 2026-09-12; they had sat as permanently disabled "Coming soon" placeholders
+   advertising a choice no renter could make.
 3. **Duplicate listing `924ca665-…`** — deactivated, not deleted, because it carries a real
    renter's booking. A decision for the owner, not a task.
-4. **Retire host commission billing** — only once PayMongo activates the three methods
-   above, and not as a reflexive revert (issued bills are real money owed).
+
+~~4. **Retire host commission billing**~~ — **done 2026-09-13.** The condition written here
+was "only once PayMongo activates the three methods above", but QR Ph activation alone was
+sufficient: it let every payment run through Rentivo's own PayMongo account, so the 5% is
+collected at the point of sale and there is nothing to bill back. The `host_qr` method went
+with it. The ledger was empty (0 bills, 0 items, checked twice) so no owed money was
+destroyed. See AGENTS.md and `docs/superpowers/specs/2026-09-13-retire-host-qr-and-billing-design.md`.
 
 Their full entries, with the reasoning, are in the archive further down.
 
 ## Unblocked — actionable now
+
+- [ ] **`message-images` is a PUBLIC storage bucket — private DM attachments are
+  anonymously fetchable by URL, forever.** Found by the 2026-09-13 security audit
+  (MEDIUM-3). Nothing is exposed *today*: the bucket holds **0 objects**. That is exactly
+  why this is worth doing now rather than after people start attaching photos to messages —
+  once real attachments exist, closing it means migrating them, and anything already
+  scraped stays scraped.
+  The fix is not a grants migration: it needs the bucket flipped to private plus
+  signed-URL plumbing wherever a message image is rendered (`useConversation.send()`
+  uploads; the message bubbles read). Deliberately kept out of migrations 073/074 so a
+  schema change and an app change would not ride together.
+
+- [ ] **No rate limiting anywhere.** Security audit MEDIUM-4. `create_booking` is uncapped
+  and each call writes a notification and sends email, so a signed-in user can generate
+  spam at will; nothing throttles the auth or messaging paths either. Needs its own design
+  (where the limit lives — middleware, RPC, or Supabase — and what the limits are), which
+  is why it was not bundled into the security fixes.
+
+- [ ] **Remove `CRON_SECRET` from the Vercel production dashboard.** It authenticated
+  `/api/cron/host-bills`, deleted 2026-09-13. Harmless but misleading to a future reader;
+  cannot be scripted from the repo.
+
+- [ ] **Next phase must delete the dead `host_qr` branch in `create_booking`.** It still
+  runs `select qr_payment_url from profiles` — a column migration 072 dropped — inside
+  `if p_payment_method = 'host_qr'`. Unreachable today (the tile is gone and a trigger
+  refuses those inserts) and it fails closed, but a direct RPC call raises a raw `42703`
+  instead of the trigger's message, and `scripts/verify/072-retire-host-qr-and-billing.mjs`
+  fails that one assertion on purpose because of it. **Do not fix it in isolation** — the
+  next phase has to copy that function's body anyway, and copying it twice is what caused
+  the 038/039 and 040 incidents. Delete the branch in that same rewrite.
 
 - [ ] **REMOVE THE SEEDED DEMO REVIEWS BEFORE REAL LAUNCH.**
   `node --experimental-strip-types scripts/seed-demo-reviews.mjs remove`
