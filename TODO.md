@@ -147,8 +147,9 @@ Their full entries, with the reasoning, are in the archive further down.
   that a direct `host_qr` RPC call raises the trigger's readable message rather than a raw
   `42703` — now passes, and the script is fully green.
 
-- [x] **Distance-based delivery fee** — done 2026-09-14, migration 078 (spec/plan under
-  `.superpowers/sdd/2026-09-14-distance-based-delivery-fee/`). Delivery pricing was flat-fee
+- [x] **Distance-based delivery fee** — done 2026-09-14, migration 078 (spec
+  `docs/superpowers/specs/2026-09-13-distance-based-delivery-fee-design.md`, plan
+  `docs/superpowers/plans/2026-09-14-distance-based-delivery-fee.md`). Delivery pricing was flat-fee
   only; hosts can now also set a per-kilometre rate (`listings.delivery_fee_per_km`) so the
   fee scales with how far the renter actually is, computed server-side by one function
   (`delivery_fee_for`) shared by `create_booking` (the charge) and the `quote_delivery_fee`
@@ -185,13 +186,68 @@ Their full entries, with the reasoning, are in the archive further down.
   original `is_active`/`delivery_fee`/`delivery_fee_per_km`/`location_is_exact`/`latitude`/
   `longitude` and re-read to confirm. `npx tsc --noEmit`, `npm run lint`, `npm run build` all
   clean. Neither the forbidden host nor `RNT-A4DA55` were touched.
-  **Three Minor findings from the implementation tasks' own reviews are known and deliberately
-  not fixed here** (left for the next phase's triage, not fixed in passing): a stale-rate race
-  can produce a spurious "price changed" 409 at exact rounding halves on weekly/monthly
-  tiers; moving the delivery pin after a failed payment attempt leaves the earlier unpaid
-  booking still payable at its old (pre-move) total until the renter starts a fresh checkout;
-  and a host switching a listing from flat-fee to per-km delivery mid-checkout makes the
-  renter's retry attempts fail until they reload the page.
+  **Final review fix (same day):** the spec accepts a renter-supplied pin only because "the
+  host sees both before accepting", but no host surface showed the delivery address, pin or
+  distance — so a renter could pin next to the listing (cheap) while typing an address 30 km
+  away, and under Instant Book the host was silently underpaid. Fixed in `28cec2a`: a
+  **paid** delivery booking's card on the host bookings page shows the typed address, stored
+  distance, fee, a map of the renter's pin, and a prompt to check the pin against the
+  address; the host's new-booking email carries the address, distance and fee (escaped; no
+  coordinates, no map link). Unpaid bookings keep "Delivery · city", with the address and
+  pin absent from the page payload, so an abandoned booking's pin never reaches a host.
+
+- [ ] **Distance-based delivery — deferred Minors** (final whole-branch review 2026-09-14
+  judged none must-fix before shipping; recorded here because the review files lived in a
+  scratch workspace that was deleted after merge):
+  - **False "price changed" 409 at exact rounding halves on monthly-tier rentals.** The
+    checkout compares the displayed total with the stored one before any charge. JavaScript
+    and Postgres disagree at ties — Postgres `round(1029/30.0*45)` = 1544, JS 1543 — so the
+    renter is told the price changed when it didn't. It **fails safe** (no charge; the retry
+    adopts the stored total) and replaced what was previously a *silent* ₱1 overcharge; 0 of
+    22 live tiered listings hit it over 7–365 days; a weekly tie is mathematically impossible.
+    **Do not "fix" it with `Math.round(p * d / 30)`:** Postgres rounds `p/30.0` to its
+    division scale *before* multiplying, so that version still mismatches 10,800 of 54,000
+    ties. The exact fix, verified 0 / 54,000 against live Postgres, emulates numeric division
+    scale in `calcRentalFee` (`src/lib/pricing.ts`) for both tiers:
+    ```ts
+    function pgTierRental(price: number, days: number, div: 30 | 7): number {
+      let w = 0, lead = price
+      while (lead >= 10000) { lead = Math.floor(lead / 10000); w++ }
+      const scale = 10n ** BigInt(Math.max(16 - 4 * (w - (lead < div ? 1 : 0)), 1))
+      const q = (2n * BigInt(price) * scale + BigInt(div)) / (2n * BigInt(div))   // round(p/div, rscale)
+      return Number((2n * q * BigInt(days) + scale) / (2n * scale))              // round(q*days)
+    }
+    ```
+    The durable alternative — making `create_booking` integer-exact — is another rewrite of
+    the riskiest function in the repo and isn't worth it for this alone.
+  - **Moving the pin after a payment attempt** leaves the earlier unpaid booking, and any QR
+    Ph code already shown for it, payable at the old total. Same shape as the existing
+    pickup↔delivery switch; the risk is a double payment, not a wrong amount. Each new
+    booking also counts toward the 10/hour limit.
+  - **A host switching a listing from flat to per-km mid-checkout** makes the renter's
+    retries fail (400) until they reload. No money impact.
+  - **The renter's delivery pin reaches the host's browser for unpaid bookings** —
+    `useBookings` selects `bookings.*`; the host card hides it, but the data is in the
+    response. Same pre-existing pattern as the typed address. Closing it properly needs a
+    column-level read restriction or an RPC.
+  - **`quote_delivery_fee` has no rate limit.** CPU only; it leaks nothing, since distance is
+    measured from the public approximate point.
+  - **The ₱100,000 base / ₱10,000 per-km caps are UI-only.** A host writing an absurd rate
+    directly gets a refused booking at checkout — fails closed.
+  - **The Philippines bounding box (lat 4.0–21.5, lng 116.0–127.0) excludes Kalayaan
+    (Pag-asa).** A delivery pin there is refused.
+  - **Every paid delivery booking renders its own map** on the host bookings page. Fine at
+    today's volume; a long history may want it behind a toggle, like `/dashboard/rentals`.
+  - **`create_booking` keeps a comment "mirrors the host_qr guard above"** pointing at a
+    block migration 078 deleted. Fix it only as part of a future rewrite of that function,
+    never in a standalone one.
+  - **Verification script gaps:** `scripts/verify/078-distance-based-delivery-fee.mjs` has no
+    check that the quote refuses draft/inactive/suspended listings, check 6 has no dedicated
+    control, and check 5's refusal and control use different renters.
+    `scripts/verify/072-retire-host-qr-and-billing.mjs` deletes its control booking but not
+    the notification and `rate_limit_hits` row that booking's triggers write.
+  - **A real-phone tap test for the delivery map.** One Leaflet map click didn't register
+    under Playwright; a later click did. Not reproduced or root-caused.
 
 - [x] **Guests can view their wishlist** — done 2026-09-14. A guest's hearts were always
   saved (localStorage, via `useWishlist`) but the only page showing them was
