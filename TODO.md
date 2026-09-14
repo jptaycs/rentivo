@@ -52,12 +52,17 @@ Their full entries, with the reasoning, are in the archive further down.
   no attaching someone else's object to leak it). App stores the path and renders via one
   batched `createSignedUrls` call per thread (1h). Migration guarded to abort if any
   object/message didn't match the new shape (0/0 at apply time). Verified:
-  `scripts/verify/075-private-message-images.mjs` 37/37 (real sessions; every denial paired
+  `scripts/verify/075-private-message-images.mjs` (real sessions; every denial paired
   with a control), plus a production-build browser pass — renter attached and sent a real
   PNG, both renter and host saw it rendered from `/object/sign/` URLs, old public URL 400;
-  probe message/object deleted and re-read gone. **Deploy promptly:** the production app
-  still stores public URLs, which the new CHECK rejects, so image sends fail on prod until
-  this commit ships (text messages unaffected).
+  probe message/object deleted and re-read gone. Deployed 2026-09-14 (`8546ebf`), closing
+  the window in which the live CHECK rejected the old app's public-URL image sends.
+  **The script's check count is not fixed:** its cleanup emits one check per probe object
+  it uploaded (`scripts/verify/075-private-message-images.mjs:304`), so the total varies
+  between runs — 37 on its first run, 35 since. A different total is not a regression;
+  a `FAIL` line is. Follow-up `1009c77`: an image that can never be signed (object
+  deleted, caller not allowed) now reads "Photo unavailable" instead of a loading
+  placeholder that never resolved.
 
 - [x] **Rate limiting — done 2026-09-14 (migration 076).** Security audit MEDIUM-4. Built in
   Postgres (no new service); design in AGENTS.md's Security model. **Worse hole found first

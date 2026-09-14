@@ -128,6 +128,11 @@ const hostId = sub(hostTok)
 const stamp = Date.now()
 const outsiderId = await createUser(`probe-075-outsider-${stamp}@example.com`) // stranger's conversation renter
 const nonPartyId = await createUser(`probe-075-nonparty-${stamp}@example.com`) // in no conversation at all
+// Since migration 076, every non-service-role message insert records a
+// rate-limit hit keyed `message:<sender id>`. This script predates 076, so
+// without this its runs left hit rows behind — including for throwaway users
+// it had already deleted. Scoped to this run's start and these four senders.
+const runStartedAt = new Date().toISOString()
 const outsiderTok = await signIn(`probe-075-outsider-${stamp}@example.com`, 'ProbeRentivo1')
 const nonPartyTok = await signIn(`probe-075-nonparty-${stamp}@example.com`, 'ProbeRentivo1')
 
@@ -292,6 +297,8 @@ try {
     await adminStorage(`object/${BUCKET}`, { method: 'DELETE', body: JSON.stringify({ prefixes: createdPaths }) })
   }
   for (const id of createdConversations) await admin(`conversations?id=eq.${id}`, { method: 'DELETE' }) // cascades messages
+  const hitKeys = [renterId, hostId, outsiderId, nonPartyId].map((id) => `"message:${id}"`).join(',')
+  await admin(`rate_limit_hits?key=in.(${hitKeys})&hit_at=gte.${encodeURIComponent(runStartedAt)}`, { method: 'DELETE' })
   await deleteUser(outsiderId)
   await deleteUser(nonPartyId)
 }
@@ -307,4 +314,10 @@ for (const p of createdPaths) {
 }
 const { body: leftoverProfiles } = await admin(`profiles?select=id&id=in.(${outsiderId},${nonPartyId})`)
 check('cleanup: throwaway users removed', leftoverProfiles.length === 0, `${leftoverProfiles.length} left`)
+const leftoverHitKeys = [renterId, hostId, outsiderId, nonPartyId].map((id) => `"message:${id}"`).join(',')
+const { body: leftoverHits } = await admin(
+  `rate_limit_hits?select=key&key=in.(${leftoverHitKeys})&hit_at=gte.${encodeURIComponent(runStartedAt)}`
+)
+check('cleanup: this run left no rate-limit hits (076)', Array.isArray(leftoverHits) && leftoverHits.length === 0,
+  `${Array.isArray(leftoverHits) ? leftoverHits.length : JSON.stringify(leftoverHits)} left`)
 done()
