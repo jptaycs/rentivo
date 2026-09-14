@@ -1,9 +1,10 @@
 'use client'
 
-import { Star, Loader2 } from 'lucide-react'
+import { Star } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useMyReviews } from '@/hooks/useMyReviews'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { SummaryCardSkeleton, DashboardRowsSkeleton } from '@/components/shared/Skeletons'
 
 const MOCK_REVIEWS = [
   { id: 'r1', reviewer: 'Maria Santos', initial: 'M', rating: 5, date: '2026-06-28', equipment: 'Sony A7 IV', comment: 'Camera was in perfect condition, exactly as described. Host was very responsive and pickup was smooth. Will definitely rent again!' },
@@ -36,8 +37,9 @@ export default function ReviewsPage() {
       <h1 className="text-2xl font-bold text-[#111827]">Reviews</h1>
 
       {live && loading ? (
-        <div className="flex justify-center py-20 text-gray-300">
-          <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="space-y-6">
+          <SummaryCardSkeleton />
+          <DashboardRowsSkeleton rows={4} avatar />
         </div>
       ) : reviews.length === 0 ? (
         <div className="text-center py-20 text-gray-400 bg-white rounded-2xl border border-gray-100">

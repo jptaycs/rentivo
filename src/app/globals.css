@@ -207,6 +207,17 @@
   }
 }
 
+/* Skeleton loading placeholders (src/components/ui/skeleton.tsx) use
+   Tailwind's animate-pulse, which is not itself reduced-motion-aware. Freeze
+   the pulse to a static state for anyone who has asked the OS for less
+   motion — the skeleton still communicates "loading" via its shape, just
+   without the animation. */
+@media (prefers-reduced-motion: reduce) {
+  [data-slot='skeleton'] {
+    animation: none;
+  }
+}
+
 /* Tap feedback — the owner explicitly asked for "something happens" when you
    press a button. A brief press-dip on every interactive control. */
 @media (prefers-reduced-motion: no-preference) {

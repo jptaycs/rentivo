@@ -8,6 +8,7 @@ import { useHostBookings, type BookingWithRefs } from '@/hooks/useBookings'
 import { useReviewedBookings } from '@/hooks/useReviewedBookings'
 import { ReviewModal } from '@/components/shared/ReviewModal'
 import { DeliveryDetails } from '@/components/booking/DeliveryDetails'
+import { DashboardRowsSkeleton } from '@/components/shared/Skeletons'
 
 const TABS = ['All', 'Pending', 'Confirmed', 'Completed']
 
@@ -87,9 +88,7 @@ export default function BookingsPage() {
       {/* Bookings list */}
       <div className="space-y-3">
         {loading ? (
-          <div className="flex justify-center py-16 text-gray-300">
-            <Loader2 className="w-8 h-8 animate-spin" />
-          </div>
+          <DashboardRowsSkeleton rows={4} avatar />
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-gray-400 bg-white rounded-2xl border border-gray-100">
             <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />

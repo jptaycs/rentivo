@@ -7,6 +7,7 @@ import { Plus, Star, Zap, Eye, Pencil, Pause, Play, Trash2, BadgeCheck, Loader2,
 import { useMyListings } from '@/hooks/useMyListings'
 import { MOCK_LISTINGS } from '@/lib/mock-data'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { DashboardRowsSkeleton } from '@/components/shared/Skeletons'
 
 export default function ListingsPage() {
   const live = isSupabaseConfigured()
@@ -59,9 +60,7 @@ export default function ListingsPage() {
       )}
 
       {live && loading ? (
-        <div className="flex justify-center py-16 text-gray-300">
-          <Loader2 className="w-8 h-8 animate-spin" />
-        </div>
+        <DashboardRowsSkeleton rows={4} />
       ) : listings.length === 0 ? (
         <div className="text-center py-20 text-gray-400 bg-white rounded-2xl border border-gray-100">
           <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />

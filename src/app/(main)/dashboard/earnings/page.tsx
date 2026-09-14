@@ -1,9 +1,10 @@
 'use client'
 
-import { DollarSign, TrendingUp, Clock, Download, Loader2 } from 'lucide-react'
+import { DollarSign, TrendingUp, Clock, Download } from 'lucide-react'
 import { useHostBookings } from '@/hooks/useBookings'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { toCsv } from '@/lib/csv'
+import { StatCardsSkeleton, ChartCardSkeleton, DashboardRowsSkeleton } from '@/components/shared/Skeletons'
 
 const MOCK_MONTHLY = [
   { month: 'Jan', amount: 18400 },
@@ -119,8 +120,10 @@ export default function EarningsPage() {
       </div>
 
       {live && loading ? (
-        <div className="flex justify-center py-20 text-gray-300">
-          <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="space-y-6">
+          <StatCardsSkeleton count={3} cols="grid-cols-1 sm:grid-cols-3" />
+          <ChartCardSkeleton />
+          <DashboardRowsSkeleton rows={5} />
         </div>
       ) : (
         <>

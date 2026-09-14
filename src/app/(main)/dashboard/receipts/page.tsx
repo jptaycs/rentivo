@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Download, FileText, Search, Loader2 } from 'lucide-react'
+import { Download, FileText, Search } from 'lucide-react'
 import { useMyRentals } from '@/hooks/useBookings'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { DashboardRowsSkeleton } from '@/components/shared/Skeletons'
 
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH')}`
 
@@ -42,9 +43,7 @@ export default function ReceiptsPage() {
       {/* Receipts list */}
       <div className="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
         {live && loading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="w-6 h-6 text-gray-300 animate-spin" />
-          </div>
+          <DashboardRowsSkeleton rows={4} bare />
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <FileText className="w-10 h-10 text-gray-200 mb-3" />

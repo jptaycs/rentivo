@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Landmark, Plus, CheckCircle2, Clock, AlertCircle, XCircle, Loader2 } from 'lucide-react'
+import { Landmark, Plus, CheckCircle2, Clock, AlertCircle, XCircle } from 'lucide-react'
 import { usePayoutAccount } from '@/hooks/usePayoutAccount'
 import { usePayoutRequests } from '@/hooks/usePayoutRequests'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { SummaryCardSkeleton, DashboardRowsSkeleton } from '@/components/shared/Skeletons'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { PayoutAccount } from '@/types'
 
 const PAYOUT_METHODS: PayoutAccount['method'][] = [
@@ -98,8 +100,10 @@ export default function PayoutsPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20 text-gray-300">
-          <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="space-y-8">
+          <Skeleton className="h-40 w-full rounded-2xl" />
+          <SummaryCardSkeleton />
+          <DashboardRowsSkeleton rows={3} />
         </div>
       ) : (
         <>

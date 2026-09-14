@@ -1,11 +1,12 @@
 'use client'
 
-import { DollarSign, Package, CalendarDays, Star, ArrowUpRight, Loader2 } from 'lucide-react'
+import { DollarSign, Package, CalendarDays, Star, ArrowUpRight } from 'lucide-react'
 import Link from 'next/link'
 import { useHostBookings } from '@/hooks/useBookings'
 import { useMyListings } from '@/hooks/useMyListings'
 import { useProfile } from '@/hooks/useProfile'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { StatCardsSkeleton, ChartCardSkeleton, DashboardRowsSkeleton } from '@/components/shared/Skeletons'
 
 const STATUS_STYLES: Record<string, string> = {
   confirmed: 'bg-blue-50 text-[#003049]',
@@ -91,8 +92,10 @@ export default function OverviewPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20 text-gray-300">
-          <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="space-y-8">
+          <StatCardsSkeleton count={4} />
+          <ChartCardSkeleton />
+          <DashboardRowsSkeleton rows={5} avatar />
         </div>
       ) : (
         <>

@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
 import { VerificationCard } from '@/components/shared/VerificationCard'
 import { BUSINESS } from '@/lib/business'
+import { SettingsSkeleton } from '@/components/shared/Skeletons'
 
 export default function SettingsPage() {
   const live = isSupabaseConfigured()
@@ -162,11 +163,7 @@ export default function SettingsPage() {
     .join('')
 
   if (live && loading) {
-    return (
-      <div className="flex justify-center py-24">
-        <Loader2 className="w-8 h-8 text-gray-300 animate-spin" />
-      </div>
-    )
+    return <SettingsSkeleton />
   }
 
   return (

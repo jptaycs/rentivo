@@ -1,10 +1,11 @@
 'use client'
 
-import { TrendingUp, Eye, CalendarDays, Star, Loader2 } from 'lucide-react'
+import { TrendingUp, Eye, CalendarDays, Star } from 'lucide-react'
 import { useMyListings } from '@/hooks/useMyListings'
 import { useHostBookings } from '@/hooks/useBookings'
 import { useProfile } from '@/hooks/useProfile'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { StatCardsSkeleton, ChartCardSkeleton, DashboardRowsSkeleton } from '@/components/shared/Skeletons'
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -70,8 +71,10 @@ export default function AnalyticsPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20 text-gray-300">
-          <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="space-y-8">
+          <StatCardsSkeleton count={4} />
+          <ChartCardSkeleton />
+          <DashboardRowsSkeleton rows={5} />
         </div>
       ) : listings.length === 0 ? (
         <div className="text-center py-20 text-gray-400 bg-white rounded-2xl border border-gray-100">
