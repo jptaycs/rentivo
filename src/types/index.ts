@@ -46,6 +46,8 @@ export interface Listing {
   monthly_price: number | null
   security_deposit: number
   delivery_fee: number | null
+  // 078: per-kilometre delivery rate on top of the delivery_fee base. 0 = flat fee.
+  delivery_fee_per_km: number
   city: string
   province: string
   is_instant_book: boolean
@@ -84,6 +86,10 @@ export interface Booking {
   status: 'pending' | 'confirmed' | 'active' | 'completed' | 'cancelled'
   is_delivery: boolean
   delivery_address: string | null
+  // 078: road km and the renter's delivery pin; null for pickup and flat-fee delivery.
+  delivery_distance_km: number | null
+  delivery_latitude: number | null
+  delivery_longitude: number | null
   payment_method: 'gcash' | 'maya' | 'card' | 'qrph' | 'apple_pay' | 'google_pay' | 'host_qr' | 'test_skip' | null
   payment_status: 'unpaid' | 'paid' | 'refunded'
   paymongo_ref: string | null

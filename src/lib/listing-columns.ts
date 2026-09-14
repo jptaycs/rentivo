@@ -9,7 +9,7 @@
 // table level and reachable only via a confirmed-booking-gated RPC. Never
 // add `latitude`/`longitude` here.
 export const LISTING_COLUMNS =
-  'id, host_id, category, brand, model, title, description, condition, daily_price, weekly_price, monthly_price, security_deposit, delivery_fee, city, province, is_instant_book, is_active, is_draft, rating, review_count, view_count, images, accessories, created_at, approx_latitude, approx_longitude, location_is_exact'
+  'id, host_id, category, brand, model, title, description, condition, daily_price, weekly_price, monthly_price, security_deposit, delivery_fee, city, province, is_instant_book, is_active, is_draft, rating, review_count, view_count, images, accessories, created_at, approx_latitude, approx_longitude, location_is_exact, delivery_fee_per_km'
 
 // Explicit columns for any `profiles` row joined into a *publicly readable*
 // payload (listing cards, listing detail, search, host profiles, review

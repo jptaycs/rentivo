@@ -225,9 +225,11 @@ export async function deleteAccount(uid: string): Promise<{ ok: true } | { ok: f
   // guarantees every remaining booking is completed or cancelled, so no in-flight
   // delivery depends on it — the bookings themselves stay untouched, this only clears
   // one PII column on rows that belong to the deleting user.
+  // The delivery pin (078) goes with it: renter delivery coordinates are personal
+  // data — a point on a map is at least as identifying as the typed address.
   const { error: deliveryAddressError } = await admin
     .from('bookings')
-    .update({ delivery_address: null })
+    .update({ delivery_address: null, delivery_latitude: null, delivery_longitude: null })
     .eq('renter_id', uid)
   if (deliveryAddressError) {
     return { ok: false, error: deliveryAddressError.message }

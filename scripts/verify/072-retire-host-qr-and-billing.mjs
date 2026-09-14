@@ -27,17 +27,12 @@ async function main() {
   })
   check('host_qr booking is refused', blocked.status >= 400,
     `HTTP ${blocked.status} ${JSON.stringify(blocked.body).slice(0, 160)}`)
-  // ⚠️ EXPECTED TO FAIL, on purpose — do not delete this check to get a green
-  // run. The refusal above is real and correct: the block_host_qr_bookings
-  // trigger does fire and the booking is not created. But create_booking
-  // itself still has a dead branch (pre-072) that reads a now-dropped
-  // profiles column when p_payment_method = 'host_qr', and that branch runs
-  // BEFORE the trigger gets a chance to raise its friendly message — so the
-  // caller actually sees a raw Postgres 42703 (undefined_column) error, not
-  // "Please pay with QR Ph instead." The next phase (rewriting
-  // create_booking to remove the dead host_qr branch entirely) is what fixes
-  // this; until then this assertion documents the known gap rather than
-  // hiding it.
+  // This check failed until migration 078. create_booking used to carry a dead
+  // host_qr branch that read profiles.qr_payment_url (dropped by 072) BEFORE
+  // the block_host_qr_bookings trigger could raise, so callers saw a raw
+  // Postgres 42703 instead of the trigger's message. 078's create_booking
+  // rewrite deleted that branch, so the trigger's "Please pay with QR Ph."
+  // now surfaces and this passes. It should stay green.
   check('refusal names the replacement method',
     JSON.stringify(blocked.body).includes('QR Ph'))
 
