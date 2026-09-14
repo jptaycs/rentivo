@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { DollarSign, TrendingUp, Clock, Download } from 'lucide-react'
 import { useHostBookings } from '@/hooks/useBookings'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
@@ -172,11 +173,11 @@ export default function EarningsPage() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold text-[#111827]">Payout Account</h2>
-              <a href="/dashboard/payouts" className="text-xs font-semibold text-[#003049] hover:underline">Manage</a>
+              <Link href="/dashboard/payouts" className="text-xs font-semibold text-[#003049] hover:underline">Manage</Link>
             </div>
             <p className="text-xs text-gray-400">
               Payouts are processed within 2–3 business days after a rental is completed. Configure your payout method in{' '}
-              <a href="/dashboard/payouts" className="text-[#003049] hover:underline">Payout Settings</a>.
+              <Link href="/dashboard/payouts" className="text-[#003049] hover:underline">Payout Settings</Link>.
             </p>
           </div>
 

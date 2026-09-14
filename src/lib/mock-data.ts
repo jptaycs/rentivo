@@ -1,4 +1,4 @@
-import type { Listing } from '@/types'
+import type { Listing, PayoutRequest } from '@/types'
 
 // delivery_fee mirrors the schema's three states (038) so the delivery
 // checkout path is exercisable in mock mode: null = pickup only (the tile is
@@ -460,5 +460,46 @@ export const MOCK_BUNDLES = [
     items: ['Fujifilm X100VI', 'ND Filter Set', 'Gorilla Pod', 'Memory Cards'],
     daily_price: 2200,
     image: 'https://images.unsplash.com/photo-1692895591954-451050db22fd?w=800&q=80',
+  },
+]
+
+// One issued payout statement, for mock mode (no Supabase configured) so
+// /dashboard/payouts and /dashboard/payouts/[id] both render. Carries the
+// migration 082 snapshot columns, since the statement document reads only
+// those and never joins back to bookings or listings.
+export const MOCK_PAYOUT_REQUESTS: PayoutRequest[] = [
+  {
+    id: 'mock-statement-1',
+    host_id: 'mock',
+    payout_account_id: 'p1',
+    amount: 12400,
+    status: 'paid',
+    reference: 'GC-2026-0001',
+    notes: null,
+    requested_at: '2026-08-01T02:00:00Z',
+    processed_at: '2026-08-02T02:00:00Z',
+    statement_number: 'PS-2026-000001',
+    account_method: 'GCash',
+    account_name: 'Juan P. Tayco',
+    account_number: '09171234567',
+    transferred_on: '2026-08-02',
+    reversed_at: null,
+    reversal_reason: null,
+    statement_emailed_at: '2026-08-02T02:05:00Z',
+    items: [
+      {
+        payout_request_id: 'mock-statement-1',
+        booking_id: 'mock-booking-1',
+        amount: 12400,
+        booking_ref: 'RNT-MOCK01',
+        listing_title: 'Sony A7 IV Full-Frame Mirrorless Camera',
+        pickup_date: '2026-07-20',
+        return_date: '2026-07-24',
+        rental_fee: 12000,
+        delivery_fee: 400,
+        service_fee: 600,
+        service_fee_bps: 500,
+      },
+    ],
   },
 ]

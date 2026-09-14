@@ -156,10 +156,24 @@ export interface PayoutAccount {
   reviewed_at: string | null
 }
 
+// A payout statement is a document, so every per-booking figure below is a
+// SNAPSHOT taken when the draft was prepared (migration 082) — not a live join
+// to bookings/listings. Renaming a listing must never change an already-issued
+// statement, which is the whole reason these columns exist.
 export interface PayoutItem {
   payout_request_id: string
   booking_id: string
   amount: number
+  booking_ref: string
+  listing_title: string
+  pickup_date: string
+  return_date: string
+  rental_fee: number
+  delivery_fee: number
+  service_fee: number
+  /** The rate the booking was charged at. Null for bookings that predate
+   *  migration 081's per-booking stamp — the statement then shows no rate. */
+  service_fee_bps: number | null
 }
 
 export interface PayoutRequest {
@@ -167,11 +181,25 @@ export interface PayoutRequest {
   host_id: string
   payout_account_id: string
   amount: number
+  /** `pending` = draft, `paid` + statement_number = issued,
+   *  `failed` + reversed_at = reversed (number kept),
+   *  `failed` without reversed_at = a cancelled draft the host never saw. */
   status: 'pending' | 'paid' | 'failed'
   reference: string | null
   notes: string | null
   requested_at: string
   processed_at: string | null
+  /** `PS-YYYY-NNNNNN`, gapless per Manila calendar year. Null until issued. */
+  statement_number: string | null
+  // The payout account as it stood when the draft was prepared — replacing the
+  // account later must not rewrite where a past statement says money went.
+  account_method: PayoutAccount['method'] | null
+  account_name: string | null
+  account_number: string | null
+  transferred_on: string | null
+  reversed_at: string | null
+  reversal_reason: string | null
+  statement_emailed_at: string | null
   items?: PayoutItem[]
 }
 

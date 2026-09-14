@@ -1,10 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Landmark, Plus, CheckCircle2, Clock, AlertCircle, XCircle } from 'lucide-react'
+import Link from 'next/link'
+import { Landmark, Plus, CheckCircle2, Clock, AlertCircle, XCircle, ChevronRight } from 'lucide-react'
 import { usePayoutAccount } from '@/hooks/usePayoutAccount'
 import { usePayoutRequests } from '@/hooks/usePayoutRequests'
+import { usePayoutBalance } from '@/hooks/usePayoutBalance'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { MOCK_PAYOUT_REQUESTS } from '@/lib/mock-data'
 import { SummaryCardSkeleton, DashboardRowsSkeleton } from '@/components/shared/Skeletons'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { PayoutAccount } from '@/types'
@@ -19,13 +22,19 @@ const MOCK_ACCOUNT: PayoutAccount = {
   created_at: '2026-06-01', reviewed_at: '2026-06-02',
 }
 
-const MOCK_BALANCE = 32250
+const MOCK_BALANCE = { bookings: 3, amount: 32250 }
 
 function mask(number: string) {
   return `•••• ${number.slice(-4)}`
 }
 
 const fmt = (n: number) => `₱${n.toLocaleString('en-PH')}`
+
+function historyDate(value: string) {
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value)
+  const d = dateOnly ? new Date(`${value}T00:00:00`) : new Date(value)
+  return d.toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })
+}
 
 function StatusPill({ status }: { status: PayoutAccount['status'] }) {
   if (status === 'verified') {
@@ -52,20 +61,27 @@ function StatusPill({ status }: { status: PayoutAccount['status'] }) {
 export default function PayoutsPage() {
   const live = isSupabaseConfigured()
   const { account, loading: accountLoading, setPayoutAccount } = usePayoutAccount()
-  const { requests, loading: requestsLoading, availableBalance, hasPendingRequest, requestPayout } = usePayoutRequests()
+  const { requests, loading: requestsLoading } = usePayoutRequests()
+  const { bookings: balanceBookings, amount: balanceAmount, loading: balanceLoading, error: balanceError } =
+    usePayoutBalance()
 
   const [formOpen, setFormOpen] = useState(false)
   const [method, setMethod] = useState<PayoutAccount['method'] | ''>('')
   const [number, setNumber] = useState('')
   const [name, setName] = useState('')
   const [accountError, setAccountError] = useState<string | null>(null)
-  const [payoutError, setPayoutError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const displayAccount = live ? account : MOCK_ACCOUNT
-  const displayBalance = live ? availableBalance : MOCK_BALANCE
-  const displayRequests = live ? requests : []
-  const loading = live && (accountLoading || requestsLoading)
+  const displayBalance = live
+    ? { bookings: balanceBookings, amount: balanceAmount }
+    : MOCK_BALANCE
+  // A cancelled draft (failed, never reversed) is hidden: the host was never
+  // told it existed and never received anything for it.
+  const displayRequests = (live ? requests : MOCK_PAYOUT_REQUESTS).filter(
+    (r) => !(r.status === 'failed' && !r.reversed_at)
+  )
+  const loading = live && (accountLoading || requestsLoading || balanceLoading)
 
   async function handleAdd() {
     if (!method || !number || !name) return
@@ -83,15 +99,6 @@ export default function PayoutsPage() {
     setName('')
   }
 
-  async function handleRequestPayout() {
-    setPayoutError(null)
-    const err = await requestPayout()
-    if (err) setPayoutError(err)
-  }
-
-  const canRequestPayout =
-    live && !hasPendingRequest && displayAccount?.status === 'verified' && displayBalance > 0
-
   return (
     <div className="max-w-2xl mx-auto space-y-8">
       <div>
@@ -107,25 +114,28 @@ export default function PayoutsPage() {
         </div>
       ) : (
         <>
-          {/* Payout balance */}
+          {/* Owed to you. Payouts are admin-issued — there is deliberately no
+              button here: a host doesn't ask for one. */}
           <div className="bg-gradient-to-br from-[#003049] to-blue-700 rounded-2xl p-6 text-white">
-            <p className="text-sm font-medium opacity-80">Available for payout</p>
-            <p className="text-4xl font-bold mt-1">{fmt(displayBalance)}</p>
-            <p className="text-sm opacity-70 mt-1">Processes within 1–2 business days</p>
-            {live && hasPendingRequest ? (
-              <p className="mt-4 text-sm font-semibold bg-white/10 inline-block px-4 py-2 rounded-xl">
-                Payout requested — processing
-              </p>
+            <p className="text-sm font-medium opacity-80">Owed to you</p>
+            {balanceError && live ? (
+              <>
+                <p className="text-2xl font-bold mt-1">Couldn&apos;t load your balance</p>
+                <p className="text-sm opacity-80 mt-1">{balanceError}</p>
+              </>
             ) : (
-              <button
-                onClick={handleRequestPayout}
-                disabled={!canRequestPayout}
-                className="mt-4 bg-white text-[#003049] font-bold text-sm px-5 py-2.5 rounded-xl hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Request Payout
-              </button>
+              <>
+                <p className="text-4xl font-bold mt-1">{fmt(displayBalance.amount)}</p>
+                <p className="text-sm opacity-70 mt-1">
+                  {displayBalance.bookings === 1
+                    ? 'From 1 completed rental'
+                    : `From ${displayBalance.bookings} completed rentals`}
+                </p>
+              </>
             )}
-            {payoutError && <p className="mt-2 text-sm text-red-100">{payoutError}</p>}
+            <p className="mt-4 text-sm opacity-80">
+              Rentivo pays out completed rentals to your verified account — you don&apos;t need to request it.
+            </p>
           </div>
 
           {/* Payout account */}
@@ -207,38 +217,80 @@ export default function PayoutsPage() {
 
           {/* Payout history */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            <p className="font-bold text-[#111827] mb-4">Payout History</p>
-            {live && displayRequests.length === 0 ? (
+            <p className="font-bold text-[#111827] mb-4">Payout Statements</p>
+            {displayRequests.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-6">No payouts yet.</p>
             ) : (
               <div className="space-y-3">
-                {displayRequests.map(req => (
-                  <div key={req.id} className="flex items-center gap-4 py-3 border-b border-gray-50 last:border-0">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                      req.status === 'paid' ? 'bg-green-50' : req.status === 'failed' ? 'bg-red-50' : 'bg-yellow-50'
-                    }`}>
-                      {req.status === 'paid' ? (
-                        <CheckCircle2 className="w-4 h-4 text-[#22C55E]" />
-                      ) : req.status === 'failed' ? (
-                        <XCircle className="w-4 h-4 text-red-500" />
-                      ) : (
-                        <Clock className="w-4 h-4 text-yellow-600" />
-                      )}
+                {displayRequests.map(req => {
+                  const reversed = req.status === 'failed' && Boolean(req.reversed_at)
+                  const draft = req.status === 'pending'
+
+                  const row = (
+                    <>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                        reversed ? 'bg-red-50' : draft ? 'bg-yellow-50' : 'bg-green-50'
+                      }`}>
+                        {reversed ? (
+                          <XCircle className="w-4 h-4 text-red-500" />
+                        ) : draft ? (
+                          <Clock className="w-4 h-4 text-yellow-600" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4 text-[#22C55E]" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        {draft ? (
+                          <>
+                            <p className="text-sm font-semibold text-[#111827]">
+                              Being prepared — {fmt(req.amount)}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              We&apos;ll send you a statement once the transfer is made.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-semibold text-[#111827] flex items-center gap-2 flex-wrap">
+                              <span className="tracking-wider">{req.statement_number}</span>
+                              <span className="text-gray-400 font-normal">·</span>
+                              <span>{fmt(req.amount)}</span>
+                              {reversed && (
+                                <span className="text-[11px] font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                                  Reversed
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {req.transferred_on ? historyDate(req.transferred_on) : historyDate(req.requested_at)}
+                              {req.reference ? ` · ${req.reference}` : ''}
+                            </p>
+                            {reversed && req.reversal_reason && (
+                              <p className="text-xs text-red-600 mt-0.5">{req.reversal_reason}</p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {!draft && <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />}
+                    </>
+                  )
+
+                  // A draft has no statement number, so there is no document to
+                  // open yet — it isn't a link.
+                  return draft ? (
+                    <div key={req.id} className="flex items-center gap-4 py-3 border-b border-gray-50 last:border-0">
+                      {row}
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-[#111827]">{fmt(req.amount)}</p>
-                      <p className="text-xs text-gray-400">
-                        {new Date(req.requested_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })}
-                        {req.reference ? ` · ${req.reference}` : ''}
-                      </p>
-                    </div>
-                    <span className={`text-xs font-semibold ${
-                      req.status === 'paid' ? 'text-green-600' : req.status === 'failed' ? 'text-red-500' : 'text-yellow-600'
-                    }`}>
-                      {req.status === 'paid' ? 'Completed' : req.status === 'failed' ? 'Failed' : 'Processing'}
-                    </span>
-                  </div>
-                ))}
+                  ) : (
+                    <Link
+                      key={req.id}
+                      href={`/dashboard/payouts/${req.id}`}
+                      className="flex items-center gap-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50/70 -mx-2 px-2 rounded-xl transition-colors"
+                    >
+                      {row}
+                    </Link>
+                  )
+                })}
               </div>
             )}
           </div>
