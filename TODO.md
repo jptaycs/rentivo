@@ -65,6 +65,33 @@ Their full entries, with the reasoning, are in the archive further down.
   deleted, caller not allowed) now reads "Photo unavailable" instead of a loading
   placeholder that never resolved.
 
+- [x] **Skeleton loading states — done 2026-09-14.** Asked for as "add a loading modal every
+  click when its loading and button effects when its clicked and skeleton loading"; the top
+  progress bar and press effect shipped on 2026-09-13, and `src/components/shared/Skeletons.tsx`
+  was written then but **wired into nothing** until now. Route-level `loading.tsx` for home,
+  search, listing detail, host profile, `/book` and every `/dashboard/*` route, plus a
+  shape-accurate skeleton in place of the full-page spinner on all 16 client dashboard pages
+  and `/wishlist`. **Action spinners were deliberately left alone** (Save, Submit, avatar
+  upload) — those are click feedback, not page loading, and replacing them would say the page
+  is loading when it isn't.
+  **Two things worth keeping:** (1) `loading.tsx` is a boundary for its whole segment, not just
+  its own page, so the home skeleton sitting in `(main)/loading.tsx` was also the fallback for
+  every route in the group without one — a dashboard route rendered a home hero band and
+  listing grid for a beat (measured: 6219px of home-shaped skeleton against a 1599px dashboard
+  page). Fixed by moving the home page and its skeleton into a `(main)/(home)/` route group
+  (groups don't change the URL) and adding `(main)/dashboard/loading.tsx`. Don't move the home
+  one back up a level. (2) `animate-pulse` is not reduced-motion-aware on its own; `globals.css`
+  freezes it under `prefers-reduced-motion`.
+  Verified on a production build at 390×844 with throttled requests, driving the **real login
+  form** as both demo accounts (`scripts/verify/skeleton-loading.mjs`, `SKEL_BASE` to retarget):
+  a skeleton renders on all nine checked pages, every dashboard route shows the dashboard shape
+  with its sidebar and no hero, and no page overflows horizontally at 390px. **The dashboard
+  layout-shift numbers in that script are uninformative** — `/dashboard/*` scrolls inside its own
+  container, so `body.scrollHeight` is a constant 1599 whether loading or loaded; the shape check
+  (sidebar present, hero absent) is what proves those pages, not the height.
+  Public pages were re-checked on `rentivo.live` after deploy; the dashboard pages were verified
+  on the identical local production build, not on production.
+
 - [x] **Security audit 2 (2026-09-14), database side — done by migration 077.** Two HIGH
   findings, both proven exploitable live: any reviewer could attach a review to *any* listing
   (and hosts could "complete" unpaid bookings to manufacture reviewable ones), and a host could
