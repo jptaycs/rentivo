@@ -6,7 +6,7 @@
 // confirms no horizontal overflow at 390px.
 import { chromium } from 'playwright'
 
-const BASE = 'http://localhost:3102'
+const BASE = process.env.SKEL_BASE || 'http://localhost:3102'
 const results = []
 
 function log(line) {
