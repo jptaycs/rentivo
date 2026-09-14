@@ -52,9 +52,9 @@ export async function POST(req: Request) {
     p_admin_email: gate.email,
   })
   if (error) {
-    // Postgres prefixes a raise with its own context ("...: <message>"); show
-    // the RPC's sentence, which is written to be read by the admin.
-    return NextResponse.json({ error: error.message.replace(/^.*?: /, '') }, { status: 400 })
+    // PostgREST returns a raise's text as-is (no "...: " prefix), and the RPC's
+    // sentence is written to be read by the admin — pass it through untouched.
+    return NextResponse.json({ error: error.message }, { status: 400 })
   }
   const row = Array.isArray(data) ? data[0] : data
   return NextResponse.json(row)

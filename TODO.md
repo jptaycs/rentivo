@@ -105,20 +105,23 @@ Their full entries, with the reasoning, are in the archive further down.
     line** on both the statement and the email, which can read as if delivery fees are part
     of the fee. Spec §8 prescribes that order; consider moving it or relabelling it
     "Includes delivery fees".
-  - **`error.message.replace(/^.*?: /, '')`** still strips real text in
-    `src/app/api/payments/checkout/route.ts`, `src/app/api/bookings/[id]/respond/route.ts`
-    and `src/app/api/admin/settings/service-fee/route.ts` (removed from the payout routes).
-    PostgREST returns `raise` text without a prefix, so any message containing `": "` loses
-    its start. Check what each route's messages look like before removing it there.
+  - **[done 2026-09-15]** **`error.message.replace(/^.*?: /, '')`** removed from the checkout,
+    booking-respond and service-fee routes too. Checked live first: PostgREST returns a raise's
+    text with no prefix (`create_booking` → "Listing not found or no longer available.",
+    `set_service_fee_bps` no-op → its full sentence), so the regex only ever damaged messages
+    containing `": "`. After, on a production build: all three routes return the full
+    sentence, and respond with a non-UUID id returns `invalid input syntax for type uuid:
+    "not-a-uuid"` where it used to return just `"not-a-uuid"`.
 
-- [ ] **Two old verification scripts still call the dropped `request_payout()`** —
-  `scripts/verify/020-mark-payout-failed.mjs` and
-  `scripts/verify/077-booking-lifecycle-and-insert-hardening.mjs` (its MEDIUM-3
-  early-payout section). Those checks could not pass once 082 stubbed the function (not re-run to
-  confirm), and now hit not-found. Their subject (a failed payout releasing its bookings; no payout
-  before `return_date`) is covered by `082-payout-statements.mjs`'s cancel/reverse and
-  eligibility checks. Either delete those sections or rewrite them against
-  `payouts_owed()`/the lifecycle RPCs; don't restore the functions.
+- [x] **Two old verification scripts still called the dropped `request_payout()`** — done
+  2026-09-15. `scripts/verify/020-mark-payout-failed.mjs` is **deleted**: everything it tested
+  (`mark_payout_failed`, `/api/admin/payout-requests/[id]/failed`) no longer exists, and
+  cancel/reverse releasing bookings is covered by `082-payout-statements.mjs` and
+  `C4-admin-payout-statements.mjs` (git history keeps the old script). `077-…`'s MEDIUM-3
+  section is **rewritten**, not dropped, because its rule still exists: a completed-but-not-
+  returned booking must not be payable. It now reads the host's own `my_payout_balance()` —
+  0 bookings / ₱0 while the only completed booking hasn't reached its return date, then
+  exactly 1 booking / its rental + delivery fee once one has. Full 077 run: all checks pass.
 
 - [x] **`message-images` is a PUBLIC storage bucket — private DM attachments are
   anonymously fetchable by URL, forever.** Found by the 2026-09-13 security audit

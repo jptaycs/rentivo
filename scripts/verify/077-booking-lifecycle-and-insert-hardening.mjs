@@ -174,7 +174,12 @@ try {
     check('REFUSED: →completed before the return date', raised(comp, 'cannot be completed before its return date'), msg(comp))
   }
 
-  // ════ MEDIUM-3: request_payout excludes a not-yet-returned booking ═══════
+  // ════ MEDIUM-3: a not-yet-returned booking is not payable ═════════════════
+  // Rewritten 2026-09-15: this section called request_payout(), which migration
+  // 083 dropped (hosts no longer request payouts; admins issue statements). The
+  // rule it guards — no payout before return_date (077) — now lives in
+  // payout_eligible_bookings (082), which the host reads through
+  // my_payout_balance(). Same two cases, same real host session.
   const acct = await admin('payout_accounts', {
     method: 'POST',
     body: JSON.stringify({ user_id: H.id, method: 'GCash', account_number: '09000000077', account_name: 'Probe 077', status: 'verified' }),
@@ -186,19 +191,21 @@ try {
   // completed + paid, with the return date still in the future.
   await adminPatchBooking(B14.id, { status: 'completed' })
   {
-    const r = await rpc(H.token, 'request_payout', {})
-    check('REFUSED: request_payout with only a completed-but-not-returned booking', raised(r, 'No available balance'), msg(r))
+    const r = await rpc(H.token, 'my_payout_balance', {})
+    const bal = Array.isArray(r.body) ? r.body[0] : r.body
+    check('REFUSED: a completed-but-not-returned booking is not in the host\'s payable balance',
+      ok(r) && bal?.bookings === 0 && bal?.amount === 0, msg(r))
   }
   // Now let B2's return day arrive and complete it for real.
   await adminPatchBooking(B2.id, { pickup_date: addDays(manilaToday, -3), return_date: manilaToday })
   {
     const comp = await setStatus(H, B2.id, 'completed')
     check('CONTROL: →completed on the return date', ok(comp) && comp.body[0]?.status === 'completed', msg(comp))
-    const r = await rpc(H.token, 'request_payout', {})
-    const { body: items } = ok(r) ? await admin(`payout_items?select=booking_id&payout_request_id=eq.${r.body.id}`) : { body: [] }
-    const ids = items.map((i) => i.booking_id)
-    check('CONTROL: request_payout pays the returned booking', ok(r) && ids.includes(B2.id) && Number(r.body.amount) === B2.rental_fee + B2.delivery_fee, msg(r))
-    check('  … and does not include the not-yet-returned booking', !ids.includes(B14.id), JSON.stringify(ids))
+    const r = await rpc(H.token, 'my_payout_balance', {})
+    const bal = Array.isArray(r.body) ? r.body[0] : r.body
+    check('CONTROL: the returned booking is payable — balance is exactly its rental + delivery fee',
+      ok(r) && bal?.bookings === 1 && bal?.amount === B2.rental_fee + B2.delivery_fee, msg(r))
+    check('  … and the not-yet-returned booking is still not counted (1 booking, not 2)', bal?.bookings === 1, msg(r))
   }
 
   // ════ HIGH-1: fake reviews ════════════════════════════════════════════════

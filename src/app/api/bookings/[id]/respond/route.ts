@@ -45,7 +45,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message.replace(/^.*?: /, '') }, { status: 400 })
+    return NextResponse.json({ error: error.message }, { status: 400 })
   }
 
   if (body.status === 'cancelled') {
