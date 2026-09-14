@@ -29,6 +29,20 @@ const CONDITIONS = [
   { value: 'fair', label: 'Fair', desc: 'Visible wear, works well' },
 ]
 
+// The database only enforces `>= 0` (078's `check`) plus an integer column —
+// a host typing `-5` or `1.5` into either delivery field would otherwise
+// clear this page's own checks (which only caught the upper bound) and hit
+// a raw Postgres error at save time instead of a readable message here.
+// Mirrors the security-deposit `< 0` guard just below, extended to require
+// a whole number too.
+function deliveryFieldError(value: string, max: number, label: string): string | null {
+  if (value === '') return null
+  const n = Number(value)
+  if (!Number.isInteger(n) || n < 0) return `${label} must be a whole number of ₱0 or more.`
+  if (n > max) return `${label} must be ₱${max.toLocaleString()} or less.`
+  return null
+}
+
 export default function EditListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
@@ -139,10 +153,18 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
   async function handleSave() {
     setError('')
     if (!title.trim()) return setError('Title is required.')
-    if (Number(dailyPrice) < 100) return setError('Daily rate must be at least ₱100.')
+    // No minimum beyond > 0 — a host prices their own gear. Matches the
+    // wizard's Step3Pricing exactly: listings.daily_price carries a
+    // `check (daily_price > 0)` constraint, so 0 (or less) would just move
+    // the failure from this form to the database.
+    if (!(Number(dailyPrice) > 0)) return setError('Enter a daily rate above ₱0.')
     if (Number(deposit) < 0) return setError('Security deposit cannot be negative.')
-    if (deliveryFee !== '' && Number(deliveryFee) > 100000) return setError('Delivery base fee must be ₱100,000 or less.')
-    if (deliveryFeePerKm !== '' && Number(deliveryFeePerKm) > 10000) return setError('Per-kilometre rate must be ₱10,000 or less.')
+    const feeErr = deliveryFieldError(deliveryFee, 100000, 'Delivery base fee')
+    if (feeErr) return setError(feeErr)
+    if (deliveryFee !== '') {
+      const perKmErr = deliveryFieldError(deliveryFeePerKm, 10000, 'Per-kilometre rate')
+      if (perKmErr) return setError(perKmErr)
+    }
 
     setSaving(true)
     const supabase = createClient()
@@ -413,8 +435,8 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
               Leave this blank if you only do pickup — renters won&apos;t see a delivery option.
               Enter 0 to offer free delivery. This is added to the renter&apos;s total and paid to you in full.
             </p>
-            {deliveryFee !== '' && Number(deliveryFee) > 100000 && (
-              <p className="text-xs text-red-500 mt-1">Enter a delivery base fee of ₱100,000 or less</p>
+            {deliveryFieldError(deliveryFee, 100000, 'Delivery base fee') && (
+              <p className="text-xs text-red-500 mt-1">{deliveryFieldError(deliveryFee, 100000, 'Delivery base fee')}</p>
             )}
           </div>
 
@@ -441,8 +463,8 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
                   Set your exact pickup point on the map below first — distance-based delivery needs it to measure how far the renter is.
                 </p>
               )}
-              {pinPlaced && deliveryFeePerKm !== '' && Number(deliveryFeePerKm) > 10000 && (
-                <p className="text-xs text-red-500 mt-1">Enter a per-kilometre rate of ₱10,000 or less</p>
+              {pinPlaced && deliveryFieldError(deliveryFeePerKm, 10000, 'Per-kilometre rate') && (
+                <p className="text-xs text-red-500 mt-1">{deliveryFieldError(deliveryFeePerKm, 10000, 'Per-kilometre rate')}</p>
               )}
             </div>
           )}
