@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Save, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { SERVICE_FEE_RATE } from '@/lib/pricing'
+import { formatFeeRate, serviceFeeFor } from '@/lib/pricing'
+import { useServiceFeeBps } from '@/hooks/useServiceFeeBps'
 import { LISTING_COLUMNS } from '@/lib/listing-columns'
 import { LocationPicker } from '@/components/host/LocationPicker'
 import { deleteOrDeactivateListing, LISTING_KEPT_MESSAGE } from '@/hooks/useMyListings'
@@ -48,6 +49,7 @@ function deliveryFieldError(value: string, max: number, label: string): string |
 export default function EditListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const { bps: serviceFeeBps } = useServiceFeeBps()
 
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -427,9 +429,12 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
 
-          {dailyPrice && (
+          {/* 080/081: the rate is admin-settable and read live. A failed read
+              (bps === null) hides this host-facing line entirely rather than
+              quoting a percentage that may no longer be the one in force. */}
+          {dailyPrice && serviceFeeBps != null && (
             <div className="bg-[#F8FAFC] rounded-xl p-4 text-sm text-gray-600 border border-gray-100">
-              You earn <strong className="text-[#22C55E]">₱{Math.round(Number(dailyPrice) * (1 - SERVICE_FEE_RATE)).toLocaleString()}</strong> per day after the {Math.round(SERVICE_FEE_RATE * 100)}% Rentivo service fee.
+              You earn <strong className="text-[#22C55E]">₱{(Number(dailyPrice) - serviceFeeFor(Number(dailyPrice), serviceFeeBps)).toLocaleString()}</strong> per day after the {formatFeeRate(serviceFeeBps)} Rentivo service fee.
             </div>
           )}
 

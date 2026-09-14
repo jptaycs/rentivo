@@ -19,9 +19,11 @@ interface BookingWizardProps {
   pickupDate: string
   returnDate: string
   days: number
+  /** The live platform service-fee rate, read on the server (080/081). */
+  serviceFeeBps: number
 }
 
-export function BookingWizard({ listing, pickupDate, returnDate, days }: BookingWizardProps) {
+export function BookingWizard({ listing, pickupDate, returnDate, days, serviceFeeBps }: BookingWizardProps) {
   const [step, setStep] = useState(0)
   const [isDelivery, setIsDelivery] = useState(false)
   const [deliveryAddress, setDeliveryAddress] = useState('')
@@ -77,6 +79,7 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
   const quotedTotal = calcPricing(
     listing,
     days,
+    serviceFeeBps,
     isDelivery,
     perKmDelivery && !quote.loading ? quote.fee : null
   ).total
@@ -296,6 +299,7 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
                 <Step3Payment
                   listing={listing}
                   days={days}
+                  serviceFeeBps={serviceFeeBps}
                   isDelivery={isDelivery}
                   totalOverride={displayTotal}
                   onNext={handlePaymentComplete}
@@ -318,6 +322,7 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
                 pickupDate={pickupDate}
                 returnDate={returnDate}
                 days={days}
+                serviceFeeBps={serviceFeeBps}
                 isDelivery={step >= 1 ? isDelivery : undefined}
                 deliveryQuote={perKmDelivery ? quote : undefined}
                 stored={step >= 1 ? reusableBooking : null}

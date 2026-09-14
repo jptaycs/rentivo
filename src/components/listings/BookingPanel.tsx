@@ -5,16 +5,18 @@ import { useRouter } from 'next/navigation'
 import { Zap, Star, Shield, AlertCircle, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
-import { calcPricing } from '@/lib/pricing'
+import { calcPricing, formatFeeRate } from '@/lib/pricing'
 import { useListingAvailability } from '@/hooks/useListingAvailability'
 import { AvailabilityCalendar } from './AvailabilityCalendar'
 import type { Listing } from '@/types'
 
 interface BookingPanelProps {
   listing: Listing
+  /** The live platform service-fee rate, read on the server (080/081). */
+  serviceFeeBps: number
 }
 
-export function BookingPanel({ listing }: BookingPanelProps) {
+export function BookingPanel({ listing, serviceFeeBps }: BookingPanelProps) {
   const router = useRouter()
   const [pickupDate, setPickupDate] = useState('')
   const [returnDate, setReturnDate] = useState('')
@@ -53,7 +55,7 @@ export function BookingPanel({ listing }: BookingPanelProps) {
       )
     : 0
 
-  const { rentalFee, tier, serviceFee, total } = calcPricing(listing, days)
+  const { rentalFee, tier, serviceFee, total } = calcPricing(listing, days, serviceFeeBps)
   const effectiveRate = days > 0 ? Math.round(rentalFee / days) : listing.daily_price
 
   function handleBook() {
@@ -139,7 +141,7 @@ export function BookingPanel({ listing }: BookingPanelProps) {
             <span>₱{rentalFee.toLocaleString()}</span>
           </div>
           <div className="flex justify-between text-gray-600">
-            <span>Service fee</span>
+            <span>Service fee ({formatFeeRate(serviceFeeBps)})</span>
             <span>₱{serviceFee.toLocaleString()}</span>
           </div>
           <div className="flex justify-between font-bold text-[#111827] text-base border-t border-gray-200 pt-3 mt-1">

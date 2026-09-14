@@ -37,6 +37,12 @@ interface CheckoutBody {
    * priced from the stored total_amount. It only lets the route stop before
    * charging when the stored total differs (a host changed a rate between the
    * quote and the booking), so the renter sees the stored figure before paying.
+   *
+   * 080/081: a mid-checkout change to the PLATFORM service-fee rate surfaces
+   * through this same 409 `total_changed`, with no code path of its own — the
+   * booking is stamped with (and charged at) the rate in force when
+   * create_booking ran, and `amounts.service_fee_bps` carries that rate back so
+   * the summary relabels itself before the renter pays.
    */
   expectedTotal?: number | null
 }

@@ -1,5 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import { getListing } from '@/lib/listings'
+import { getServiceFeeBps } from '@/lib/service-fee'
 import { BookingWizard } from '@/components/booking/BookingWizard'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
@@ -19,6 +20,8 @@ export default async function BookPage({ searchParams }: BookPageProps) {
 
   const listing = await getListing(listingId)
   if (!listing) notFound()
+
+  const serviceFeeBps = await getServiceFeeBps()
 
   const pickupDate = from
   const returnDate = to
@@ -56,6 +59,7 @@ export default async function BookPage({ searchParams }: BookPageProps) {
         pickupDate={pickupDate}
         returnDate={returnDate}
         days={days}
+        serviceFeeBps={serviceFeeBps}
       />
     </div>
   )

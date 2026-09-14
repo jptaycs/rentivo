@@ -1,6 +1,8 @@
 'use client'
 
 import { ChevronRight, ChevronLeft, Info } from 'lucide-react'
+import { formatFeeRate, serviceFeeFor } from '@/lib/pricing'
+import { useServiceFeeBps } from '@/hooks/useServiceFeeBps'
 
 interface PricingData {
   dailyPrice: string
@@ -19,6 +21,11 @@ interface Step3PricingProps {
 }
 
 export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingProps) {
+  // 080/081: the platform rate is admin-settable and read live. `bps === null`
+  // after loading means the read failed — this is host-facing copy, so the
+  // preview then shows the daily rate alone rather than a guessed percentage.
+  const { bps: serviceFeeBps } = useServiceFeeBps()
+
   function set(key: keyof PricingData, val: string) {
     onChange({ ...data, [key]: val.replace(/\D/g, '') })
   }
@@ -30,9 +37,9 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
   const weeklySavings  = daily > 0 && weekly > 0  ? Math.round(((daily * 7  - weekly)  / (daily * 7))  * 100) : 0
   const monthlySavings = daily > 0 && monthly > 0 ? Math.round(((daily * 30 - monthly) / (daily * 30)) * 100) : 0
 
-  const serviceFee    = Math.round(daily * 0.05)
-  const renterPays    = daily + serviceFee
-  const hostReceives  = Math.round(daily * 0.95)
+  const serviceFee    = serviceFeeBps == null ? null : serviceFeeFor(daily, serviceFeeBps)
+  const renterPays    = serviceFee == null ? null : daily + serviceFee
+  const hostReceives  = serviceFee == null ? null : daily - serviceFee
 
   // Range checks beyond the database's bare `>= 0` — an unbounded number
   // typed here would overflow the fee arithmetic at checkout, not just fail
@@ -82,18 +89,24 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
               <span>Your daily rate</span>
               <span>₱{daily.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between text-gray-600">
-              <span>Rentivo service fee (5%)</span>
-              <span className="text-red-400">-₱{serviceFee.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between font-bold text-[#22C55E] border-t border-gray-200 pt-2 mt-1">
-              <span>You receive</span>
-              <span>₱{hostReceives.toLocaleString()}</span>
-            </div>
+            {serviceFeeBps != null && serviceFee != null && hostReceives != null && (
+              <>
+                <div className="flex justify-between text-gray-600">
+                  <span>Rentivo service fee ({formatFeeRate(serviceFeeBps)})</span>
+                  <span className="text-red-400">-₱{serviceFee.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between font-bold text-[#22C55E] border-t border-gray-200 pt-2 mt-1">
+                  <span>You receive</span>
+                  <span>₱{hostReceives.toLocaleString()}</span>
+                </div>
+              </>
+            )}
           </div>
-          <p className="text-xs text-gray-400 mt-3">
-            Renters pay ₱{renterPays.toLocaleString()}/day (includes service fee).
-          </p>
+          {renterPays != null && (
+            <p className="text-xs text-gray-400 mt-3">
+              Renters pay ₱{renterPays.toLocaleString()}/day (includes service fee).
+            </p>
+          )}
         </div>
       )}
 

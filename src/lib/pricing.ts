@@ -1,4 +1,30 @@
-export const SERVICE_FEE_RATE = 0.05
+/**
+ * Mock mode only. Live pages read the rate from the database
+ * (getServiceFeeBps / useServiceFeeBps); this is what renders when no Supabase
+ * is configured, and the fallback when a live read fails (see
+ * src/lib/service-fee.ts for why falling back beats an error boundary).
+ */
+export const DEFAULT_SERVICE_FEE_BPS = 500
+
+/**
+ * Exactly Postgres `round(rental * (bps / 10000.0))` as create_booking (081)
+ * evaluates it. bps/10000.0 is exact in numeric (a power-of-ten denominator),
+ * and numeric round is half away from zero, so for non-negative integers
+ * round(r*b/10000) = floor((r*b + 5000)/10000). Integer arithmetic throughout:
+ * r*b tops out around 2e9 for any plausible rental at the 2000 bps cap, well
+ * inside Number.MAX_SAFE_INTEGER, so no float rounding can creep in.
+ *
+ * Proven against Postgres over a grid including every tie by
+ * scripts/verify/081-service-fee-client-parity.mjs — not asserted here.
+ */
+export function serviceFeeFor(rental: number, bps: number): number {
+  return Math.floor((rental * bps + 5000) / 10000)
+}
+
+/** 500 -> "5%", 750 -> "7.5%", 1225 -> "12.25%", 0 -> "0%". */
+export function formatFeeRate(bps: number): string {
+  return `${(bps / 100).toFixed(2).replace(/\.?0+$/, '')}%`
+}
 
 export interface PricedListing {
   daily_price: number
@@ -62,15 +88,26 @@ export function calcRentalFee(listing: PricedListing, days: number): { rentalFee
  * client arithmetic. Distance is measured from coordinates the client cannot
  * see, by the same function create_booking charges with. Without an override
  * the base `delivery_fee` is used, which is the whole fee for a flat-rate listing.
+ *
+ * 080/081: the service-fee rate is set by the admin and read live — from
+ * `getServiceFeeBps()` on the server, `useServiceFeeBps()` in a client
+ * component — never from a constant here. `serviceFeeBps` is a REQUIRED third
+ * positional parameter (before the boolean) so a stale call site is a type
+ * error rather than a silently wrong number. The figure this returns is a
+ * DISPLAY: create_booking computes the real fee server-side at the rate in
+ * force when the booking is created, and the checkout route's 409
+ * `total_changed` is the backstop that stops a mismatched charge when the rate
+ * moves mid-checkout.
  */
 export function calcPricing(
   listing: PricedListing,
   days: number,
+  serviceFeeBps: number,
   isDelivery = false,
   deliveryFeeOverride: number | null = null
 ) {
   const { rentalFee, tier } = calcRentalFee(listing, days)
-  const serviceFee = Math.round(rentalFee * SERVICE_FEE_RATE)
+  const serviceFee = serviceFeeFor(rentalFee, serviceFeeBps)
   const deliveryFee = isDelivery ? (deliveryFeeOverride ?? listing.delivery_fee ?? 0) : 0
   const total = rentalFee + serviceFee + deliveryFee
   return { rentalFee, tier, serviceFee, deliveryFee, total }
@@ -88,6 +125,11 @@ export interface StoredBookingAmounts {
   id: string
   rental_fee: number
   service_fee: number
+  /**
+   * 081: the rate this booking's service fee was actually computed at. null for
+   * a pre-080 booking, whose fee is ambiguous between the old 5% and 12% rates.
+   */
+  service_fee_bps: number | null
   delivery_fee: number
   delivery_distance_km: number | null
   total_amount: number
@@ -101,6 +143,7 @@ export function storedBookingAmounts(b: StoredBookingAmounts): StoredBookingAmou
     id: b.id,
     rental_fee: b.rental_fee,
     service_fee: b.service_fee,
+    service_fee_bps: b.service_fee_bps == null ? null : Number(b.service_fee_bps),
     delivery_fee: b.delivery_fee,
     delivery_distance_km: b.delivery_distance_km == null ? null : Number(b.delivery_distance_km),
     total_amount: b.total_amount,

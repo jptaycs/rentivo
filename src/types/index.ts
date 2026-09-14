@@ -80,6 +80,8 @@ export interface Booking {
   rental_fee: number
   security_deposit: number
   service_fee: number
+  /** 081: the service-fee rate in basis points this booking was charged at. null for a pre-080 booking whose fee is ambiguous between 5% and 12%. */
+  service_fee_bps: number | null
   protection_fee: number
   delivery_fee: number
   total_amount: number

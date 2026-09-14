@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { CheckCircle2, Download, MessageCircle, Calendar, MapPin, Clock } from 'lucide-react'
+import { formatFeeRate } from '@/lib/pricing'
 import type { Listing, Booking } from '@/types'
 
 interface Step4ConfirmationProps {
@@ -141,7 +142,13 @@ export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) 
             </div>
           )}
           <div className="flex justify-between text-gray-600">
-            <span>Service fee</span>
+            {/* 081: the rate STAMPED on this booking, never the live one — a
+                receipt must show the rate that was actually charged. A pre-080
+                booking has none, and renders a bare "Service fee". */}
+            <span>
+              Service fee
+              {booking.service_fee_bps != null ? ` (${formatFeeRate(booking.service_fee_bps)})` : ''}
+            </span>
             <span>₱{booking.service_fee.toLocaleString()}</span>
           </div>
           {booking.protection_fee > 0 && (

@@ -3,6 +3,7 @@ import { getListing, getListingReviews } from '@/lib/listings'
 import { getHostSince } from '@/lib/hosts'
 import { formatHostingSince, formatHostingDuration } from '@/lib/hosting'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
+import { getServiceFeeBps } from '@/lib/service-fee'
 import { ViewTracker } from '@/components/listings/ViewTracker'
 import { PhotoGallery } from '@/components/listings/PhotoGallery'
 import { PickupMap } from '@/components/listings/PickupMap'
@@ -26,9 +27,10 @@ export default async function ListingPage({ params }: ListingPageProps) {
 
   if (!listing) notFound()
 
-  const [reviews, firstListedAt] = await Promise.all([
+  const [reviews, firstListedAt, serviceFeeBps] = await Promise.all([
     isSupabaseConfigured() ? getListingReviews(listing.id) : undefined,
     listing.host ? getHostSince(listing.host.id) : null,
+    getServiceFeeBps(),
   ])
 
   // The host's first listing is the honest start of their hosting history; the
@@ -267,7 +269,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
           {/* Right — sticky booking panel */}
           <div className="lg:w-[360px] shrink-0">
             <div className="sticky top-24">
-              <BookingPanel listing={listing} />
+              <BookingPanel listing={listing} serviceFeeBps={serviceFeeBps} />
             </div>
           </div>
         </div>

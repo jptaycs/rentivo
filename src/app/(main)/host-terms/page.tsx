@@ -1,8 +1,17 @@
 import { LegalContact } from '@/components/shared/LegalContact'
+import { formatFeeRate } from '@/lib/pricing'
+import { getServiceFeeBps } from '@/lib/service-fee'
 
 export const metadata = { title: 'Host Terms — Rentivo' }
 
-export default function HostTermsPage() {
+// 080/081: the fee clause quotes the live service-fee rate. Rendered
+// dynamically so an admin rate change is never served from a build-time
+// snapshot of this page.
+export const dynamic = 'force-dynamic'
+
+export default async function HostTermsPage() {
+  const rate = formatFeeRate(await getServiceFeeBps())
+
   return (
     <div className="bg-[#F8FAFC] min-h-screen">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
@@ -17,7 +26,7 @@ export default function HostTermsPage() {
             <li>Your identity must be verified by Rentivo before your listings are published.</li>
             <li>Listings must describe equipment you own, accurately, with current photos and a truthful condition.</li>
             <li>Security deposits you set are collected from the renter by you at pickup and returned by you — Rentivo does not charge, hold or return them.</li>
-            <li>Rentivo charges a 5% service fee on the rental fee of every booking, deducted from the payment when it is processed. Delivery fees you set are paid to you in full.</li>
+            <li>Rentivo charges a service fee on the rental fee of every booking — currently {rate} — deducted from the payment when it is processed. The rate in effect when a booking is made is the rate charged for that booking. Delivery fees you set are paid to you in full.</li>
           </ul>
         </section>
 

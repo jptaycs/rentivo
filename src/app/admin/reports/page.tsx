@@ -9,7 +9,8 @@ import {
   type RankedRow,
 } from '@/lib/admin-reports'
 import { requireAdminPage } from '@/lib/admin'
-import { SERVICE_FEE_RATE } from '@/lib/pricing'
+import { formatFeeRate } from '@/lib/pricing'
+import { getServiceFeeBps } from '@/lib/service-fee'
 import { ExportRevenueButton, ExportInFlightButton, ExportRankedButton, ExportUnrequestedButton } from './ReportExports'
 
 export const dynamic = 'force-dynamic'
@@ -73,7 +74,7 @@ export default async function AdminReportsPage() {
   // Defense in depth: see the matching comment in /admin/users/page.tsx.
   await requireAdminPage()
 
-  const [commission, monthly, inFlight, topListings, topHosts, topRenters, unrequested] = await Promise.all([
+  const [commission, monthly, inFlight, topListings, topHosts, topRenters, unrequested, serviceFeeBps] = await Promise.all([
     getCommissionTotals(),
     getMonthlyRevenue(),
     getInFlightRentals(),
@@ -81,6 +82,7 @@ export default async function AdminReportsPage() {
     getTopHosts(),
     getTopRenters(),
     getUnrequestedPayouts(),
+    getServiceFeeBps(),
   ])
 
   return (
@@ -88,8 +90,8 @@ export default async function AdminReportsPage() {
       <div>
         <h1 className="mb-1 text-2xl font-bold text-gray-900">Business Reports</h1>
         <p className="text-sm text-gray-500">
-          Commission is on the {SERVICE_FEE_RATE * 100}% service fee only, not the full rental amount — see the
-          definitions below each card.
+          Commission is the service fee stamped on each booking, not the full rental amount (currently{' '}
+          {formatFeeRate(serviceFeeBps)}) — see the definitions below each card.
         </p>
       </div>
 

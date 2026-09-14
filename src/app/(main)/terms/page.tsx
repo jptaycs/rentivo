@@ -1,10 +1,19 @@
 import Link from 'next/link'
 import { BUSINESS, BUSINESS_ADDRESS } from '@/lib/business'
 import { LegalContact } from '@/components/shared/LegalContact'
+import { formatFeeRate } from '@/lib/pricing'
+import { getServiceFeeBps } from '@/lib/service-fee'
 
 export const metadata = { title: 'Terms of Service — Rentivo' }
 
-export default function TermsPage() {
+// 080/081: §6 quotes the live service-fee rate. Rendered dynamically so an
+// admin rate change is never served from a build-time snapshot of this page.
+export const dynamic = 'force-dynamic'
+
+export default async function TermsPage() {
+  const serviceFeeBps = await getServiceFeeBps()
+  const rate = formatFeeRate(serviceFeeBps)
+
   return (
     <div className="bg-[#F8FAFC] min-h-screen">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
@@ -67,11 +76,14 @@ export default function TermsPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-bold text-[#111827]">6. Fees</h2>
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 leading-relaxed">
-            <li>Rentivo charges a 5% service fee on the rental amount only.</li>
+            <li>
+              Rentivo charges a service fee on the rental amount only — currently {rate}. The rate
+              in effect when a booking is made is the rate charged for that booking.
+            </li>
             <li>Delivery fees, where a host offers delivery, are set by the host and paid to the host in full — Rentivo does not take a commission on delivery.</li>
             <li>Security deposits, where a host requires one, are arranged directly between the host and the renter and collected by the host at pickup. Rentivo does not charge, hold or return security deposits.</li>
             <li>
-              The 5% service fee is collected as part of the renter&apos;s payment at checkout,
+              The service fee is collected as part of the renter&apos;s payment at checkout,
               when the booking is processed — not billed separately afterward.
             </li>
           </ul>

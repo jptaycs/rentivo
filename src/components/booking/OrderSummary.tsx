@@ -1,13 +1,15 @@
 import Image from 'next/image'
 import { Star, Shield, BadgeCheck } from 'lucide-react'
 import type { Listing } from '@/types'
-import { calcPricing, type StoredBookingAmounts } from '@/lib/pricing'
+import { calcPricing, formatFeeRate, type StoredBookingAmounts } from '@/lib/pricing'
 
 interface OrderSummaryProps {
   listing: Listing
   pickupDate: string
   returnDate: string
   days: number
+  /** The live platform service-fee rate, read on the server (080/081). */
+  serviceFeeBps: number
   isDelivery?: boolean
   /** 078: the server's quote for the renter's pin (per-km listings only). */
   deliveryQuote?: { fee: number | null; roadKm: number | null; loading: boolean }
@@ -19,13 +21,17 @@ interface OrderSummaryProps {
   stored?: StoredBookingAmounts | null
 }
 
-export function OrderSummary({ listing, pickupDate, returnDate, days, isDelivery, deliveryQuote, stored }: OrderSummaryProps) {
+export function OrderSummary({ listing, pickupDate, returnDate, days, serviceFeeBps, isDelivery, deliveryQuote, stored }: OrderSummaryProps) {
   const perKm = !!isDelivery && listing.delivery_fee_per_km > 0
   const quotedFee = deliveryQuote && !deliveryQuote.loading ? deliveryQuote.fee : null
-  const priced = calcPricing(listing, days, isDelivery, perKm ? quotedFee : null)
+  const priced = calcPricing(listing, days, serviceFeeBps, isDelivery, perKm ? quotedFee : null)
   const tier = priced.tier
   const rentalFee = stored ? stored.rental_fee : priced.rentalFee
   const serviceFee = stored ? stored.service_fee : priced.serviceFee
+  // Once a booking exists, the rate it was STAMPED with (081) is the rate the
+  // renter will actually be charged at — the live rate may have moved since.
+  // A pre-080 booking has none, so the live rate is the only figure to show.
+  const feeRateBps = stored?.service_fee_bps ?? serviceFeeBps
   const deliveryFee = stored ? stored.delivery_fee : priced.deliveryFee
   const total = stored ? stored.total_amount : priced.total
   const deliveryKm = stored
@@ -111,7 +117,7 @@ export function OrderSummary({ listing, pickupDate, returnDate, days, isDelivery
           <span>₱{rentalFee.toLocaleString()}</span>
         </div>
         <div className="flex justify-between text-gray-600">
-          <span>Service fee (5%)</span>
+          <span>Service fee ({formatFeeRate(feeRateBps)})</span>
           <span>₱{serviceFee.toLocaleString()}</span>
         </div>
         {deliveryUnpriced ? (
