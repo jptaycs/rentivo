@@ -137,14 +137,53 @@ Their full entries, with the reasoning, are in the archive further down.
   `/api/cron/host-bills`, deleted 2026-09-13. Harmless but misleading to a future reader;
   cannot be scripted from the repo.
 
-- [ ] **Next phase must delete the dead `host_qr` branch in `create_booking`.** It still
-  runs `select qr_payment_url from profiles` — a column migration 072 dropped — inside
-  `if p_payment_method = 'host_qr'`. Unreachable today (the tile is gone and a trigger
-  refuses those inserts) and it fails closed, but a direct RPC call raises a raw `42703`
-  instead of the trigger's message, and `scripts/verify/072-retire-host-qr-and-billing.mjs`
-  fails that one assertion on purpose because of it. **Do not fix it in isolation** — the
-  next phase has to copy that function's body anyway, and copying it twice is what caused
-  the 038/039 and 040 incidents. Delete the branch in that same rewrite.
+- [x] **Next phase must delete the dead `host_qr` branch in `create_booking`** — done
+  2026-09-14, migration 078. It rode along with the distance-based delivery-fee rewrite,
+  exactly as this item asked: `create_booking` was dropped and re-created for the new
+  `p_delivery_lat`/`p_delivery_lng` parameters anyway, so the dead `if p_payment_method =
+  'host_qr'` block (its `select qr_payment_url from profiles` referencing a column 072 had
+  already dropped) was deleted in that same pass rather than fixed in isolation.
+  `scripts/verify/072-retire-host-qr-and-billing.mjs`'s one previously-failing assertion —
+  that a direct `host_qr` RPC call raises the trigger's readable message rather than a raw
+  `42703` — now passes, and the script is fully green.
+
+- [x] **Distance-based delivery fee** — done 2026-09-14, migration 078 (spec/plan under
+  `.superpowers/sdd/2026-09-14-distance-based-delivery-fee/`). Delivery pricing was flat-fee
+  only; hosts can now also set a per-kilometre rate (`listings.delivery_fee_per_km`) so the
+  fee scales with how far the renter actually is, computed server-side by one function
+  (`delivery_fee_for`) shared by `create_booking` (the charge) and the `quote_delivery_fee`
+  RPC (what checkout displays), so the two can never disagree. See AGENTS.md's Booking
+  lifecycle section for the full mechanics and the Security model section for why distance
+  is measured from the listing's public approximate point rather than the host's exact pin.
+  **Only listings with a host-placed exact pickup point (`location_is_exact = true`) can use
+  per-km pricing — and today only a small number of listings have one.** Placing a pin has
+  always been optional (065/067); most listings, including the demo host's own three before
+  this task placed one on a probe, still carry only the 066 city-centre backfill. A host with
+  no pin can still offer flat-fee delivery exactly as before 078; the per-km field on both the
+  wizard and the edit page stays disabled until a pin exists, with copy saying so.
+  **Verified end-to-end 2026-09-14** (task 4 of the plan, independent of task 1's own
+  migration script): built and served on port 3100, signed in as the demo host through the
+  real login form, placed a pin and set Delivery Base Fee ₱100 / Per Kilometre ₱20 on a real
+  listing (`293bea36…`) through the real edit page — confirmed by a direct database read, not
+  the "Saved" toast. Signed in as the demo renter, opened `/book`, chose Delivery, and moved
+  the pin twice: 1 km away quoted ₱120, 19 km away quoted ₱480, and the Order Summary's
+  delivery row and total tracked each quote exactly (₱2,220 then ₱2,580); the payment step's
+  "Pay ₱2,580" matched the summary's total. Stopped before paying. A direct `rpc/create_booking`
+  call with the demo renter's session and the same 19 km pin returned `delivery_fee: 480,
+  delivery_distance_km: 19, total_amount: 2580` — byte-identical to what the browser showed,
+  proving the host's saved rate and the renter's quote read the same value all the way through
+  to the charge. That probe booking, its trigger-written host notification, and its
+  `rate_limit_hits` row were deleted and re-read gone; the listing was restored to its exact
+  original `is_active`/`delivery_fee`/`delivery_fee_per_km`/`location_is_exact`/`latitude`/
+  `longitude` and re-read to confirm. `npx tsc --noEmit`, `npm run lint`, `npm run build` all
+  clean. Neither the forbidden host nor `RNT-A4DA55` were touched.
+  **Three Minor findings from the implementation tasks' own reviews are known and deliberately
+  not fixed here** (left for the next phase's triage, not fixed in passing): a stale-rate race
+  can produce a spurious "price changed" 409 at exact rounding halves on weekly/monthly
+  tiers; moving the delivery pin after a failed payment attempt leaves the earlier unpaid
+  booking still payable at its old (pre-move) total until the renter starts a fresh checkout;
+  and a host switching a listing from flat-fee to per-km delivery mid-checkout makes the
+  renter's retry attempts fail until they reload the page.
 
 - [x] **Guests can view their wishlist** — done 2026-09-14. A guest's hearts were always
   saved (localStorage, via `useWishlist`) but the only page showing them was
