@@ -1,7 +1,7 @@
 // Verifies migration 082 (payout statements): the statement columns and their
 // invariants, the per-booking snapshot, the gapless per-year counter, the one
-// eligibility definition, the four lifecycle RPCs, the three stubbed old
-// functions, and every grant/RLS boundary around them.
+// eligibility definition, the four lifecycle RPCs, the three old functions
+// (dropped by 083), and every grant/RLS boundary around them.
 //
 // Every refusal is paired with a control showing the identical call succeeds
 // once the condition under test is removed. Real signed-in sessions for every
@@ -942,33 +942,27 @@ try {
     check('11. concurrent: neither CONC-SLOW nor CONC-FAST exists as a real row afterward', usedConc === 0, `${usedConc}`)
   }
 
-  // ── 12. The three stubbed old functions ──────────────────────────────────
+  // ── 12. The three old functions ──────────────────────────────────────────
+  // CHANGED WHEN 083 APPLIED (2026-09-15). Until then 082 left these as stubs
+  // that raised "Payouts now use statements — reload the page.", and this
+  // check asserted that message plus the stubs' ACLs and signatures. 083
+  // dropped them, so the assertion is now a PostgREST NOT-FOUND (PGRST202) —
+  // deliberately distinct from permission denied, which would mean a function
+  // still exists. 083-drop-legacy-payout-functions.mjs covers the rest.
   {
+    const notFound = (r) => r.status === 404 && r.body?.code === 'PGRST202'
     const rp = await rpcAnon(HOST.token, 'request_payout', {})
-    check('12. the host calling request_payout() -> "Payouts now use statements — reload the page."',
-      rp.status !== 200 && /Payouts now use statements/.test(msg(rp)), `${rp.status} ${msg(rp)}`)
+    check('12. the host calling request_payout() -> not found (dropped by 083)', notFound(rp), `${rp.status} ${msg(rp)}`)
     const mp = await rpcService('mark_payout_paid', { p_request_id: LEGACY_REQUEST, p_reference: 'X' })
-    check('12. the service role calling mark_payout_paid -> the same refusal',
-      mp.status !== 200 && /Payouts now use statements/.test(msg(mp)), `${mp.status} ${msg(mp)}`)
+    check('12. the service role calling mark_payout_paid -> not found (dropped by 083)', notFound(mp), `${mp.status} ${msg(mp)}`)
     const mf = await rpcService('mark_payout_failed', { p_request_id: LEGACY_REQUEST, p_notes: 'X' })
-    check('12. the service role calling mark_payout_failed -> the same refusal',
-      mf.status !== 200 && /Payouts now use statements/.test(msg(mf)), `${mf.status} ${msg(mf)}`)
-    // The stubs must keep their ACLs (CREATE OR REPLACE, not DROP+CREATE) and
-    // their exact signatures — the defaults on the two mark_* functions are
-    // why the first apply of 082 aborted.
-    const acls = sql(`select p.proname, pg_get_function_arguments(p.oid) as args, p.proacl::text as acl
-                      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    check('12. the service role calling mark_payout_failed -> not found (dropped by 083)', notFound(mf), `${mf.status} ${msg(mf)}`)
+    const left = sql(`select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                       where n.nspname = 'public' and p.proname in ('request_payout','mark_payout_paid','mark_payout_failed')`)
-    const rpRow = acls.find((a) => a.proname === 'request_payout')
-    check('12. request_payout keeps its authenticated + service_role grants', /authenticated=X/.test(rpRow.acl) && /service_role=X/.test(rpRow.acl), rpRow.acl)
-    for (const name of ['mark_payout_paid', 'mark_payout_failed']) {
-      const row = acls.find((a) => a.proname === name)
-      check(`12. ${name} stays service_role-only and keeps its "default null" second parameter`,
-        /service_role=X/.test(row.acl) && !/authenticated=X/.test(row.acl) && /DEFAULT NULL/.test(row.args), `${row.acl} | ${row.args}`)
-    }
+    check('12. none of the three remain in pg_proc', left.length === 0, JSON.stringify(left))
     // CONTROL: the legacy row is untouched by the three refused calls.
     const [legacy] = sql(`select status::text as status, reference, notes from public.payout_requests where id = '${LEGACY_REQUEST}'`)
-    check('12. CONTROL: the legacy request is unchanged after the three stub calls',
+    check('12. CONTROL: the legacy request is unchanged after the three refused calls',
       legacy.status === 'paid' && legacy.reference === 'QA-GCASH-REF-001' && legacy.notes === null, JSON.stringify(legacy))
   }
 } finally {
