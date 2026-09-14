@@ -19,6 +19,8 @@ interface Step3PaymentProps {
   listing: Listing
   days: number
   isDelivery: boolean
+  /** Total to display and pay: the delivery quote, or a created booking's stored total. */
+  totalOverride?: number
   onNext: (payload: CheckoutPayload) => Promise<void>
   onBack: () => void
 }
@@ -97,7 +99,7 @@ async function createCardPaymentMethod(card: {
   return json.data.id as string
 }
 
-export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step3PaymentProps) {
+export function Step3Payment({ listing, days, isDelivery, totalOverride, onNext, onBack }: Step3PaymentProps) {
   const { user } = useUser()
   const [method, setMethod] = useState<PaymentMethod>(
     () => enabledPaymentMethods()[0] ?? 'qrph'
@@ -118,7 +120,10 @@ export function Step3Payment({ listing, days, isDelivery, onNext, onBack }: Step
   // 071: promo codes are discontinued. A discount reduced what the renter paid
   // but not what the host was paid (request_payout pays rental_fee, stored
   // pre-discount), so every code cost Rentivo more than its 5% service fee.
-  const { total } = calcPricing(listing, days, isDelivery)
+  // 078: the wizard supplies the total when it has a better figure than the
+  // listing alone — the server's delivery quote, or once a booking exists its
+  // STORED total_amount, which is exactly what the payment intent charges.
+  const total = totalOverride ?? calcPricing(listing, days, isDelivery).total
 
   const isWallet = method === 'gcash' || method === 'maya'
   const isCard = method === 'card'

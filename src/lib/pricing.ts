@@ -34,11 +34,56 @@ export function calcRentalFee(listing: PricedListing, days: number): { rentalFee
  * Rentivo does not charge it. The host collects it directly at pickup.
  * `PricedListing.security_deposit` stays on the interface because the listing
  * still discloses the amount — it is just not money Rentivo takes.
+ *
+ * 078: for a listing with a per-kilometre rate, the delivery figure must be the
+ * server's quote (`quote_delivery_fee`), passed as `deliveryFeeOverride` — never
+ * client arithmetic. Distance is measured from coordinates the client cannot
+ * see, by the same function create_booking charges with. Without an override
+ * the base `delivery_fee` is used, which is the whole fee for a flat-rate listing.
  */
-export function calcPricing(listing: PricedListing, days: number, isDelivery = false) {
+export function calcPricing(
+  listing: PricedListing,
+  days: number,
+  isDelivery = false,
+  deliveryFeeOverride: number | null = null
+) {
   const { rentalFee, tier } = calcRentalFee(listing, days)
   const serviceFee = Math.round(rentalFee * SERVICE_FEE_RATE)
-  const deliveryFee = isDelivery ? (listing.delivery_fee ?? 0) : 0
+  const deliveryFee = isDelivery ? (deliveryFeeOverride ?? listing.delivery_fee ?? 0) : 0
   const total = rentalFee + serviceFee + deliveryFee
   return { rentalFee, tier, serviceFee, deliveryFee, total }
+}
+
+/**
+ * The money fields of a booking row as create_booking STORED them. Once a
+ * booking exists these win over any client figure or earlier quote: the host
+ * may have changed a rate in between, and the PayMongo intent is priced from
+ * the stored total_amount. The checkout route returns this with every response
+ * that carries a bookingId; delivery_latitude/longitude ride along so the
+ * wizard can tell whether that booking is still reusable for the current pin.
+ */
+export interface StoredBookingAmounts {
+  id: string
+  rental_fee: number
+  service_fee: number
+  delivery_fee: number
+  delivery_distance_km: number | null
+  total_amount: number
+  is_delivery: boolean
+  delivery_latitude: number | null
+  delivery_longitude: number | null
+}
+
+export function storedBookingAmounts(b: StoredBookingAmounts): StoredBookingAmounts {
+  return {
+    id: b.id,
+    rental_fee: b.rental_fee,
+    service_fee: b.service_fee,
+    delivery_fee: b.delivery_fee,
+    delivery_distance_km: b.delivery_distance_km == null ? null : Number(b.delivery_distance_km),
+    total_amount: b.total_amount,
+    is_delivery: b.is_delivery,
+    delivery_latitude: b.delivery_latitude == null ? null : Number(b.delivery_latitude),
+    delivery_longitude: b.delivery_longitude == null ? null : Number(b.delivery_longitude),
+  }
 }

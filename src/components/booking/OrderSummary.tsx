@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import { Star, Shield, BadgeCheck } from 'lucide-react'
 import type { Listing } from '@/types'
-import { calcPricing } from '@/lib/pricing'
+import { calcPricing, type StoredBookingAmounts } from '@/lib/pricing'
 
 interface OrderSummaryProps {
   listing: Listing
@@ -9,10 +9,33 @@ interface OrderSummaryProps {
   returnDate: string
   days: number
   isDelivery?: boolean
+  /** 078: the server's quote for the renter's pin (per-km listings only). */
+  deliveryQuote?: { fee: number | null; roadKm: number | null; loading: boolean }
+  /**
+   * The booking checkout already created for the current choice and pin. When
+   * present every figure comes from the stored row, never the quote: a host may
+   * have changed a rate in between, and the stored total is what is charged.
+   */
+  stored?: StoredBookingAmounts | null
 }
 
-export function OrderSummary({ listing, pickupDate, returnDate, days, isDelivery }: OrderSummaryProps) {
-  const { rentalFee, tier, serviceFee, deliveryFee, total } = calcPricing(listing, days, isDelivery)
+export function OrderSummary({ listing, pickupDate, returnDate, days, isDelivery, deliveryQuote, stored }: OrderSummaryProps) {
+  const perKm = !!isDelivery && listing.delivery_fee_per_km > 0
+  const quotedFee = deliveryQuote && !deliveryQuote.loading ? deliveryQuote.fee : null
+  const priced = calcPricing(listing, days, isDelivery, perKm ? quotedFee : null)
+  const tier = priced.tier
+  const rentalFee = stored ? stored.rental_fee : priced.rentalFee
+  const serviceFee = stored ? stored.service_fee : priced.serviceFee
+  const deliveryFee = stored ? stored.delivery_fee : priced.deliveryFee
+  const total = stored ? stored.total_amount : priced.total
+  const deliveryKm = stored
+    ? stored.delivery_distance_km
+    : perKm && deliveryQuote && !deliveryQuote.loading
+      ? deliveryQuote.roadKm
+      : null
+  // A per-km delivery has no price until the server quotes the pin. Showing the
+  // base fee as if it were the whole charge would understate the total.
+  const deliveryUnpriced = !stored && perKm && quotedFee === null
   const effectiveRate = days > 0 ? Math.round(rentalFee / days) : listing.daily_price
 
   const fmt = (d: string) =>
@@ -91,15 +114,24 @@ export function OrderSummary({ listing, pickupDate, returnDate, days, isDelivery
           <span>Service fee (5%)</span>
           <span>₱{serviceFee.toLocaleString()}</span>
         </div>
-        {deliveryFee > 0 && (
+        {deliveryUnpriced ? (
           <div className="flex justify-between text-gray-600">
-            <span>Delivery fee</span>
-            <span>₱{deliveryFee.toLocaleString()}</span>
+            <span>Delivery</span>
+            <span className="text-gray-400">
+              {deliveryQuote?.loading ? 'Calculating…' : 'Set your pin'}
+            </span>
           </div>
+        ) : (
+          deliveryFee > 0 && (
+            <div className="flex justify-between text-gray-600">
+              <span>{deliveryKm != null ? `Delivery (${deliveryKm} km)` : 'Delivery fee'}</span>
+              <span>₱{deliveryFee.toLocaleString()}</span>
+            </div>
+          )
         )}
         <div className="flex justify-between font-bold text-[#111827] text-base border-t border-gray-200 pt-3 mt-1">
           <span>Total</span>
-          <span>₱{total.toLocaleString()}</span>
+          <span>{deliveryUnpriced ? '—' : `₱${total.toLocaleString()}`}</span>
         </div>
       </div>
 

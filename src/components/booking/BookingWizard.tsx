@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react'
 import { AlertCircle, Loader2, QrCode, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useDeliveryQuote } from '@/hooks/useDeliveryQuote'
+import { canReuseBooking, isInPhilippines, roundPinCoord } from '@/lib/delivery-location'
+import { calcPricing, storedBookingAmounts, type StoredBookingAmounts } from '@/lib/pricing'
 import { StepIndicator } from './StepIndicator'
 import { OrderSummary } from './OrderSummary'
 import { Step1Review } from './Step1Review'
@@ -22,14 +25,19 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
   const [step, setStep] = useState(0)
   const [isDelivery, setIsDelivery] = useState(false)
   const [deliveryAddress, setDeliveryAddress] = useState('')
+  // 078: the renter's delivery pin, rounded to the numeric(10,7) the booking
+  // stores, so the quoted, priced and stored coordinates are identical.
+  const [deliveryPin, setDeliveryPin] = useState<{ lat: number; lng: number } | null>(null)
   const [booking, setBooking] = useState<Booking | null>(null)
-  const [bookingId, setBookingId] = useState<string | null>(null)
-  // The unpaid booking is only safe to reuse for a retry of the SAME
-  // delivery choice it was priced under — reusing it after switching
-  // pickup↔delivery would charge the OLD total and never persist the new
-  // is_delivery/delivery_address. Track what it was created for, so changing
-  // the choice drops it and forces checkout to create a freshly priced one.
-  const [bookingIdDelivery, setBookingIdDelivery] = useState<boolean | null>(null)
+  // The unpaid booking checkout created on an earlier attempt, as STORED. It is
+  // only safe to reuse for a retry of the SAME delivery choice — and, for a
+  // per-km delivery, the SAME pin — it was priced under: reusing it after
+  // switching pickup↔delivery or moving the pin would charge the OLD total
+  // (the old distance) and never persist the new choice. We keep what it was
+  // created for (its stored is_delivery and pin) and derive reusability from
+  // the current choice below, so changing either stops it being sent and
+  // forces checkout to create a freshly priced one.
+  const [storedBooking, setStoredBooking] = useState<StoredBookingAmounts | null>(null)
   const [error, setError] = useState('')
   const [qrWaiting, setQrWaiting] = useState<{ image: string; bookingId: string } | null>(null)
   const [verifying, setVerifying] = useState(false)
@@ -39,18 +47,40 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
   const goBack = () => setStep((s) => Math.max(s - 1, 0))
 
   // A previously created unpaid booking is only safe for checkout to reuse
-  // when it was priced under the SAME pickup/delivery choice. Switching
-  // choices after a failed/abandoned attempt must not silently charge the
-  // old total against the new one — drop the stale bookingId so checkout is
-  // forced to create (and correctly price) a fresh booking. Retrying with
-  // the SAME choice still reuses it, so that path never creates a duplicate.
+  // when it was priced under the SAME pickup/delivery choice and the SAME pin
+  // (compared at stored precision — canReuseBooking, shared with the route,
+  // which enforces the same rule). Switching choice or moving the pin after a
+  // failed/abandoned attempt must not silently charge the old total — so the
+  // stale booking simply isn't reusable, and checkout creates (and correctly
+  // prices) a fresh one. Retrying with the SAME choice and pin still reuses
+  // it, so that path never creates a duplicate.
+  const reusableBooking =
+    storedBooking && canReuseBooking(storedBooking, isDelivery, isDelivery ? deliveryPin : null)
+      ? storedBooking
+      : null
+
   function handleDeliveryChange(next: boolean) {
-    if (bookingId !== null && bookingIdDelivery !== null && bookingIdDelivery !== next) {
-      setBookingId(null)
-      setBookingIdDelivery(null)
-    }
     setIsDelivery(next)
   }
+
+  function handlePinChange(p: { lat: number; lng: number }) {
+    setDeliveryPin({ lat: roundPinCoord(p.lat), lng: roundPinCoord(p.lng) })
+  }
+
+  const perKmDelivery = isDelivery && listing.delivery_fee_per_km > 0
+  const pinInPh = deliveryPin !== null && isInPhilippines(deliveryPin.lat, deliveryPin.lng)
+  // Never quote a pin outside the Philippines (Step2Pickup shows why instead).
+  const quote = useDeliveryQuote(listing.id, deliveryPin, perKmDelivery && pinInPh)
+
+  // What the renter is shown. Once a reusable booking exists its STORED total
+  // wins over the quote: that is the figure the payment intent is priced from.
+  const quotedTotal = calcPricing(
+    listing,
+    days,
+    isDelivery,
+    perKmDelivery && !quote.loading ? quote.fee : null
+  ).total
+  const displayTotal = reusableBooking ? reusableBooking.total_amount : quotedTotal
 
   // Poll while a QR Ph code is on screen — there's no redirect back to
   // confirm payment (unlike GCash/Maya/card), the customer stays right
@@ -130,7 +160,12 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
         returnDate,
         isDelivery,
         deliveryAddress: isDelivery ? deliveryAddress : null,
-        bookingId,
+        deliveryLat: perKmDelivery && deliveryPin ? deliveryPin.lat : null,
+        deliveryLng: perKmDelivery && deliveryPin ? deliveryPin.lng : null,
+        bookingId: reusableBooking?.id ?? null,
+        // Not a price — lets the route stop before charging if the stored
+        // total differs from what is on screen (see the route).
+        expectedTotal: displayTotal,
         ...payload,
       }),
     })
@@ -141,6 +176,7 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
       qrImage?: string
       booking?: Booking
       bookingId?: string
+      amounts?: StoredBookingAmounts
       error?: string
     }
     try {
@@ -150,12 +186,12 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
       return
     }
 
-    // Keep the unpaid booking so a retry doesn't create a duplicate — but
-    // only for the delivery choice it was priced under (see
-    // handleDeliveryChange, which drops this if that choice changes).
-    if (data.bookingId) {
-      setBookingId(data.bookingId)
-      setBookingIdDelivery(isDelivery)
+    // Keep the unpaid booking, as stored, so a retry doesn't create a
+    // duplicate — but only for the delivery choice and pin it was priced
+    // under (see reusableBooking, which stops reusing it if either changes).
+    // Its stored amounts also become what the summary and Pay button show.
+    if (data.amounts) {
+      setStoredBooking(storedBookingAmounts(data.amounts))
     }
 
     if (!res.ok) {
@@ -197,8 +233,11 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
               listing={listing}
               isDelivery={isDelivery}
               deliveryAddress={deliveryAddress}
+              deliveryPin={deliveryPin}
+              quote={quote}
               onDeliveryChange={handleDeliveryChange}
               onAddressChange={setDeliveryAddress}
+              onPinChange={handlePinChange}
               onNext={goNext}
               onBack={goBack}
             />
@@ -217,6 +256,11 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
                   <h2 className="text-xl font-bold text-[#111827]">Scan to pay with QR Ph</h2>
                   {/* eslint-disable-next-line @next/next/no-img-element -- base64 data URI from PayMongo, not a next/image remotePattern candidate */}
                   <img src={qrWaiting.image} alt="QR Ph payment code" className="w-56 h-56 mx-auto rounded-xl" />
+                  {reusableBooking?.id === qrWaiting.bookingId && (
+                    <p className="text-sm text-gray-600">
+                      Amount: <span className="font-bold text-[#111827]">₱{reusableBooking.total_amount.toLocaleString()}</span>
+                    </p>
+                  )}
                   <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Waiting for payment confirmation…
@@ -253,6 +297,7 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
                   listing={listing}
                   days={days}
                   isDelivery={isDelivery}
+                  totalOverride={displayTotal}
                   onNext={handlePaymentComplete}
                   onBack={goBack}
                 />
@@ -274,6 +319,8 @@ export function BookingWizard({ listing, pickupDate, returnDate, days }: Booking
                 returnDate={returnDate}
                 days={days}
                 isDelivery={step >= 1 ? isDelivery : undefined}
+                deliveryQuote={perKmDelivery ? quote : undefined}
+                stored={step >= 1 ? reusableBooking : null}
               />
             </div>
           </div>

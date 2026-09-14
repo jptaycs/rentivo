@@ -1,14 +1,25 @@
 'use client'
 
 import { MapPin, Truck, ChevronRight, ChevronLeft, Check } from 'lucide-react'
+import { LocationPicker } from '@/components/host/LocationPicker'
+import { isInPhilippines, OUTSIDE_PH_MESSAGE } from '@/lib/delivery-location'
 import type { Listing } from '@/types'
+
+const RENTER_MAP_CAPTIONS = {
+  unplaced: 'Tap the map where you want the gear delivered.',
+  placed: 'Delivery point set. Drag the pin or tap the map to adjust.',
+}
 
 interface Step2PickupProps {
   listing: Listing
   isDelivery: boolean
   deliveryAddress: string
+  deliveryPin: { lat: number; lng: number } | null
+  /** The server's quote for deliveryPin (useDeliveryQuote). */
+  quote: { fee: number | null; roadKm: number | null; loading: boolean; error: string | null }
   onDeliveryChange: (val: boolean) => void
   onAddressChange: (val: string) => void
+  onPinChange: (p: { lat: number; lng: number }) => void
   onNext: () => void
   onBack: () => void
 }
@@ -17,14 +28,27 @@ export function Step2Pickup({
   listing,
   isDelivery,
   deliveryAddress,
+  deliveryPin,
+  quote,
   onDeliveryChange,
   onAddressChange,
+  onPinChange,
   onNext,
   onBack,
 }: Step2PickupProps) {
-  const canContinue = !isDelivery || deliveryAddress.trim().length > 5
   const offersDelivery = listing.delivery_fee !== null
   const deliveryFee = listing.delivery_fee ?? 0
+  // 078: a per-km listing prices delivery from the renter's pin, quoted by the
+  // server. A flat-fee listing (rate 0) behaves exactly as before: no map.
+  const perKm = listing.delivery_fee_per_km > 0
+  const pinOutsidePh = deliveryPin !== null && !isInPhilippines(deliveryPin.lat, deliveryPin.lng)
+  const hasQuote = quote.fee !== null && !quote.loading && !quote.error
+  // The address stays required even with a pin: the pin prices the trip, the
+  // address is where the host actually goes.
+  const canContinue =
+    !isDelivery ||
+    (deliveryAddress.trim().length > 5 &&
+      (!perKm || (deliveryPin !== null && !pinOutsidePh && hasQuote)))
 
   return (
     <div className="space-y-6">
@@ -93,8 +117,10 @@ export function Step2Pickup({
               Delivery
             </p>
             <p className="text-xs text-gray-500 mt-1">Host delivers to your location</p>
-            <p className={`text-xs font-semibold mt-2 ${deliveryFee > 0 ? 'text-[#003049]' : 'text-[#22C55E]'}`}>
-              {deliveryFee > 0 ? `₱${deliveryFee.toLocaleString()}` : 'Free'}
+            <p className={`text-xs font-semibold mt-2 ${deliveryFee > 0 || perKm ? 'text-[#003049]' : 'text-[#22C55E]'}`}>
+              {perKm
+                ? `from ₱${deliveryFee.toLocaleString()}`
+                : deliveryFee > 0 ? `₱${deliveryFee.toLocaleString()}` : 'Free'}
             </p>
           </div>
         </button>
@@ -130,11 +156,38 @@ export function Step2Pickup({
             rows={3}
             className="w-full text-sm text-gray-800 placeholder-gray-400 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-[#003049] focus:ring-2 focus:ring-blue-100 resize-none"
           />
-          <p className="text-xs text-gray-400">
-            {deliveryFee > 0
-              ? `A ₱${deliveryFee.toLocaleString()} delivery fee is included in your total.`
-              : 'This host delivers for free.'}
-          </p>
+          {perKm ? (
+            <div className="space-y-2 pt-1">
+              <p className="block text-sm font-bold text-[#111827]">
+                Delivery Location <span className="text-red-400">*</span>
+              </p>
+              <LocationPicker
+                city={listing.city}
+                province={listing.province}
+                value={deliveryPin}
+                onChange={onPinChange}
+                captions={RENTER_MAP_CAPTIONS}
+              />
+              {pinOutsidePh ? (
+                <p className="text-sm text-red-600" role="alert">{OUTSIDE_PH_MESSAGE}</p>
+              ) : deliveryPin === null ? null : quote.loading ? (
+                <p className="text-sm text-gray-500">Calculating delivery…</p>
+              ) : quote.error ? (
+                <p className="text-sm text-red-600" role="alert">{quote.error}</p>
+              ) : quote.fee !== null ? (
+                <p className="text-sm font-semibold text-[#003049]">
+                  Delivery: ₱{quote.fee.toLocaleString()}
+                  {quote.roadKm != null && ` (${quote.roadKm} km by road)`}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">
+              {deliveryFee > 0
+                ? `A ₱${deliveryFee.toLocaleString()} delivery fee is included in your total.`
+                : 'This host delivers for free.'}
+            </p>
+          )}
         </div>
       )}
 

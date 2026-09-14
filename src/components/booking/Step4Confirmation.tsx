@@ -152,7 +152,12 @@ export function Step4Confirmation({ listing, booking }: Step4ConfirmationProps) 
           )}
           {booking.delivery_fee > 0 && (
             <div className="flex justify-between text-gray-600">
-              <span>Delivery fee</span>
+              {/* 078: the STORED distance, i.e. the one actually charged. */}
+              <span>
+                {booking.delivery_distance_km != null
+                  ? `Delivery (${Number(booking.delivery_distance_km)} km)`
+                  : 'Delivery fee'}
+              </span>
               <span>₱{booking.delivery_fee.toLocaleString()}</span>
             </div>
           )}

@@ -24,9 +24,18 @@ interface Props {
   // `value != null`, which is exactly right for every other caller: those
   // only ever set `value` once the host has placed a pin.
   exact?: boolean
+  // Caption under the map. Defaults to the HOST copy (the wizard and the edit
+  // page); the renter's checkout passes its own, since a renter must not be
+  // told to "mark where renters collect the gear".
+  captions?: { placed: string; unplaced: string }
 }
 
-export function LocationPicker({ city, province, value, onChange, exact }: Props) {
+const HOST_CAPTIONS = {
+  placed: 'Pickup point set. Drag the pin or tap the map to adjust. Renters see an approximate area until a booking is confirmed.',
+  unplaced: 'Tap the map to mark exactly where renters collect the gear. Renters see an approximate area until a booking is confirmed.',
+}
+
+export function LocationPicker({ city, province, value, onChange, exact, captions = HOST_CAPTIONS }: Props) {
   const isPlaced = exact ?? (value != null)
   return (
     <div className="rounded-2xl overflow-hidden border border-gray-200 bg-white">
@@ -35,10 +44,7 @@ export function LocationPicker({ city, province, value, onChange, exact }: Props
       <div className="flex items-start gap-2 px-4 py-3 border-t border-gray-100">
         <MapPin className="w-4 h-4 text-[#003049] shrink-0 mt-0.5" />
         <p className="text-sm text-gray-600">
-          {isPlaced
-            ? 'Pickup point set. Drag the pin or tap the map to adjust.'
-            : 'Tap the map to mark exactly where renters collect the gear.'}
-          {' '}Renters see an approximate area until a booking is confirmed.
+          {isPlaced ? captions.placed : captions.unplaced}
         </p>
       </div>
     </div>

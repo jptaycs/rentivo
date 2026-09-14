@@ -13,6 +13,8 @@ import {
 } from '@/lib/paymongo'
 import { isPaymentMethodDisabled, unavailableMethodMessage } from '@/lib/payment-methods'
 import { notifyBookingPaid } from '@/lib/email'
+import { canReuseBooking, isInPhilippines, OUTSIDE_PH_MESSAGE, roundPinCoord } from '@/lib/delivery-location'
+import { storedBookingAmounts } from '@/lib/pricing'
 import type { Booking } from '@/types'
 
 interface CheckoutBody {
@@ -27,6 +29,20 @@ interface CheckoutBody {
   paymentMethodId?: string | null
   /** Reuse an unpaid booking from a previous failed attempt */
   bookingId?: string | null
+  /** 078: the renter's delivery pin. Only forwarded to create_booking for delivery. */
+  deliveryLat?: number | null
+  deliveryLng?: number | null
+  /**
+   * The total the renter was SHOWN. Never used to price anything — the intent is
+   * priced from the stored total_amount. It only lets the route stop before
+   * charging when the stored total differs (a host changed a rate between the
+   * quote and the booking), so the renter sees the stored figure before paying.
+   */
+  expectedTotal?: number | null
+}
+
+function isAbsent(v: unknown) {
+  return v === undefined || v === null
 }
 
 const CHARGEABLE = { gcash: 'gcash', maya: 'paymaya', card: 'card', qrph: 'qrph' } as const
@@ -89,8 +105,36 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: unavailableMethodMessage(body.method) }, { status: 400 })
   }
 
+  // 078: the delivery pin is either wholly absent or two finite numbers inside
+  // the Philippines. A pin far outside the country would overflow
+  // bookings.delivery_distance_km and fail inside create_booking with a raw
+  // "numeric field overflow"; refuse it here with a sentence instead. No fee is
+  // accepted from the client — create_booking computes it from the pin.
+  const latAbsent = isAbsent(body.deliveryLat)
+  const lngAbsent = isAbsent(body.deliveryLng)
+  if (latAbsent !== lngAbsent) {
+    return NextResponse.json({ error: 'Invalid delivery location.' }, { status: 400 })
+  }
+  let pin: { lat: number; lng: number } | null = null
+  if (!latAbsent) {
+    if (
+      typeof body.deliveryLat !== 'number' || !Number.isFinite(body.deliveryLat) ||
+      typeof body.deliveryLng !== 'number' || !Number.isFinite(body.deliveryLng)
+    ) {
+      return NextResponse.json({ error: 'Invalid delivery location.' }, { status: 400 })
+    }
+    if (!isInPhilippines(body.deliveryLat, body.deliveryLng)) {
+      return NextResponse.json({ error: OUTSIDE_PH_MESSAGE }, { status: 400 })
+    }
+    pin = { lat: roundPinCoord(body.deliveryLat), lng: roundPinCoord(body.deliveryLng) }
+  }
+  const isDelivery = body.isDelivery === true
+  if (!isAbsent(body.expectedTotal) && (typeof body.expectedTotal !== 'number' || !Number.isFinite(body.expectedTotal))) {
+    return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  }
+
   // ── 1. Create the booking (or reuse the one from a failed attempt) ──
-  let booking: Booking
+  let resolved: Booking | null = null
   if (body.bookingId) {
     // Never reuse a host_qr booking for a PayMongo charge: the row's
     // payment_method would stay 'host_qr', which request_payout() excludes from
@@ -123,8 +167,16 @@ export async function POST(req: Request) {
     if (suspendedError || suspended) {
       return NextResponse.json({ error: 'Booking not found or already paid.' }, { status: 400 })
     }
-    booking = data as Booking
-  } else {
+    // 078: reusing charges the STORED total, which was priced under the stored
+    // pickup/delivery choice and pin. If the renter has since switched choice or
+    // moved the pin, reusing would charge the old distance — so don't reuse;
+    // fall through and create a freshly priced booking instead. Mirrors the
+    // client's rule in BookingWizard (same canReuseBooking helper).
+    if (canReuseBooking(data as Booking, isDelivery, pin)) {
+      resolved = data as Booking
+    }
+  }
+  if (!resolved) {
     if (!body.listingId || !body.pickupDate || !body.returnDate) {
       return NextResponse.json({ error: 'Missing booking details.' }, { status: 400 })
     }
@@ -132,10 +184,12 @@ export async function POST(req: Request) {
       p_listing_id: body.listingId,
       p_pickup_date: body.pickupDate,
       p_return_date: body.returnDate,
-      p_is_delivery: body.isDelivery ?? false,
-      p_delivery_address: body.isDelivery ? body.deliveryAddress : null,
+      p_is_delivery: isDelivery,
+      p_delivery_address: isDelivery ? body.deliveryAddress : null,
       p_payment_method: body.method,
       p_promo_code: null,   // 071: promo codes discontinued
+      p_delivery_lat: isDelivery ? (pin?.lat ?? null) : null,
+      p_delivery_lng: isDelivery ? (pin?.lng ?? null) : null,
     })
     if (error) {
       return NextResponse.json(
@@ -143,7 +197,27 @@ export async function POST(req: Request) {
         { status: 400 }
       )
     }
-    booking = data as Booking
+    resolved = data as Booking
+  }
+  const booking: Booking = resolved
+  const amounts = storedBookingAmounts(booking)
+
+  // Ruling: once a booking exists, its STORED values win. If the stored total
+  // differs from what the renter was shown (a host changed a rate between the
+  // quote and the booking), stop before creating any payment intent and hand
+  // back the stored figures. The wizard shows them and the renter pays again,
+  // reusing this same booking — so they see the real total before paying.
+  if (typeof body.expectedTotal === 'number' && body.expectedTotal !== booking.total_amount) {
+    const deliveryNote = booking.is_delivery ? ` (delivery ₱${booking.delivery_fee.toLocaleString('en-PH')})` : ''
+    return NextResponse.json(
+      {
+        error: `Your total is now ₱${booking.total_amount.toLocaleString('en-PH')}${deliveryNote}. The price changed since you reviewed it — please check the new total and pay again.`,
+        code: 'total_changed',
+        bookingId: booking.id,
+        amounts,
+      },
+      { status: 409 }
+    )
   }
 
   // NOTE: the pre-launch 'test_skip' branch that marked a booking paid with no
@@ -155,7 +229,7 @@ export async function POST(req: Request) {
   if (!isPayMongoConfigured()) {
     if (process.env.NODE_ENV === 'production') {
       return NextResponse.json(
-        { error: 'Payments are not configured.', bookingId: booking.id },
+        { error: 'Payments are not configured.', bookingId: booking.id, amounts },
         { status: 503 }
       )
     }
@@ -170,7 +244,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ status: 'paid', simulated: true, booking: paid })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Payment simulation failed.'
-      return NextResponse.json({ error: message, bookingId: booking.id }, { status: 500 })
+      return NextResponse.json({ error: message, bookingId: booking.id, amounts }, { status: 500 })
     }
   }
 
@@ -190,7 +264,7 @@ export async function POST(req: Request) {
     if (body.method === 'card') {
       if (!paymentMethodId) {
         return NextResponse.json(
-          { error: 'Card could not be processed. Please re-enter your details.', bookingId: booking.id },
+          { error: 'Card could not be processed. Please re-enter your details.', bookingId: booking.id, amounts },
           { status: 400 }
         )
       }
@@ -225,7 +299,7 @@ export async function POST(req: Request) {
         })
         if (error) {
           // Charge went through; webhook / return page will reconcile
-          return NextResponse.json({ status: 'redirect', url: returnUrl, bookingId: booking.id })
+          return NextResponse.json({ status: 'redirect', url: returnUrl, bookingId: booking.id, amounts })
         }
         notifyBookingPaid(booking.id).catch((e) => console.error('[email] notifyBookingPaid failed', e))
         return NextResponse.json({ status: 'paid', booking: paid })
@@ -240,19 +314,21 @@ export async function POST(req: Request) {
             status: 'qr',
             qrImage: nextAction.code.image_url,
             bookingId: booking.id,
+            amounts,
           })
         }
         return NextResponse.json({
           status: 'redirect',
           url: nextAction && 'redirect' in nextAction ? nextAction.redirect.url : returnUrl,
           bookingId: booking.id,
+          amounts,
         })
       }
       case 'processing':
-        return NextResponse.json({ status: 'redirect', url: returnUrl, bookingId: booking.id })
+        return NextResponse.json({ status: 'redirect', url: returnUrl, bookingId: booking.id, amounts })
       default:
         return NextResponse.json(
-          { error: paymentErrorMessage(attached), bookingId: booking.id },
+          { error: paymentErrorMessage(attached), bookingId: booking.id, amounts },
           { status: 402 }
         )
     }
@@ -263,11 +339,11 @@ export async function POST(req: Request) {
     if (isMethodNotActivatedError(err)) {
       console.warn('[checkout] PayMongo rejected inactive method', body.method, err.message)
       return NextResponse.json(
-        { error: unavailableMethodMessage(body.method), bookingId: booking.id },
+        { error: unavailableMethodMessage(body.method), bookingId: booking.id, amounts },
         { status: 400 }
       )
     }
     const message = err instanceof Error ? err.message : 'Payment failed. Please try again.'
-    return NextResponse.json({ error: message, bookingId: booking.id }, { status: 502 })
+    return NextResponse.json({ error: message, bookingId: booking.id, amounts }, { status: 502 })
   }
 }
