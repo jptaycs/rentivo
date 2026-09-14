@@ -9,7 +9,7 @@ const TABS = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/search', label: 'Search', icon: Search },
   { href: '/dashboard/rentals', label: 'Bookings', icon: CalendarDays },
-  { href: '/dashboard/wishlist', label: 'Wishlist', icon: Heart },
+  { href: '/wishlist', label: 'Wishlist', icon: Heart },
   { href: '/dashboard/overview', label: 'Profile', icon: User },
 ]
 
@@ -22,7 +22,7 @@ export function MobileBottomNav() {
       <div className="flex">
         {TABS.map(({ href, label, icon: Icon }) => {
           const isActive = href === '/' ? pathname === '/' : pathname.startsWith(href)
-          const isWishlist = href === '/dashboard/wishlist'
+          const isWishlist = href === '/wishlist'
           return (
             <Link
               key={href}

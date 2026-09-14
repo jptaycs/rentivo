@@ -28,7 +28,7 @@ const HOST_NAV = [
 const RENTER_NAV = [
   { label: 'My Rentals', href: '/dashboard/rentals', icon: ShoppingBag },
   { label: 'Messages', href: '/dashboard/messages?view=renter', icon: MessageCircle, unread: true },
-  { label: 'Wishlist', href: '/dashboard/wishlist', icon: Heart },
+  { label: 'Wishlist', href: '/wishlist', icon: Heart },
   { label: 'Receipts', href: '/dashboard/receipts', icon: Receipt },
   { label: 'Reviews', href: '/dashboard/reviews?view=renter', icon: Star },
   { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },

@@ -39,7 +39,6 @@ function DashboardSidebars({ sidebarOpen, onCloseMobile }: SidebarsProps) {
     view === 'renter' ||
     (view !== 'host' &&
       (pathname.startsWith('/dashboard/rentals') ||
-        pathname.startsWith('/dashboard/wishlist') ||
         pathname.startsWith('/dashboard/receipts') ||
         pathname.startsWith('/dashboard/notifications') ||
         accountIsRenterOnly))
