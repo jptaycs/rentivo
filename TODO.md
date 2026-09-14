@@ -64,6 +64,48 @@ Their full entries, with the reasoning, are in the archive further down.
   deleted, caller not allowed) now reads "Photo unavailable" instead of a loading
   placeholder that never resolved.
 
+- [x] **Security audit 2 (2026-09-14), database side — done by migration 077.** Two HIGH
+  findings, both proven exploitable live: any reviewer could attach a review to *any* listing
+  (and hosts could "complete" unpaid bookings to manufacture reviewable ones), and a host could
+  double-book dates a renter had paid for (pre-block then delete the block, or confirm two
+  overlapping bookings). Plus: hosts completing and requesting payout before a rental happened,
+  confirming unpaid bookings, suspended users still writing for up to an hour, forgeable
+  message/review timestamps and self-approved verification requests at insert, either party
+  overwriting the other's booking notes, unlimited anonymous view inflation, listing deletes
+  cascading away renters' inquiry threads, and TRUNCATE still granted to client roles.
+  **Why the fixes took the shape they did** (full write-up in AGENTS.md's Security model):
+  - every booking rule is a trigger — `create_booking` was not edited (038/039, 040);
+  - overlapping confirmations are serialised with a per-listing advisory lock rather than an
+    exclusion constraint, because a constraint would make the PayMongo webhook raise after a
+    renter's money had already moved; the service-role path records the payment and leaves the
+    booking pending for the host to decline and refund;
+  - every narrowed INSERT grant was derived from the real call sites first, because 073 once
+    missed a value and silently broke host blocked dates in production — and the wizard's
+    blocked-date path was re-driven in a real browser this time, not only by script;
+  - review `listing_id` is derived by trigger rather than validated, so the client value can't
+    matter at all.
+  Verified: `scripts/verify/077-booking-lifecycle-and-insert-hardening.mjs` 74/74; regressions
+  074, 075, 076 all pass (076's `notified_at` probe updated — a client insert naming it is now
+  `permission denied` instead of being silently nulled). Browser pass on a production build
+  (port 3100): demo renter sent a message through the real composer (host read it under RLS);
+  demo host ran the listing wizard end to end clicking two blocked dates, both
+  `availability_blocks` rows (`personal`) confirmed in the database; deleting that listing after
+  an inquiry deactivated it with the explanation. All probe rows, the uploaded image and the
+  rate-limit hits cleaned up; counts back at the audit baseline.
+  **Still open from audit 2, deliberately not in 077:**
+  - [ ] The confirm-overlap guard's service-role branch leaves a *paid* booking pending. The
+    checkout/webhook still send the Instant Book "confirmed" email in that case (the email
+    module chooses copy from `is_instant_book`, not the stored status). Rare (needs two renters
+    paying for overlapping dates at nearly the same moment) but the copy is wrong when it
+    happens.
+  - [ ] `view_count` remains a vanity metric (see AGENTS.md) — label it as such on Analytics or
+    replace it with a deduplicated events table if it ever matters.
+  - [ ] I-2 (storage accepting `..` in object keys and HTML bytes labelled `image/png` in the
+    public `listing-images` bucket) and I-6 (`handle_new_user` copying client-supplied
+    `avatar_url`) were not addressed.
+  - [ ] Default privileges still grant `arwd` on new tables to `anon`/`authenticated`
+    (`pg_default_acl`), so "enable RLS in the creating migration" remains non-negotiable.
+
 - [x] **Rate limiting — done 2026-09-14 (migration 076).** Security audit MEDIUM-4. Built in
   Postgres (no new service); design in AGENTS.md's Security model. **Worse hole found first
   and fixed in the same change:** `/api/messages/notify` emailed the other party on every

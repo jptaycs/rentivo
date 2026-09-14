@@ -174,14 +174,22 @@ try {
   demoConvo = convos[0]
   if (!demoConvo) throw new Error('no demo renter <-> demo host conversation')
 
-  const sent = await asUser(demoRenterS.access_token, 'messages?select=id,notified_at', {
+  // Since 077 a client insert naming notified_at is refused outright by the
+  // column-level INSERT grant (it used to be accepted and nulled by the trigger).
+  const presetAttempt = await asUser(demoRenterS.access_token, 'messages?select=id,notified_at', {
     method: 'POST',
     body: JSON.stringify({ conversation_id: demoConvo.id, sender_id: demoRenterId, content: `076 probe ${stamp}`, notified_at: '2020-01-01T00:00:00Z' }),
+  })
+  if (presetAttempt.body?.[0]?.id) created.messages.push(presetAttempt.body[0].id)
+  check('client insert cannot pre-set notified_at (077: permission denied)', denied(presetAttempt), JSON.stringify(presetAttempt.body))
+  const sent = await asUser(demoRenterS.access_token, 'messages?select=id,notified_at', {
+    method: 'POST',
+    body: JSON.stringify({ conversation_id: demoConvo.id, sender_id: demoRenterId, content: `076 probe ${stamp}` }),
   })
   const msgId = sent.body?.[0]?.id
   if (msgId) created.messages.push(msgId)
   check('8. normal single message from demo renter succeeds', sent.status === 201 && !!msgId, `${sent.status}`)
-  check('client insert cannot pre-set notified_at (trigger forces null)', sent.body?.[0]?.notified_at === null, JSON.stringify(sent.body))
+  check('  … and starts with notified_at null', sent.body?.[0]?.notified_at === null, JSON.stringify(sent.body))
 
   const hostCall = await route(demoHostS, '/api/messages/notify', { messageId: msgId })
   let { body: [row0] } = await admin(`messages?select=notified_at&id=eq.${msgId}`)

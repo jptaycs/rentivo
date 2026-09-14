@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { SERVICE_FEE_RATE } from '@/lib/pricing'
 import { LISTING_COLUMNS } from '@/lib/listing-columns'
 import { LocationPicker } from '@/components/host/LocationPicker'
+import { deleteOrDeactivateListing, LISTING_KEPT_MESSAGE } from '@/hooks/useMyListings'
 
 // Values must match the listings table's equipment_category / listing_condition
 // enums (001_initial_schema.sql) — same options the host wizard's Step2Details uses.
@@ -192,10 +193,15 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
     setError('')
     setBusy(true)
     const supabase = createClient()
-    const { error: deleteError } = await supabase.from('listings').delete().eq('id', id)
+    const { error: deleteError, deactivated } = await deleteOrDeactivateListing(supabase, id)
     setBusy(false)
     if (deleteError) {
-      setError(deleteError.message)
+      setError(deleteError)
+      return
+    }
+    if (deactivated) {
+      setIsActive(false)
+      setError(LISTING_KEPT_MESSAGE)
       return
     }
     router.push('/dashboard/listings')
