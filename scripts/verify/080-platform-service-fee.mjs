@@ -166,6 +166,11 @@ try {
 
     // CONTROL, rolled back: the real function succeeds and writes its audit
     // row in the SAME transaction.
+    //
+    // Counted as a DELTA, not against zero: real rate changes are a permanent
+    // audit trail (Task B9's verification left two), so an absolute count here
+    // would start failing the first time an admin legitimately moves the rate.
+    const auditBefore = sql("select count(*)::int as n from public.admin_actions where action = 'service_fee_rate_change'")[0].n
     const r = probe(`
       declare v_prev int; v_new int; v_count int;
       begin
@@ -179,14 +184,15 @@ try {
     try { payload = JSON.parse(r.payload) } catch { /* leave null */ }
     check('4. CONTROL (rolled back): set_service_fee_bps(600, …) succeeds and stamps previous_bps=500,service_fee_bps=600',
       r.raised && payload?.prev === 500 && payload?.new === 600, r.error?.slice(0, 300) ?? JSON.stringify(payload))
-    check('4. CONTROL (rolled back): its admin_actions audit row is written in the SAME transaction (count=1)',
-      payload?.audit_count === 1, `${payload?.audit_count}`)
+    check('4. CONTROL (rolled back): its admin_actions audit row is written in the SAME transaction (baseline + 1)',
+      payload?.audit_count === auditBefore + 1, `${payload?.audit_count} (baseline ${auditBefore})`)
 
-    // After the probe rolled back: rate is still 500, no audit row exists.
+    // After the probe rolled back: rate is still 500, and the probe's own audit
+    // row is gone (the count is back at the baseline).
     const afterRate = sql('select service_fee_bps from public.platform_settings')[0].service_fee_bps
     check('4. after the rolled-back probe, platform_settings.service_fee_bps is still 500', afterRate === 500, `${afterRate}`)
     const afterAudit = sql("select count(*)::int as n from public.admin_actions where action = 'service_fee_rate_change'")[0].n
-    check('4. after the rolled-back probe, no service_fee_rate_change row exists', afterAudit === 0, `${afterAudit}`)
+    check('4. after the rolled-back probe, its service_fee_rate_change row is gone (count back at the baseline)', afterAudit === auditBefore, `${afterAudit} (baseline ${auditBefore})`)
   }
 
   // ── 5. validation refusals, each its own rolled-back probe ────────────────

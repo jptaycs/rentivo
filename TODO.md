@@ -35,6 +35,39 @@ Their full entries, with the reasoning, are in the archive further down.
 
 ## Unblocked — actionable now
 
+- [x] **The service fee is hardcoded — an admin cannot change Rentivo's own pricing without
+  a migration and a deploy.** **Done 2026-09-15** (migrations 080 + 081, applied to the
+  hosted production database and deployed; Phase B of
+  `docs/superpowers/plans/2026-09-14-admin-service-fee-and-payout-statements.md`). The rate
+  now lives in one row (`platform_settings`, basis points), is read by
+  `current_service_fee_bps()`, written only by the `service_role`-only
+  `set_service_fee_bps()` behind `/admin/settings`, and is changed from the admin panel with
+  a required reason that lands in `admin_actions` in the **same transaction**. **Live rate:
+  500 bps (5%)** — unchanged in effect, only in mechanism.
+  **The per-booking stamp is the part that matters later.** `create_booking` reads the rate
+  **once** and uses it twice — to compute `service_fee` and to stamp
+  `bookings.service_fee_bps` — so a receipt can never disagree with what was charged, and a
+  rate change never reprices an existing booking. A change that lands mid-checkout surfaces
+  through the checkout route's **existing 409 `total_changed`**, with no new code path:
+  verified in a browser, the renter saw "Your total is now ₱10,510. The price changed since
+  you reviewed it…", the button repriced, and **no PayMongo intent was created**.
+  **Backfill counts** (080, measured live before applying and matching the spec exactly):
+  **6 bookings at 500 bps, 13 at 1200, 0 matching neither**, 19 total, **0 nulls**, and **0
+  rows** where the stamped rate fails to reproduce the stored fee. ⚠️ That backfill's
+  unqualified `UPDATE` fired the `bookings_updated_at` trigger and flattened `updated_at` on
+  all 19 rows — nothing reads that column, but the old values are gone; **any future
+  `bookings` backfill must preserve it explicitly.**
+  `SERVICE_FEE_RATE` is **deleted** from `src/lib/pricing.ts`: every percentage on screen is
+  now a value read from the server (`getServiceFeeBps()` server-side,
+  `useServiceFeeBps()` client-side), except a receipt and an existing booking's summary,
+  which read the booking's own stamped rate. The false host-facing "you receive 95%" copy
+  went with it — the renter pays the fee on top and the host is paid in full. Full write-up,
+  including what the live bracketed rate change did and did not prove, is the
+  **Admin-controlled service fee** Status entry in `AGENTS.md`.
+  **Next: Phase C — admin-issued payout statements**, which replaces host-requested payouts
+  with numbered statements and **snapshots `bookings.service_fee_bps` per line**, so it
+  could only start once Phase B was deployed. Same plan file, Task C1 onward.
+
 - [x] **`message-images` is a PUBLIC storage bucket — private DM attachments are
   anonymously fetchable by URL, forever.** Found by the 2026-09-13 security audit
   (MEDIUM-3). Nothing is exposed *today*: the bucket holds **0 objects**. That is exactly
