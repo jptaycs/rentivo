@@ -1,0 +1,85 @@
+// Security audit 2, MEDIUM-1: every email template must escape user- and
+// host-authored values. Runs against the REAL template module:
+//   node --experimental-strip-types scripts/verify/audit2-email-escaping.mjs
+import * as t from '../../src/lib/email-templates.ts'
+
+let pass = 0
+let fail = 0
+function check(name, ok, detail = '') {
+  if (ok) { pass++; console.log(`PASS ${name}`) } else { fail++; console.log(`FAIL ${name} ${detail}`) }
+}
+
+const HOSTILE = [
+  '<script>alert(1)</script>',
+  '<a href="https://evil.example.com">Verify your payment</a>',
+  '"><img src=x onerror=alert(1)>',
+  "'><svg onload=alert(1)>",
+]
+const BENIGN = 'Plain Value'
+// Raw markup that would only appear if an input escaped its text context:
+// a tag opener from the payload, or a quote that breaks out of an attribute.
+// (The words "onerror=alert" legitimately remain as inert, escaped TEXT.)
+// The '<' and '"' count comparisons below are the strict check; these markers
+// just make a failure readable.
+const RAW_MARKERS = ['<script', '<a href="https://evil', '<img', '<svg', '"><', "'><"]
+
+const ltCount = (s) => (s.match(/</g) ?? []).length
+const qCount = (s) => (s.match(/["']/g) ?? []).length
+
+function ctx(v) {
+  return {
+    bookingRef: v,
+    listingTitle: v,
+    pickupDate: '2026-09-20',
+    returnDate: '2026-09-22',
+    totalAmount: 2490,
+    otherPartyName: v,
+  }
+}
+
+const templates = {
+  'hostNewBookingHtml(instant)': (v) => t.hostNewBookingHtml(ctx(v), true),
+  'hostNewBookingHtml(request)': (v) => t.hostNewBookingHtml(ctx(v), false),
+  renterConfirmedHtml: (v) => t.renterConfirmedHtml(ctx(v)),
+  renterPendingHtml: (v) => t.renterPendingHtml(ctx(v)),
+  'renterDeclinedHtml(refunded)': (v) => t.renterDeclinedHtml(ctx(v), true, false),
+  'renterDeclinedHtml(host_qr)': (v) => t.renterDeclinedHtml(ctx(v), false, true),
+  'hostCancelledByRenterHtml(refunded)': (v) => t.hostCancelledByRenterHtml(ctx(v), true, false),
+  'hostCancelledByRenterHtml(host_qr)': (v) => t.hostCancelledByRenterHtml(ctx(v), false, true),
+  newMessageHtml: (v) =>
+    t.newMessageHtml({ senderName: v, listingTitle: v, preview: v, conversationId: v }),
+  'adminDecisionHtml+notesBlock': (v) =>
+    t.adminDecisionHtml({ heading: 'Verification Not Approved', bodyHtml: `<p>x</p>${t.notesBlock(v)}`, ctaPath: '/dashboard/settings', ctaLabel: 'Resubmit' }),
+  'adminDecisionHtml+payoutPaidBodyHtml': (v) =>
+    t.adminDecisionHtml({ heading: 'Payout Sent', bodyHtml: t.payoutPaidBodyHtml(1500, v), ctaPath: '/dashboard/payouts', ctaLabel: 'View' }),
+}
+
+for (const [name, render] of Object.entries(templates)) {
+  const baseline = ltCount(render(BENIGN))
+  const qBaseline = qCount(render(BENIGN))
+  for (const payload of HOSTILE) {
+    const html = render(payload)
+    const leaked = RAW_MARKERS.filter((m) => html.includes(m))
+    check(`${name} :: no raw markup from ${JSON.stringify(payload)}`, leaked.length === 0, `leaked ${leaked.join(', ')}`)
+    check(
+      `${name} :: '<' count unchanged by ${JSON.stringify(payload)}`,
+      ltCount(html) === baseline,
+      `benign=${baseline} hostile=${ltCount(html)}`
+    )
+    check(
+      `${name} :: '"' count unchanged by ${JSON.stringify(payload)}`,
+      qCount(html) === qBaseline,
+      `benign=${qBaseline} hostile=${qCount(html)}`
+    )
+    check(`${name} :: payload present in escaped form`, html.includes('&lt;') || !payload.includes('<'))
+  }
+}
+
+// Subjects: plain text, no control characters may survive.
+const subj = t.plainSubject('New message from Evil\r\nBcc: victim@example.com\n<b>x</b>')
+check('plainSubject strips CR/LF', !/[\r\n]/.test(subj), JSON.stringify(subj))
+check('plainSubject strips other control chars', !/[\x00-\x1f\x7f]/.test(t.plainSubject('a\x00b\tc\x7fd')))
+check('plainSubject leaves a normal subject alone', t.plainSubject('Booking Confirmed — RNT-ABC123') === 'Booking Confirmed — RNT-ABC123')
+
+console.log(`\n${pass} passed, ${fail} failed`)
+process.exit(fail ? 1 : 0)

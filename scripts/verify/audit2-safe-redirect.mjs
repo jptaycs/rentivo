@@ -1,0 +1,68 @@
+// Security audit 2, MEDIUM-2: safeRedirectPath must never produce an off-site
+// destination. Runs against the REAL module:
+//   node --experimental-strip-types scripts/verify/audit2-safe-redirect.mjs
+import { safeRedirectPath } from '../../src/lib/utils.ts'
+
+let pass = 0
+let fail = 0
+function check(name, ok, detail = '') {
+  if (ok) { pass++; console.log(`PASS ${name}`) } else { fail++; console.log(`FAIL ${name} ${detail}`) }
+}
+
+const ORIGIN = 'https://rentivo.live'
+// What a browser / router.push does with the value: resolve against the page.
+const staysOnSite = (p) => new URL(p, `${ORIGIN}/login`).origin === ORIGIN
+
+// Values as they arrive from URLSearchParams.get() — i.e. already percent-decoded once.
+const mustFallBack = [
+  '/\t/evil.com',
+  '/\n/evil.com',
+  '/\r/evil.com',
+  '/\t/evil.example.com',
+  '//evil.com',
+  '/\\evil.com',
+  '/\\/evil.com',
+  '/x\\..\\..\\evil.com',
+  'https://evil.com',
+  'javascript:alert(1)',
+  ' /dashboard',
+  '/dash board',
+  '/\x00/evil.com',
+  '/\x7f/evil.com',
+  '/.//evil.com',
+  '/..//evil.com',
+  '/a/..//evil.com',
+  '',
+  null,
+  undefined,
+  'dashboard',
+]
+for (const input of mustFallBack) {
+  const out = safeRedirectPath(input, '__FALLBACK__')
+  check(`rejects ${JSON.stringify(input)}`, out === '__FALLBACK__', `got ${JSON.stringify(out)}`)
+}
+
+// Literal percent-escapes (double-encoded on the wire). These may be accepted,
+// but only as a same-origin path that cannot be re-read as scheme-relative.
+for (const input of ['/%09/evil.com', '/%2F%2Fevil.com', '/%5C%5Cevil.com', '/%0A/evil.com']) {
+  const out = safeRedirectPath(input, '__FALLBACK__')
+  const safe = out === '__FALLBACK__' || (out.startsWith('/') && !out.startsWith('//') && staysOnSite(out))
+  check(`neutralises ${JSON.stringify(input)} -> ${JSON.stringify(out)}`, safe)
+}
+
+// Safe controls pass through unchanged.
+for (const input of ['/dashboard/rentals', '/book?listing=x&from=a&to=b', '/wishlist#top', '/', '/listings/abc?x=1#y']) {
+  check(`keeps ${JSON.stringify(input)}`, safeRedirectPath(input) === input, `got ${JSON.stringify(safeRedirectPath(input))}`)
+}
+
+// Default fallback is '/'.
+check('default fallback is /', safeRedirectPath('//evil.com') === '/')
+
+// Every output, for every input above, stays on-site when resolved like a browser does.
+for (const input of [...mustFallBack, '/%09/evil.com', '/%2F%2Fevil.com', '/dashboard/rentals']) {
+  const out = safeRedirectPath(input)
+  check(`browser-resolves on-site: ${JSON.stringify(input)}`, staysOnSite(out), `got ${JSON.stringify(out)}`)
+}
+
+console.log(`\n${pass} passed, ${fail} failed`)
+process.exit(fail ? 1 : 0)

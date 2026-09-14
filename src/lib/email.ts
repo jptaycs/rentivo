@@ -1,188 +1,45 @@
 import 'server-only'
 import { Resend } from 'resend'
 import { createAdminClient } from './supabase/admin'
+import {
+  plainSubject,
+  fmtPeso,
+  hostNewBookingHtml,
+  renterConfirmedHtml,
+  renterPendingHtml,
+  renterDeclinedHtml,
+  hostCancelledByRenterHtml,
+  newMessageHtml,
+  adminDecisionHtml,
+  notesBlock,
+  payoutPaidBodyHtml,
+} from './email-templates'
+
+// Every HTML template lives in ./email-templates.ts, which escapes each user- or
+// host-authored value at the point of interpolation (security audit 2,
+// MEDIUM-1). Do not build HTML from database values in this file.
 
 export function isEmailConfigured() {
   return Boolean(process.env.RESEND_API_KEY)
 }
 
 const FROM = process.env.EMAIL_FROM || 'Rentivo <onboarding@resend.dev>'
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-
-const fmtPeso = (n: number) => `₱${n.toLocaleString('en-PH')}`
-const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })
-
-function layout(preheader: string, bodyHtml: string) {
-  return `<!doctype html>
-<html>
-  <body style="margin:0;padding:0;background:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-    <span style="display:none;max-height:0;overflow:hidden;">${preheader}</span>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;padding:32px 16px;">
-      <tr><td align="center">
-        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;max-width:480px;width:100%;">
-          <tr><td style="background:#003049;padding:24px 32px;">
-            <span style="color:#ffffff;font-size:18px;font-weight:700;">Rentivo</span>
-          </td></tr>
-          <tr><td style="padding:32px;">
-            ${bodyHtml}
-          </td></tr>
-          <tr><td style="padding:20px 32px;background:#F8FAFC;border-top:1px solid #eef1f5;">
-            <p style="margin:0;color:#9aa3af;font-size:12px;line-height:1.5;">
-              Rentivo — Rent Smarter. Create More.<br>
-              This is a transactional email about your Rentivo booking.
-            </p>
-          </td></tr>
-        </table>
-      </td></tr>
-    </table>
-  </body>
-</html>`
-}
-
-function button(href: string, label: string) {
-  return `<a href="${href}" style="display:inline-block;margin-top:20px;background:#003049;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 24px;border-radius:12px;">${label}</a>`
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
 
 async function send(to: string, subject: string, html: string) {
+  // Subjects are built from user-set values (a sender's full_name); strip
+  // control characters so nothing can carry a newline into the header.
+  const safeSubject = plainSubject(subject)
   if (!isEmailConfigured()) {
-    console.log(`[email] RESEND_API_KEY not set — skipped "${subject}" to ${to}`)
+    console.log(`[email] RESEND_API_KEY not set — skipped "${safeSubject}" to ${to}`)
     return
   }
   try {
     const resend = new Resend(process.env.RESEND_API_KEY)
-    const { error } = await resend.emails.send({ from: FROM, to, subject, html })
+    const { error } = await resend.emails.send({ from: FROM, to, subject: safeSubject, html })
     if (error) console.error('[email] send failed', error)
   } catch (err) {
     console.error('[email] send threw', err)
   }
-}
-
-interface EmailContext {
-  bookingRef: string
-  listingTitle: string
-  pickupDate: string
-  returnDate: string
-  totalAmount: number
-  otherPartyName: string
-}
-
-function hostNewBookingHtml(ctx: EmailContext, instant: boolean) {
-  return layout(
-    `${instant ? 'New paid booking' : 'New booking request'} for ${ctx.listingTitle}`,
-    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">${instant ? 'New Instant Booking 🎉' : 'New Booking Request'}</h1>
-     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
-       <strong>${ctx.otherPartyName}</strong> ${instant ? 'just booked' : 'wants to rent'} your <strong>${ctx.listingTitle}</strong>.
-     </p>
-     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
-       ${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}<br>
-       Booking ref: ${ctx.bookingRef}<br>
-       Rental amount: ${fmtPeso(ctx.totalAmount)} (paid)
-     </p>
-     ${instant
-       ? `<p style="margin:0;color:#4b5563;font-size:14px;">This booking is already confirmed — no action needed.</p>`
-       : `<p style="margin:0;color:#4b5563;font-size:14px;">Please confirm or decline within 24 hours.</p>${button(`${APP_URL}/dashboard/bookings`, 'Review Booking')}`}`
-  )
-}
-
-function renterConfirmedHtml(ctx: EmailContext) {
-  return layout(
-    `Your booking ${ctx.bookingRef} is confirmed`,
-    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">Booking Confirmed ✅</h1>
-     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
-       Your rental of <strong>${ctx.listingTitle}</strong> from <strong>${ctx.otherPartyName}</strong> is confirmed.
-     </p>
-     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
-       ${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}<br>
-       Booking ref: ${ctx.bookingRef}<br>
-       Total paid: ${fmtPeso(ctx.totalAmount)}
-     </p>
-     ${button(`${APP_URL}/dashboard/rentals`, 'View Booking')}`
-  )
-}
-
-function renterPendingHtml(ctx: EmailContext) {
-  return layout(
-    `Payment received for ${ctx.bookingRef} — awaiting host confirmation`,
-    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">Payment Received</h1>
-     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
-       We've received your payment for <strong>${ctx.listingTitle}</strong>. ${ctx.otherPartyName} will confirm your booking within 24 hours.
-     </p>
-     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
-       ${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}<br>
-       Booking ref: ${ctx.bookingRef}<br>
-       Total paid: ${fmtPeso(ctx.totalAmount)}
-     </p>
-     ${button(`${APP_URL}/dashboard/rentals`, 'View Booking')}`
-  )
-}
-
-function refundLine(totalAmount: number, refunded: boolean, isHostQr: boolean) {
-  if (isHostQr) {
-    return refunded
-      ? `This booking was paid directly to the host via QR code, so Rentivo can’t process a refund automatically — please arrange the ${fmtPeso(totalAmount)} refund directly with your host.`
-      : `You have not been charged further by Rentivo. Since this booking was paid directly to the host via QR code, any refund of ${fmtPeso(totalAmount)} needs to be arranged directly with them.`
-  }
-  return refunded
-    ? `A refund of ${fmtPeso(totalAmount)} has been processed back to your original payment method — it usually takes 5–10 business days to reflect, depending on your bank or e-wallet.`
-    : `You have not been charged further. Our team will follow up to process a refund of ${fmtPeso(totalAmount)} to your original payment method.`
-}
-
-function renterDeclinedHtml(ctx: EmailContext, refunded: boolean, isHostQr: boolean) {
-  return layout(
-    `Your booking ${ctx.bookingRef} was declined`,
-    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">Booking Declined</h1>
-     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
-       ${ctx.otherPartyName} was unable to confirm your booking for <strong>${ctx.listingTitle}</strong>
-       (${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}, ref ${ctx.bookingRef}).
-     </p>
-     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
-       ${refundLine(ctx.totalAmount, refunded, isHostQr)}
-     </p>
-     ${button(`${APP_URL}/search`, 'Browse Other Equipment')}`
-  )
-}
-
-function hostCancelledByRenterHtml(ctx: EmailContext, refunded: boolean, isHostQr: boolean) {
-  return layout(
-    `Booking ${ctx.bookingRef} was cancelled by the renter`,
-    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">Booking Cancelled</h1>
-     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
-       <strong>${ctx.otherPartyName}</strong> cancelled their booking for <strong>${ctx.listingTitle}</strong>
-       (${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}, ref ${ctx.bookingRef}). The dates are open again.
-     </p>
-     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
-       ${isHostQr
-         ? 'This booking was paid directly to you via QR code, so no payment ever passed through Rentivo — please refund the renter directly if you’ve already received payment.'
-         : refunded ? 'The renter has been refunded in full.' : 'The renter\'s refund is being processed.'}
-     </p>
-     ${button(`${APP_URL}/dashboard/calendar`, 'View Calendar')}`
-  )
-}
-
-function newMessageHtml(ctx: { senderName: string; listingTitle: string; preview: string; conversationId: string }) {
-  const senderName = escapeHtml(ctx.senderName)
-  const listingTitle = escapeHtml(ctx.listingTitle)
-  const preview = escapeHtml(ctx.preview)
-  return layout(
-    `New message from ${senderName}`,
-    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">New Message 💬</h1>
-     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
-       <strong>${senderName}</strong> sent you a message about <strong>${listingTitle}</strong>.
-     </p>
-     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;font-style:italic;">
-       "${preview}"
-     </p>
-     ${button(`${APP_URL}/dashboard/messages?conversation=${escapeHtml(ctx.conversationId)}`, 'Reply')}`
-  )
 }
 
 interface BookingRow {
@@ -360,30 +217,11 @@ export async function notifyNewMessage(messageId: string) {
 // Unconditional (no notification-preference gate) — these are
 // decision receipts, same rationale as the renter payment email.
 
-function adminDecisionHtml(opts: {
-  heading: string
-  bodyHtml: string
-  ctaPath: string
-  ctaLabel: string
-}) {
-  return layout(
-    opts.heading,
-    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">${opts.heading}</h1>
-     ${opts.bodyHtml}
-     ${button(`${APP_URL}${opts.ctaPath}`, opts.ctaLabel)}`
-  )
-}
-
 async function emailForUser(userId: string): Promise<string | null> {
   const admin = createAdminClient()
   const { data } = await admin.auth.admin.getUserById(userId)
   return data.user?.email ?? null
 }
-
-const notesBlock = (notes: string | null) =>
-  notes
-    ? `<p style="margin:16px 0 0;color:#4b5563;font-size:14px;line-height:1.6;">Reviewer notes: ${escapeHtml(notes)}</p>`
-    : ''
 
 export async function notifyVerificationReviewed(
   userId: string,
@@ -435,10 +273,7 @@ export async function notifyPayoutPaid(hostId: string, amount: number, reference
     `Your payout of ${fmtPeso(amount)} has been sent`,
     adminDecisionHtml({
       heading: 'Payout Sent 💸',
-      bodyHtml: `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">
-          Your payout of <strong>${fmtPeso(amount)}</strong> has been sent to your payout account.
-          ${reference ? `<br>Reference: ${escapeHtml(reference)}` : ''}
-        </p>`,
+      bodyHtml: payoutPaidBodyHtml(amount, reference),
       ctaPath: '/dashboard/payouts',
       ctaLabel: 'View Payout History',
     })

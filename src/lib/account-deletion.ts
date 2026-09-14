@@ -233,6 +233,65 @@ export async function deleteAccount(uid: string): Promise<{ ok: true } | { ok: f
     return { ok: false, error: deliveryAddressError.message }
   }
 
+  // Free-text booking notes (security audit 2, LOW-7). Decision: ANONYMIZE IN
+  // PLACE, one side at a time. Each note column is text the user wrote on THEIR
+  // side of the booking — `renter_notes` on rows where they are the renter,
+  // `host_notes` on rows where they are the host — so it is theirs and is
+  // nulled. The COUNTERPARTY's note on the same row is the counterparty's own
+  // record and is deliberately left untouched. The booking rows themselves
+  // survive (amounts, dates, refs are the counterparty's history too).
+  const { error: renterNotesError } = await admin
+    .from('bookings')
+    .update({ renter_notes: null })
+    .eq('renter_id', uid)
+  if (renterNotesError) {
+    return { ok: false, error: renterNotesError.message }
+  }
+  const { error: hostNotesError } = await admin
+    .from('bookings')
+    .update({ host_notes: null })
+    .eq('host_id', uid)
+  if (hostNotesError) {
+    return { ok: false, error: hostNotesError.message }
+  }
+
+  // payout_requests.notes (LOW-7). Decision: ANONYMIZE IN PLACE. The rows must
+  // survive — they are the platform's record of money actually paid or failed,
+  // and payout_items points at them — so amount/status/reference/timestamps
+  // stay. `notes` is free text (an admin's failure reason, often quoting the
+  // host's account name or number) about this specific person, with no
+  // financial value once the request is settled; the eligibility gate
+  // guarantees none is still pending. So it is nulled. `reference` (the
+  // disbursement reference) is kept as the money trail.
+  const { error: payoutNotesError } = await admin
+    .from('payout_requests')
+    .update({ notes: null })
+    .eq('host_id', uid)
+  if (payoutNotesError) {
+    return { ok: false, error: `Failed to clean up payout_requests: ${payoutNotesError.message}` }
+  }
+
+  // A deleted host's listings (LOW-7). Decision: ANONYMIZE IN PLACE, and
+  // DELETE the photos. The listing row must survive because bookings (and
+  // reviews/conversations) reference it, and the counterparty's receipt still
+  // needs a row to point at — so it is not deleted. But the title, description
+  // and serial number are host-authored free text that can identify the person
+  // (and the serial number identifies their physical device), so they are
+  // replaced. The listing is already deactivated above, so nothing public shows
+  // the placeholder. `images` is cleared and the objects removed below.
+  const { error: listingTextError } = await admin
+    .from('listings')
+    .update({
+      title: 'Deleted listing',
+      description: '',
+      serial_number: null,
+      images: [],
+    })
+    .eq('host_id', uid)
+  if (listingTextError) {
+    return { ok: false, error: listingTextError.message }
+  }
+
   // Capture verification doc storage paths before deleting the row
   const { data: verifications, error: verificationsReadError } = await admin
     .from('verification_requests')
@@ -285,6 +344,28 @@ export async function deleteAccount(uid: string): Promise<{ ok: true } | { ok: f
     if (avatarRemoveError) {
       console.error('[account-delete] avatar storage remove failed', avatarRemoveError)
     }
+  }
+
+  // Storage cleanup: listing photos. The wizard uploads to `listing-images` at
+  // `<uid>/<uuid>.<ext>` (a flat folder), and the listing rows' `images` were
+  // cleared above, so nothing references these objects any more. Paginated so a
+  // host with many photos is fully cleared. Non-fatal like the blocks around it.
+  for (let round = 0; round < 50; round++) {
+    const { data: listingFiles, error: listingListError } = await admin.storage
+      .from('listing-images')
+      .list(uid, { limit: 1000 })
+    if (listingListError) {
+      console.error('[account-delete] listing-images storage list failed', listingListError)
+      break
+    }
+    const names = (listingFiles ?? []).filter((f) => f.name && f.id !== null).map((f) => `${uid}/${f.name}`)
+    if (names.length === 0) break
+    const { error: listingRemoveError } = await admin.storage.from('listing-images').remove(names)
+    if (listingRemoveError) {
+      console.error('[account-delete] listing-images storage remove failed', listingRemoveError)
+      break
+    }
+    if (names.length < 1000) break
   }
 
   // Storage cleanup: verification docs (paths captured above, exact stored paths)

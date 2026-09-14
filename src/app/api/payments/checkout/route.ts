@@ -47,6 +47,25 @@ export async function POST(req: Request) {
   const limited = await rateLimit('checkout', user.id)
   if (limited) return limited
 
+  // A suspended CALLER must not be able to pay (security audit 2, LOW-1). This
+  // is an API route, so the middleware's suspended_at check never runs here, and
+  // a suspended renter's access token stays valid for up to an hour after the
+  // ban. is_host_suspended() is a security-definer lookup of any profile's
+  // suspended_at (046) — despite the name it answers for renters too. Fails
+  // closed: this path moves real money, so "couldn't check" must not mean "ok".
+  const { data: callerSuspended, error: callerSuspendedError } = await supabase.rpc('is_host_suspended', {
+    p_host_id: user.id,
+  })
+  if (callerSuspendedError) {
+    return NextResponse.json({ error: 'Could not verify your account. Please try again.' }, { status: 503 })
+  }
+  if (callerSuspended) {
+    return NextResponse.json(
+      { error: 'Your account is suspended. You cannot make payments — contact support.' },
+      { status: 403 }
+    )
+  }
+
   let body: CheckoutBody
   try {
     body = await req.json()
