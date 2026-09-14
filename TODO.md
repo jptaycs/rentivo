@@ -96,6 +96,21 @@ Their full entries, with the reasoning, are in the archive further down.
      reversing makes those bookings owed again, and preparing another statement for them
      would pay twice if the first transfer actually landed.
 
+- [ ] **Phase C review leftovers — owner decisions and one small cleanup** (C10 review,
+  2026-09-15; the fixed findings are in the AGENTS.md Status entry).
+  - **Statement year = issue year.** A December transfer recorded on January 2 is numbered
+    `PS-2027-…`. That is spec §7.5 as written; confirm it's what you want for bookkeeping
+    before year-end, since changing it later means two numbering rules in one series.
+  - **"of which delivery fees (paid to you in full)" is indented under the service-fee
+    line** on both the statement and the email, which can read as if delivery fees are part
+    of the fee. Spec §8 prescribes that order; consider moving it or relabelling it
+    "Includes delivery fees".
+  - **`error.message.replace(/^.*?: /, '')`** still strips real text in
+    `src/app/api/payments/checkout/route.ts`, `src/app/api/bookings/[id]/respond/route.ts`
+    and `src/app/api/admin/settings/service-fee/route.ts` (removed from the payout routes).
+    PostgREST returns `raise` text without a prefix, so any message containing `": "` loses
+    its start. Check what each route's messages look like before removing it there.
+
 - [ ] **Two old verification scripts still call the dropped `request_payout()`** —
   `scripts/verify/020-mark-payout-failed.mjs` and
   `scripts/verify/077-booking-lifecycle-and-insert-hardening.mjs` (its MEDIUM-3
