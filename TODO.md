@@ -93,11 +93,14 @@ Their full entries, with the reasoning, are in the archive further down.
   an inquiry deactivated it with the explanation. All probe rows, the uploaded image and the
   rate-limit hits cleaned up; counts back at the audit baseline.
   **Still open from audit 2, deliberately not in 077:**
-  - [ ] The confirm-overlap guard's service-role branch leaves a *paid* booking pending. The
-    checkout/webhook still send the Instant Book "confirmed" email in that case (the email
-    module chooses copy from `is_instant_book`, not the stored status). Rare (needs two renters
-    paying for overlapping dates at nearly the same moment) but the copy is wrong when it
-    happens.
+  - [x] The confirm-overlap guard's service-role branch leaves a *paid* booking pending, but the
+    checkout/webhook still sent the Instant Book "Booking Confirmed" email, because
+    `notifyBookingPaid` chose its copy from the listing's `is_instant_book` rather than the
+    booking's stored status. **Fixed 2026-09-14:** the copy now keys off `booking.status ===
+    'confirmed'`. All five callers (checkout ×2, verify-payment, webhook, /book/complete) run it
+    only after `mark_booking_paid` returns, so the status it reads is final. In the rare race
+    the renter now gets "Payment Received", which is true, instead of a confirmation the
+    database had refused.
   - [ ] `view_count` remains a vanity metric (see AGENTS.md) — label it as such on Analytics or
     replace it with a deduplicated events table if it ever matters.
   - [ ] I-2 (storage accepting `..` in object keys and HTML bytes labelled `image/png` in the

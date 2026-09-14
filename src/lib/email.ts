@@ -51,6 +51,7 @@ interface BookingRow {
   return_date: string
   total_amount: number
   payment_method: string | null
+  status: string
   listing: { title: string; is_instant_book: boolean } | null
 }
 
@@ -59,7 +60,7 @@ async function loadBookingContext(bookingId: string) {
   const { data } = await admin
     .from('bookings')
     .select(
-      'id, booking_ref, renter_id, host_id, pickup_date, return_date, total_amount, payment_method, listing:listings(title, is_instant_book)'
+      'id, booking_ref, renter_id, host_id, pickup_date, return_date, total_amount, payment_method, status, listing:listings(title, is_instant_book)'
     )
     .eq('id', bookingId)
     .maybeSingle()
@@ -92,7 +93,14 @@ export async function notifyBookingPaid(bookingId: string) {
   const ctx = await loadBookingContext(bookingId)
   if (!ctx) return
   const { booking, renterEmail, hostEmail, renterName, hostName, hostNotifyNewBooking } = ctx
-  const instant = booking.listing?.is_instant_book ?? false
+  // Decide the copy from the booking's STORED status, not the listing's
+  // Instant Book flag. They normally agree — mark_booking_paid flips an
+  // Instant Book booking to confirmed — but since 077 the double-booking guard
+  // may record the payment and leave it pending when its dates were taken by
+  // another confirmed rental in the meantime. Keying off is_instant_book told
+  // that renter "Booking Confirmed" for a rental the database had refused.
+  // Every caller runs this after mark_booking_paid, so status is final here.
+  const instant = booking.status === 'confirmed'
   const listingTitle = booking.listing?.title ?? 'a listing'
 
   const base = {
