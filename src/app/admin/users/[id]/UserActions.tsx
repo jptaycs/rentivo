@@ -98,8 +98,11 @@ export function UserActions({
   }
   if (blocking.pendingPayouts > 0) {
     blockingLines.push(
-      `${blocking.pendingPayouts} pending payout request${blocking.pendingPayouts === 1 ? '' : 's'}`
+      `${blocking.pendingPayouts} draft payout statement${blocking.pendingPayouts === 1 ? '' : 's'}`
     )
+  }
+  if (blocking.owedAmount > 0) {
+    blockingLines.push(`₱${blocking.owedAmount.toLocaleString('en-PH')} owed to this host`)
   }
 
   return (

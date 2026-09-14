@@ -16,10 +16,10 @@ import { getCityCoordinates } from '@/lib/ph-locations'
  * reference profiles without `on delete cascade`, while profiles.id -> auth.users
  * DOES cascade, so a real auth delete would wipe the counterparty's history.
  *
- * Two eligibility gates block deletion: an in-flight booking, and a pending
- * payout request. A third gate — an `issued` (unpaid) `host_bills` row, from
- * the host commission billing system (061) — existed here until that system
- * was retired 2026-09-13 (see
+ * Three eligibility gates block deletion: an in-flight booking, a draft
+ * payout statement, and money Rentivo still owes the host. A fourth gate — an
+ * `issued` (unpaid) `host_bills` row, from the host commission billing system
+ * (061) — existed here until that system was retired 2026-09-13 (see
  * .superpowers/sdd/2026-09-13-retire-host-qr-and-billing/) alongside the
  * `host_qr` payment method it existed to bill: once QR Ph activation let
  * Rentivo collect its fee directly at the point of sale, there was nothing
@@ -27,26 +27,44 @@ import { getCityCoordinates } from '@/lib/ph-locations'
  * gate had no future use. Migration 072 dropped `host_bills`/`host_bill_items`
  * outright — this module never wrote to them and, now that the tables are
  * gone, cannot read them either.
+ *
+ * The owed-money gate (082, admin-issued payout statements): once the account
+ * is scrubbed the admin has nowhere left to send the money, and the deleted
+ * host can no longer see that they're owed it. A **suspended** host with a
+ * balance can be neither paid (`create_payout_statement` refuses a suspended
+ * host) nor deleted — deliberately, so that decision is a person's (reinstate,
+ * or write the balance off some other way), not a side effect of deletion.
+ *
+ * `payout_requests`' `account_name`/`account_number` snapshot columns (082)
+ * are PII and are anonymized in place by `deleteAccount`, same reasoning as
+ * `payout_accounts` below — the rows are the platform's financial record of
+ * money actually paid (or a cancelled/reversed attempt) and `payout_items`
+ * points at them, so the rows themselves survive; only the account identity
+ * on them is scrubbed. `payout_statement_counters` and `platform_settings`
+ * hold no personal data and are correctly left untouched.
  */
 
 /**
  * What is blocking a deletion.
  *
- * ⚠️ No field is an assurance of absence. The two gates below are
+ * ⚠️ No field is an assurance of absence. The three gates below are
  * deliberately not short-circuited, and a query that FAILED contributes nothing
  * rather than being read as "no blockers" — so:
  *   • `pendingPayouts: 0` alongside a non-empty `bookings` may mean the
  *     payout query errored, i.e. "not checked", NOT "none pending".
  *   • `bookings: []` alongside `pendingPayouts > 0` may likewise mean the
  *     bookings query errored.
- *   • BOTH empty on an `ok: false` means the check could not be performed
- *     at all (see EligibilityResult).
+ *   • `owedAmount: 0` may mean the `payouts_owed` RPC errored, i.e. "not
+ *     checked", NOT "nothing owed" — same rule as the other two fields.
+ *   • ALL THREE empty/zero on an `ok: false` means the check could not be
+ *     performed at all (see EligibilityResult).
  * Do not render any value as a positive statement ("no pending payouts") in
  * a UI. Render only what is non-empty.
  */
 export interface DeletionBlocker {
   bookings: string[]
   pendingPayouts: number
+  owedAmount: number
 }
 
 /**
@@ -94,7 +112,7 @@ export async function checkDeletionEligibility(uid: string): Promise<Eligibility
     return {
       ok: false,
       reason: 'Invalid user id.',
-      blocking: { bookings: [], pendingPayouts: 0 },
+      blocking: { bookings: [], pendingPayouts: 0, owedAmount: 0 },
     }
   }
 
@@ -107,10 +125,12 @@ export async function checkDeletionEligibility(uid: string): Promise<Eligibility
     .or(`renter_id.eq.${uid},host_id.eq.${uid}`)
     .in('status', ['pending', 'confirmed', 'active'])
 
-  // Eligibility gate: block while a payout request is still pending. Disbursement is
-  // manual — an admin reads payout_accounts.account_number/account_name to send the
-  // money — so scrubbing those fields now would strand real owed money with no way
-  // for the (locked-out) host to restore it.
+  // Eligibility gate: block while a draft payout statement (082) is open.
+  // `payout_requests.status = 'pending'` is now a DRAFT statement rather than a
+  // host-requested payout — an admin prepares it via create_payout_statement(),
+  // snapshotting the payout account onto the row. Disbursement is still manual,
+  // so scrubbing the account now would strand a draft with nowhere to send the
+  // money and no way for the (locked-out) host to fix it.
   //
   // Deliberately NOT short-circuited on the gate above: the admin UI reports
   // everything blocking a deletion at once, which a short-circuit would prevent.
@@ -120,6 +140,16 @@ export async function checkDeletionEligibility(uid: string): Promise<Eligibility
     .eq('host_id', uid)
     .eq('status', 'pending')
 
+  // Eligibility gate: block while Rentivo still owes this host money (082).
+  // payouts_owed() is the one definition of what request_payout()'s successor,
+  // create_payout_statement(), would pay — once the account is scrubbed the
+  // admin has nowhere left to send it, and the host can no longer see they're
+  // owed it. A suspended host with a balance can be neither paid (that RPC
+  // refuses a suspended host) nor deleted — deliberately, so writing off or
+  // resolving the balance is a person's decision, not a side effect of
+  // deletion.
+  const { data: owedRows, error: owedError } = await admin.rpc('payouts_owed', { p_host_id: uid })
+
   // A query that failed tells us nothing, so it contributes nothing — it must not
   // be read as "no blockers". The real blockers found by whichever query DID
   // succeed are reported first below; only if none found anything do we fall
@@ -127,36 +157,52 @@ export async function checkDeletionEligibility(uid: string): Promise<Eligibility
   // mistaken for an eligible account. Consequence worth knowing: if bookings block
   // AND the payout query failed, the reported `pendingPayouts: 0` means
   // "unknown", not "none" — deletion is blocked either way, which is the safe
-  // direction.
+  // direction. The same holds for `owedAmount: 0` against a failed
+  // `payouts_owed` call.
   const refs = blockingError ? [] : (blocking ?? []).map((b) => b.booking_ref as string)
   const payouts = payoutError ? 0 : (pendingPayout ?? []).length
+  const owed = owedError ? 0 : ((owedRows?.[0]?.amount as number | undefined) ?? 0)
 
   if (refs.length > 0) {
     return {
       ok: false,
       reason: 'This account has an active booking. It must complete or be cancelled first.',
-      blocking: { bookings: refs, pendingPayouts: payouts },
+      blocking: { bookings: refs, pendingPayouts: payouts, owedAmount: owed },
     }
   }
   if (payouts > 0) {
     return {
       ok: false,
-      reason: 'This account has a payout in progress. It must be processed first.',
-      blocking: { bookings: [], pendingPayouts: payouts },
+      reason: 'This account has a draft payout statement. It must be recorded or cancelled first.',
+      blocking: { bookings: [], pendingPayouts: payouts, owedAmount: owed },
+    }
+  }
+  if (owed > 0) {
+    return {
+      ok: false,
+      reason: `Rentivo still owes this account ₱${owed.toLocaleString('en-PH')}. It must be paid out first.`,
+      blocking: { bookings: [], pendingPayouts: 0, owedAmount: owed },
     }
   }
   if (blockingError) {
     return {
       ok: false,
       reason: blockingError.message,
-      blocking: { bookings: [], pendingPayouts: 0 },
+      blocking: { bookings: [], pendingPayouts: 0, owedAmount: 0 },
     }
   }
   if (payoutError) {
     return {
       ok: false,
       reason: payoutError.message,
-      blocking: { bookings: [], pendingPayouts: 0 },
+      blocking: { bookings: [], pendingPayouts: 0, owedAmount: 0 },
+    }
+  }
+  if (owedError) {
+    return {
+      ok: false,
+      reason: owedError.message,
+      blocking: { bookings: [], pendingPayouts: 0, owedAmount: 0 },
     }
   }
   return { ok: true }
@@ -271,6 +317,38 @@ export async function deleteAccount(uid: string): Promise<{ ok: true } | { ok: f
     .eq('host_id', uid)
   if (payoutNotesError) {
     return { ok: false, error: `Failed to clean up payout_requests: ${payoutNotesError.message}` }
+  }
+
+  // payout_requests' account snapshot (082). Decision: ANONYMIZE IN PLACE, same
+  // reasoning as payout_accounts above — the rows are the platform's record of
+  // money actually paid, and payout_items points at them. Statement numbers,
+  // amounts, references, transfer dates and every payout_items row are KEPT: that
+  // is the financial record. payout_items.listing_title is kept too — the listing
+  // row itself is anonymized above, but the snapshot IS the document.
+  // payout_statement_counters and platform_settings hold no personal data.
+  //
+  // One row at a time because the last four digits differ per row — this cannot
+  // be a single blanket update. account_name/account_number stay NOT NULL rather
+  // than being nulled: payout_requests_paid_complete (082) requires both be
+  // non-null on a `paid` row, so a placeholder is what keeps that constraint
+  // satisfied for an issued statement.
+  const { data: hostPayoutRequests, error: hostPayoutRequestsReadError } = await admin
+    .from('payout_requests')
+    .select('id, account_number')
+    .eq('host_id', uid)
+    .not('account_number', 'is', null)
+  if (hostPayoutRequestsReadError) {
+    return { ok: false, error: `Failed to read payout_requests: ${hostPayoutRequestsReadError.message}` }
+  }
+  for (const row of hostPayoutRequests ?? []) {
+    const accountNumber = row.account_number as string
+    const { error: snapshotError } = await admin
+      .from('payout_requests')
+      .update({ account_name: 'Deleted User', account_number: accountNumber.slice(-4) })
+      .eq('id', row.id)
+    if (snapshotError) {
+      return { ok: false, error: `Failed to anonymize payout_requests snapshot: ${snapshotError.message}` }
+    }
   }
 
   // A deleted host's listings (LOW-7). Decision: ANONYMIZE IN PLACE, and

@@ -62,7 +62,15 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            'You have a payout in progress. Please wait for it to be processed before deleting your account.',
+            'You have a draft payout statement in progress. Please wait for it to be recorded or cancelled before deleting your account.',
+        },
+        { status: 400 }
+      )
+    }
+    if (eligibility.blocking.owedAmount > 0) {
+      return NextResponse.json(
+        {
+          error: `Rentivo still owes you ₱${eligibility.blocking.owedAmount.toLocaleString('en-PH')}. It must be paid out before your account can be deleted.`,
         },
         { status: 400 }
       )
