@@ -319,6 +319,14 @@ export async function deleteAccount(uid: string): Promise<{ ok: true } | { ok: f
     }
   }
 
+  // Rate-limit hits (076) embed the user id in `key` as `<scope>:<uid>` — the
+  // uid is always the last segment, so an exact-suffix match is precise (a
+  // uuid contains no LIKE wildcards). Nobody else depends on these rows.
+  const { error: rateLimitError } = await admin.from('rate_limit_hits').delete().like('key', `%:${uid}`)
+  if (rateLimitError) {
+    return { ok: false, error: `Failed to clean up rate_limit_hits: ${rateLimitError.message}` }
+  }
+
   // Last step: soft-delete the auth user. shouldSoftDelete=true keeps the
   // auth.users row (blocks login only) so profiles.id's FK never cascades.
   const { error: authError } = await admin.auth.admin.deleteUser(uid, true)

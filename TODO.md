@@ -59,11 +59,29 @@ Their full entries, with the reasoning, are in the archive further down.
   still stores public URLs, which the new CHECK rejects, so image sends fail on prod until
   this commit ships (text messages unaffected).
 
-- [ ] **No rate limiting anywhere.** Security audit MEDIUM-4. `create_booking` is uncapped
-  and each call writes a notification and sends email, so a signed-in user can generate
-  spam at will; nothing throttles the auth or messaging paths either. Needs its own design
-  (where the limit lives — middleware, RPC, or Supabase — and what the limits are), which
-  is why it was not bundled into the security fixes.
+- [x] **Rate limiting — done 2026-09-14 (migration 076).** Security audit MEDIUM-4. Built in
+  Postgres (no new service); design in AGENTS.md's Security model. **Worse hole found first
+  and fixed in the same change:** `/api/messages/notify` emailed the other party on every
+  call for a message id — one message plus a loop was an email bomb. It now claims
+  `messages.notified_at` once via the service role and sends only on a successful claim.
+  **Why each limit sits where it does:**
+  - `bookings` trigger, 10/hour per renter — every booking writes a host notification and
+    starts an email path; no person legitimately requests ten rentals in an hour. A trigger,
+    not a `create_booking` edit, because copying that body caused 038/039 and 040.
+  - `messages` trigger, 30/minute per sender — generous for someone typing fast, a hard
+    ceiling for a script; covers both the composer's direct insert and `create_inquiry`.
+  - checkout 10/10min — each call can create a PayMongo intent; normal retries of a failed
+    payment fit easily. Counted before validation so malformed floods count too.
+  - notify 60/10min — above the 30/min message cap's sustainable email rate for a real chat,
+    and redundant with the once-per-message claim; it exists for id-probing loops.
+  - respond / verify-payment 30/10min — a host clearing a queue or a renter tapping "check
+    payment" stays far under; each call can refund, email, or hit PayMongo's API.
+  - account/delete 5/hour — a real user needs one; each call runs gate queries and deletion.
+  All app limits fail open on a limiter error (the triggers remain). Verified:
+  `scripts/verify/076-rate-limiting.mjs` 38/38, 074 and 075 regressions green, and a
+  production-build browser pass (demo renter signed in via the real form, sent a message,
+  it rendered, the notify route claimed once, nothing throttled). **Not covered:** the auth
+  endpoints (login/signup/reset) are Supabase GoTrue's own built-in rate limits, not ours.
 
 - [ ] **Remove `CRON_SECRET` from the Vercel production dashboard.** It authenticated
   `/api/cron/host-bills`, deleted 2026-09-13. Harmless but misleading to a future reader;

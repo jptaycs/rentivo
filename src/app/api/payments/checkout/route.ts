@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { rateLimit } from '@/lib/rate-limit'
 import {
   isPayMongoConfigured,
   createPaymentIntent,
@@ -38,6 +39,13 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: 'You must be signed in to book.' }, { status: 401 })
   }
+
+  // 10 per 10 minutes: every call can create a PayMongo payment intent (and a
+  // booking). Counted before body validation so malformed attempts count too.
+  // Fails open on a limiter error — deliberate, see src/lib/rate-limit.ts; the
+  // bookings trigger (076, 10/hour per renter) still guards create_booking.
+  const limited = await rateLimit('checkout', user.id)
+  if (limited) return limited
 
   let body: CheckoutBody
   try {

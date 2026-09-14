@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { checkDeletionEligibility, deleteAccount } from '@/lib/account-deletion'
+import { rateLimit } from '@/lib/rate-limit'
 
 /**
  * Self-service account deletion. Anonymizes the profile rather than
@@ -33,6 +34,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'You must be signed in.' }, { status: 401 })
   }
   const uid = user.id
+
+  // 5 per hour: each call runs the eligibility queries and, on success, a
+  // service-role deletion. Fails open on a limiter error — deliberate, see
+  // src/lib/rate-limit.ts.
+  const limited = await rateLimit('accountDelete', uid)
+  if (limited) return limited
 
   const eligibility = await checkDeletionEligibility(uid)
   if (!eligibility.ok) {

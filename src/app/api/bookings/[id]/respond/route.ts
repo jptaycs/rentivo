@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { notifyBookingResponded } from '@/lib/email'
 import { refundBooking } from '@/lib/refunds'
+import { rateLimit } from '@/lib/rate-limit'
 
 /**
  * Host accept/decline of a pending booking, or renter cancellation of
@@ -30,6 +31,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!user) {
     return NextResponse.json({ error: 'You must be signed in.' }, { status: 401 })
   }
+
+  // 30 per 10 minutes: each successful call can refund and email. Fails open on
+  // a limiter error — deliberate, see src/lib/rate-limit.ts.
+  const limited = await rateLimit('respond', user.id)
+  if (limited) return limited
 
   const { data, error } = await supabase
     .from('bookings')

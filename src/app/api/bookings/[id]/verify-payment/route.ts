@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isPayMongoConfigured, getPaymentIntent } from '@/lib/paymongo'
 import { notifyBookingPaid } from '@/lib/email'
+import { rateLimit } from '@/lib/rate-limit'
 
 /**
  * On-demand payment verification for a booking the renter believes they've
@@ -30,6 +31,11 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   if (!user) {
     return NextResponse.json({ error: 'You must be signed in.' }, { status: 401 })
   }
+
+  // 30 per 10 minutes: each call hits PayMongo's API. Fails open on a limiter
+  // error — deliberate, see src/lib/rate-limit.ts.
+  const limited = await rateLimit('verifyPayment', user.id)
+  if (limited) return limited
 
   // Scoped to the renter on the booking — RLS governs this read too, the
   // explicit filter just makes someone else's booking a clean 404.
