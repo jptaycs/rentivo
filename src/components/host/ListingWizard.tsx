@@ -15,7 +15,7 @@ import { Step6Verify, type VerifyData } from './Step6Verify'
 interface WizardState {
   photos: WizardPhoto[]
   details: { category: string; brand: string; model: string; condition: string; description: string; accessories: string[] }
-  pricing: { dailyPrice: string; weeklyPrice: string; monthlyPrice: string; securityDeposit: string; deliveryFee: string }
+  pricing: { dailyPrice: string; weeklyPrice: string; monthlyPrice: string; securityDeposit: string; deliveryFee: string; deliveryFeePerKm: string }
   blockedDates: string[]
   address: { streetAddress: string; city: string; province: string; isInstantBook: boolean; lat: number | null; lng: number | null }
   verify: VerifyData
@@ -24,7 +24,7 @@ interface WizardState {
 const INITIAL: WizardState = {
   photos: [],
   details: { category: '', brand: '', model: '', condition: '', description: '', accessories: [] },
-  pricing: { dailyPrice: '', weeklyPrice: '', monthlyPrice: '', securityDeposit: '', deliveryFee: '' },
+  pricing: { dailyPrice: '', weeklyPrice: '', monthlyPrice: '', securityDeposit: '', deliveryFee: '', deliveryFeePerKm: '' },
   blockedDates: [],
   address: { streetAddress: '', city: '', province: '', isInstantBook: false, lat: null, lng: null },
   verify: { idFile: null, selfieFile: null, agreed: false, idCode: null, selfieCode: null, degraded: false, autoCheckFailed: false, autoCheckDetail: null, idAttempts: 0, selfieAttempts: 0, override: false },
@@ -130,6 +130,7 @@ export function ListingWizard() {
         monthly_price: pricing.monthlyPrice ? Number(pricing.monthlyPrice) : null,
         security_deposit: Number(pricing.securityDeposit || 0),
         delivery_fee: pricing.deliveryFee === '' ? null : Number(pricing.deliveryFee),
+        delivery_fee_per_km: pricing.deliveryFee === '' ? 0 : Number(pricing.deliveryFeePerKm || 0),
         city: address.city,
         province: address.province,
         street_address: address.streetAddress || null,

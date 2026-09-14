@@ -8,6 +8,7 @@ interface PricingData {
   monthlyPrice: string
   securityDeposit: string
   deliveryFee: string
+  deliveryFeePerKm: string
 }
 
 interface Step3PricingProps {
@@ -33,10 +34,16 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
   const renterPays    = daily + serviceFee
   const hostReceives  = Math.round(daily * 0.95)
 
+  // Range checks beyond the database's bare `>= 0` — an unbounded number
+  // typed here would overflow the fee arithmetic at checkout, not just fail
+  // a constraint.
+  const deliveryFeeValid = data.deliveryFee === '' || Number(data.deliveryFee) <= 100000
+  const deliveryFeePerKmValid = data.deliveryFeePerKm === '' || Number(data.deliveryFeePerKm) <= 10000
+
   // No minimum daily rate — a host prices their own gear. Still > 0, because
   // listings.daily_price carries a `check (daily_price > 0)` constraint:
   // allowing 0 here would just move the failure from this form to the insert.
-  const canContinue = daily > 0 && Number(data.securityDeposit) >= 0
+  const canContinue = daily > 0 && Number(data.securityDeposit) >= 0 && deliveryFeeValid && deliveryFeePerKmValid
 
   const label = 'block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5'
 
@@ -147,14 +154,14 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
 
       {/* Delivery fee */}
       <div>
-        <label className={label}>Delivery Fee</label>
+        <label className={label}>Delivery Base Fee</label>
         <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 bg-white">
           <span className="px-4 text-gray-400 font-semibold text-sm border-r border-gray-200 py-3">₱</span>
           <input
             value={data.deliveryFee}
             onChange={e => set('deliveryFee', e.target.value)}
             inputMode="numeric"
-            placeholder="Leave blank if you don't deliver"
+            placeholder="100"
             className="flex-1 px-4 py-3 text-sm text-gray-800 outline-none bg-transparent"
           />
         </div>
@@ -163,7 +170,34 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
           Leave this blank if you only do pickup — renters won&apos;t see a delivery option.
           Enter <strong>0</strong> to offer free delivery. This is added to the renter&apos;s total and paid to you in full.
         </div>
+        {!deliveryFeeValid && (
+          <p className="text-xs text-red-500 mt-1">Enter a delivery base fee of ₱100,000 or less</p>
+        )}
       </div>
+
+      {/* Delivery per-km rate — only offered once a base fee is set */}
+      {data.deliveryFee !== '' && (
+        <div>
+          <label className={label}>Per Kilometre</label>
+          <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:border-[#003049] focus-within:ring-2 focus-within:ring-blue-100 bg-white">
+            <span className="px-4 text-gray-400 font-semibold text-sm border-r border-gray-200 py-3">₱</span>
+            <input
+              value={data.deliveryFeePerKm}
+              onChange={e => set('deliveryFeePerKm', e.target.value)}
+              inputMode="numeric"
+              placeholder="20"
+              className="flex-1 px-4 py-3 text-sm text-gray-800 outline-none bg-transparent"
+            />
+          </div>
+          <div className="flex items-start gap-2 mt-2 text-xs text-gray-400">
+            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            Renters are charged the base fee plus this rate for every kilometre between your pickup point and their delivery address, measured as road distance. Leave it at 0 to charge only the base fee.
+          </div>
+          {!deliveryFeePerKmValid && (
+            <p className="text-xs text-red-500 mt-1">Enter a per-kilometre rate of ₱10,000 or less</p>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-3">
         <button onClick={onBack} className="flex items-center gap-2 px-5 py-3.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">

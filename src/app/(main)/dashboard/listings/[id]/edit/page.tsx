@@ -44,6 +44,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
   const [monthlyPrice, setMonthlyPrice] = useState('')
   const [deposit, setDeposit] = useState('')
   const [deliveryFee, setDeliveryFee] = useState('')
+  const [deliveryFeePerKm, setDeliveryFeePerKm] = useState('')
   const [isInstantBook, setIsInstantBook] = useState(false)
   const [isActive, setIsActive] = useState(true)
   const [city, setCity] = useState('')
@@ -98,6 +99,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
     setMonthlyPrice(data.monthly_price != null ? String(data.monthly_price) : '')
     setDeposit(String(data.security_deposit ?? ''))
     setDeliveryFee(data.delivery_fee != null ? String(data.delivery_fee) : '')
+    setDeliveryFeePerKm(String(data.delivery_fee_per_km ?? 0))
     setIsInstantBook(data.is_instant_book ?? false)
     setIsActive(data.is_active ?? true)
     setCity(data.city ?? '')
@@ -139,6 +141,8 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
     if (!title.trim()) return setError('Title is required.')
     if (Number(dailyPrice) < 100) return setError('Daily rate must be at least ₱100.')
     if (Number(deposit) < 0) return setError('Security deposit cannot be negative.')
+    if (deliveryFee !== '' && Number(deliveryFee) > 100000) return setError('Delivery base fee must be ₱100,000 or less.')
+    if (deliveryFeePerKm !== '' && Number(deliveryFeePerKm) > 10000) return setError('Per-kilometre rate must be ₱10,000 or less.')
 
     setSaving(true)
     const supabase = createClient()
@@ -154,6 +158,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
         monthly_price: monthlyPrice ? Number(monthlyPrice) : null,
         security_deposit: Number(deposit || 0),
         delivery_fee: deliveryFee === '' ? null : Number(deliveryFee),
+        delivery_fee_per_km: deliveryFee === '' ? 0 : Number(deliveryFeePerKm || 0),
         is_instant_book: isInstantBook,
         // Only a host-PLACED pin (this session, or already location_is_exact
         // from load) writes coordinates / the exact flag. A save that never
@@ -395,12 +400,12 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
           )}
 
           <div>
-            <label className={label}>Delivery Fee <span className="font-normal text-gray-400 normal-case">(optional)</span></label>
+            <label className={label}>Delivery Base Fee <span className="font-normal text-gray-400 normal-case">(optional)</span></label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">₱</span>
               <input
                 type="number" value={deliveryFee} onChange={e => setDeliveryFee(e.target.value)}
-                placeholder="Leave blank if you don't deliver"
+                placeholder="100"
                 className={`${field} pl-8`}
               />
             </div>
@@ -408,7 +413,39 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
               Leave this blank if you only do pickup — renters won&apos;t see a delivery option.
               Enter 0 to offer free delivery. This is added to the renter&apos;s total and paid to you in full.
             </p>
+            {deliveryFee !== '' && Number(deliveryFee) > 100000 && (
+              <p className="text-xs text-red-500 mt-1">Enter a delivery base fee of ₱100,000 or less</p>
+            )}
           </div>
+
+          {deliveryFee !== '' && (
+            <div>
+              <label className={label}>Per Kilometre</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">₱</span>
+                <input
+                  type="number"
+                  value={deliveryFeePerKm}
+                  onChange={e => setDeliveryFeePerKm(e.target.value)}
+                  placeholder="20"
+                  disabled={!pinPlaced}
+                  className={`${field} pl-8 ${!pinPlaced ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
+                />
+              </div>
+              {pinPlaced ? (
+                <p className="text-xs text-gray-400 mt-1.5">
+                  Renters are charged the base fee plus this rate for every kilometre between your pickup point and their delivery address, measured as road distance. Leave it at 0 to charge only the base fee.
+                </p>
+              ) : (
+                <p className="text-xs text-amber-600 mt-1.5">
+                  Set your exact pickup point on the map below first — distance-based delivery needs it to measure how far the renter is.
+                </p>
+              )}
+              {pinPlaced && deliveryFeePerKm !== '' && Number(deliveryFeePerKm) > 10000 && (
+                <p className="text-xs text-red-500 mt-1">Enter a per-kilometre rate of ₱10,000 or less</p>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Instant Book */}
