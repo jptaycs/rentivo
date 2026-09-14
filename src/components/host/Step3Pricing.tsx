@@ -37,9 +37,8 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
   const weeklySavings  = daily > 0 && weekly > 0  ? Math.round(((daily * 7  - weekly)  / (daily * 7))  * 100) : 0
   const monthlySavings = daily > 0 && monthly > 0 ? Math.round(((daily * 30 - monthly) / (daily * 30)) * 100) : 0
 
-  const serviceFee    = serviceFeeBps == null ? null : serviceFeeFor(daily, serviceFeeBps)
-  const renterPays    = serviceFee == null ? null : daily + serviceFee
-  const hostReceives  = serviceFee == null ? null : daily - serviceFee
+  const serviceFee = serviceFeeBps == null ? null : serviceFeeFor(daily, serviceFeeBps)
+  const renterPays = serviceFee == null ? null : daily + serviceFee
 
   // Range checks beyond the database's bare `>= 0` — an unbounded number
   // typed here would overflow the fee arithmetic at checkout, not just fail
@@ -85,26 +84,24 @@ export function Step3Pricing({ data, onChange, onNext, onBack }: Step3PricingPro
         <div className="bg-[#F8FAFC] rounded-2xl border border-gray-100 p-5">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Earnings Preview (per day)</p>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between text-gray-600">
-              <span>Your daily rate</span>
+            <div className="flex justify-between font-bold text-[#22C55E]">
+              <span>You receive</span>
               <span>₱{daily.toLocaleString()}</span>
             </div>
-            {serviceFeeBps != null && serviceFee != null && hostReceives != null && (
-              <>
-                <div className="flex justify-between text-gray-600">
-                  <span>Rentivo service fee ({formatFeeRate(serviceFeeBps)})</span>
-                  <span className="text-red-400">-₱{serviceFee.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between font-bold text-[#22C55E] border-t border-gray-200 pt-2 mt-1">
-                  <span>You receive</span>
-                  <span>₱{hostReceives.toLocaleString()}</span>
-                </div>
-              </>
+            {renterPays != null && (
+              <div className="flex justify-between text-gray-600">
+                <span>Renters pay</span>
+                <span>₱{renterPays.toLocaleString()}</span>
+              </div>
             )}
           </div>
-          {renterPays != null && (
+          {serviceFeeBps != null && renterPays != null ? (
             <p className="text-xs text-gray-400 mt-3">
-              Renters pay ₱{renterPays.toLocaleString()}/day (includes service fee).
+              Renters pay ₱{renterPays.toLocaleString()} per day — your rate plus Rentivo&apos;s {formatFeeRate(serviceFeeBps)} service fee, charged to the renter. Nothing is deducted from your earnings.
+            </p>
+          ) : (
+            <p className="text-xs text-gray-400 mt-3">
+              Renters also pay Rentivo&apos;s service fee on top of your rate.
             </p>
           )}
         </div>

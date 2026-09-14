@@ -26,7 +26,7 @@ export default async function HostTermsPage() {
             <li>Your identity must be verified by Rentivo before your listings are published.</li>
             <li>Listings must describe equipment you own, accurately, with current photos and a truthful condition.</li>
             <li>Security deposits you set are collected from the renter by you at pickup and returned by you — Rentivo does not charge, hold or return them.</li>
-            <li>Rentivo charges a service fee on the rental fee of every booking — currently {rate} — deducted from the payment when it is processed. The rate in effect when a booking is made is the rate charged for that booking. Delivery fees you set are paid to you in full.</li>
+            <li>Rentivo charges renters a service fee of {rate} of the rental fee, added on top of your price at checkout. It is not deducted from your earnings. Delivery fees are paid to you in full.</li>
           </ul>
         </section>
 

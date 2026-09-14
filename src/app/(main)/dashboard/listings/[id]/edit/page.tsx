@@ -434,7 +434,7 @@ export default function EditListingPage({ params }: { params: Promise<{ id: stri
               quoting a percentage that may no longer be the one in force. */}
           {dailyPrice && serviceFeeBps != null && (
             <div className="bg-[#F8FAFC] rounded-xl p-4 text-sm text-gray-600 border border-gray-100">
-              You earn <strong className="text-[#22C55E]">₱{(Number(dailyPrice) - serviceFeeFor(Number(dailyPrice), serviceFeeBps)).toLocaleString()}</strong> per day after the {formatFeeRate(serviceFeeBps)} Rentivo service fee.
+              You receive <strong className="text-[#22C55E]">₱{Number(dailyPrice).toLocaleString()}</strong> per day. Renters pay ₱{(Number(dailyPrice) + serviceFeeFor(Number(dailyPrice), serviceFeeBps)).toLocaleString()} per day — your rate plus Rentivo&apos;s {formatFeeRate(serviceFeeBps)} service fee, charged to the renter. Nothing is deducted from your earnings.
             </div>
           )}
 

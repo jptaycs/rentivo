@@ -42,9 +42,9 @@ export default function EarningsPage() {
   // arithmetic here.
   //
   // For every live payment method (card/gcash/maya/qrph), Rentivo collects
-  // its 5% service fee directly at checkout, so what a host actually
-  // receives via payout is rental_fee + delivery_fee — never the service fee
-  // or the security deposit.
+  // its service fee (rate is admin-set, 080/081) directly at checkout, so
+  // what a host actually receives via payout is rental_fee + delivery_fee —
+  // never the service fee or the security deposit.
   //
   // "Total Earned" also still counts any historical host_qr booking (that
   // payment method was retired 2026-09-13 — see

@@ -90,8 +90,7 @@ export default async function AdminReportsPage() {
       <div>
         <h1 className="mb-1 text-2xl font-bold text-gray-900">Business Reports</h1>
         <p className="text-sm text-gray-500">
-          Commission is the service fee stamped on each booking, not the full rental amount (currently{' '}
-          {formatFeeRate(serviceFeeBps)}) — see the definitions below each card.
+          Commission is the service fee stamped on each booking (currently {formatFeeRate(serviceFeeBps)}).
         </p>
       </div>
 

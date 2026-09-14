@@ -76,16 +76,10 @@ export default async function TermsPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-bold text-[#111827]">6. Fees</h2>
           <ul className="list-disc pl-5 space-y-2 text-sm text-gray-700 leading-relaxed">
-            <li>
-              Rentivo charges a service fee on the rental amount only — currently {rate}. The rate
-              in effect when a booking is made is the rate charged for that booking.
-            </li>
+            <li>Rentivo charges a {rate} service fee on the rental amount only. The rate in effect when a booking is made is the rate charged for that booking; a later change does not affect it.</li>
             <li>Delivery fees, where a host offers delivery, are set by the host and paid to the host in full — Rentivo does not take a commission on delivery.</li>
             <li>Security deposits, where a host requires one, are arranged directly between the host and the renter and collected by the host at pickup. Rentivo does not charge, hold or return security deposits.</li>
-            <li>
-              The service fee is collected as part of the renter&apos;s payment at checkout,
-              when the booking is processed — not billed separately afterward.
-            </li>
+            <li>The {rate} service fee is collected as part of the renter&apos;s payment at checkout, when the booking is processed — not billed separately afterward.</li>
           </ul>
         </section>
 
