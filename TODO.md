@@ -64,6 +64,14 @@ Their full entries, with the reasoning, are in the archive further down.
   next phase has to copy that function's body anyway, and copying it twice is what caused
   the 038/039 and 040 incidents. Delete the branch in that same rewrite.
 
+- [x] **Guests can view their wishlist** — done 2026-09-14. A guest's hearts were always
+  saved (localStorage, via `useWishlist`) but the only page showing them was
+  `/dashboard/wishlist`, behind the `/dashboard` auth gate, so the Wishlist tab threw a
+  guest at a login wall. Solved with a **public `/wishlist` route** rather than an exception
+  in `PROTECTED_PREFIXES` — that blanket gate is a security boundary. `/dashboard/wishlist`
+  now redirects there and is still gated. Verified live: hearted two listings as a guest,
+  both showed on `/wishlist` with the bottom-nav badge at 2, no overflow at 390px.
+
 - [ ] **REMOVE THE SEEDED DEMO REVIEWS BEFORE REAL LAUNCH.**
   `node --experimental-strip-types scripts/seed-demo-reviews.mjs remove`
   Added 2026-09-06 at the owner's request so a colleague could see a populated
