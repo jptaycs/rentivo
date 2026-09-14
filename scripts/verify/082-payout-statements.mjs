@@ -6,7 +6,11 @@
 // Every refusal is paired with a control showing the identical call succeeds
 // once the condition under test is removed. Real signed-in sessions for every
 // authorisation claim; the service role is used only for setup, independent
-// re-reads and cleanup.
+// re-reads and cleanup. Two throwaway hosts (HOST/H and HOSTF/HF) exist
+// because create_payout_statement refuses a second draft for the SAME host
+// while one is open — proving two DIFFERENT statements land on consecutive
+// numbers, whether sequentially inside one probe (section 9) or under real
+// overlapping connections (section 11), needs two hosts.
 //
 // ⚠️ ISSUING MUST NEVER COMMIT. A committed test issue would permanently
 // occupy a gapless statement number with a fake payout, and the series can
@@ -19,14 +23,21 @@
 // after the probes to prove no number was burned.
 //
 // Usage: RESEND_API_KEY= node --experimental-strip-types scripts/verify/082-payout-statements.mjs
-import { execFileSync } from 'node:child_process'
+import { execFileSync, execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { URL as SUPABASE_URL, ANON, SECRET, admin, asUser, signIn, check, done } from './env.mjs'
+
+const execFileP = promisify(execFile)
 
 // The hosted endpoint drops HTTP/2 sessions occasionally (GOAWAY) and the
 // Supabase CLI intermittently fails to connect as its temp role. Both are
 // transport noise, not results: retry them, but never retry a real Postgres
 // error, or a refusal could be silently re-attempted into a pass.
-const TRANSPORT_RE = /Failed to connect|ConnectTempRoleError|GOAWAY|ECONNRESET|socket hang up|fetch failed/i
+// "Timeout while shutting down PostHog" is the CLI's own telemetry-flush
+// timer racing its own exit — observed live in this script with valid JSON
+// rows already on stdout and exit code 1 anyway. Transport noise, not a
+// query failure; the sync sql() helper already re-parses stdout on retry.
+const TRANSPORT_RE = /Failed to connect|ConnectTempRoleError|GOAWAY|ECONNRESET|socket hang up|fetch failed|Timeout while shutting down PostHog/i
 const realFetch = globalThis.fetch
 globalThis.fetch = async function retryingFetch(...args) {
   let last
@@ -51,26 +62,29 @@ const created = { users: [], listings: [], bookings: [] }
 function sqlLit(s) {
   return "'" + String(s).replace(/'/g, "''") + "'"
 }
+// Shared between the sync (execFileSync) and async (execFile/promisify)
+// callers: parse the VERIFY payload out of the CLI's stdout/stderr.
+function parseProbeError(rawStdout, rawStderr) {
+  let payload = null
+  try {
+    const outer = JSON.parse(rawStdout)
+    let msgText = outer?.error?.message ?? ''
+    msgText = msgText.replace(/^unexpected status \d+: /, '')
+    const inner = JSON.parse(msgText)
+    const pgMsg = inner?.message ?? ''
+    const m = pgMsg.match(/VERIFY ([\s\S]*?)(?:\nCONTEXT|$)/)
+    payload = m ? m[1].trim() : null
+  } catch {
+    payload = null
+  }
+  return { raised: true, payload, error: `${rawStdout}${rawStderr}` }
+}
 function probeOnce(body) {
   try {
     execFileSync('supabase', ['db', 'query', '--linked', body], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
     return { raised: false, payload: null, error: null }
   } catch (e) {
-    const rawStdout = e.stdout ?? ''
-    const rawStderr = e.stderr ?? ''
-    let payload = null
-    try {
-      const outer = JSON.parse(rawStdout)
-      let msgText = outer?.error?.message ?? ''
-      msgText = msgText.replace(/^unexpected status \d+: /, '')
-      const inner = JSON.parse(msgText)
-      const pgMsg = inner?.message ?? ''
-      const m = pgMsg.match(/VERIFY ([\s\S]*?)(?:\nCONTEXT|$)/)
-      payload = m ? m[1].trim() : null
-    } catch {
-      payload = null
-    }
-    return { raised: true, payload, error: `${rawStdout}${rawStderr}` }
+    return parseProbeError(e.stdout ?? '', e.stderr ?? '')
   }
 }
 function probe(sql, claims = null) {
@@ -83,6 +97,29 @@ function probe(sql, claims = null) {
     r = probeOnce(body)
     // A transport failure is not a refusal. Retrying it is safe because the
     // probe rolls back either way; treating it as one would be a false pass.
+    if (!(r.raised && TRANSPORT_RE.test(r.error ?? ''))) return r
+  }
+  return r
+}
+// Async twin, used ONLY for the concurrent-issue check (section 11) — it
+// needs two genuinely overlapping `supabase db query` processes (two real
+// Postgres connections), which execFileSync's blocking call cannot give us.
+async function probeOnceAsync(body) {
+  try {
+    await execFileP('supabase', ['db', 'query', '--linked', body], { encoding: 'utf8' })
+    return { raised: false, payload: null, error: null }
+  } catch (e) {
+    return parseProbeError(e.stdout ?? '', e.stderr ?? '')
+  }
+}
+async function probeAsync(sql, claims = null) {
+  const preamble = claims
+    ? `perform set_config('request.jwt.claims', ${sqlLit(JSON.stringify(claims))}, true);`
+    : ''
+  const body = `do $$\nbegin\n${preamble}\n${sql}\nend $$;`
+  let r
+  for (let i = 0; i < 4; i++) {
+    r = await probeOnceAsync(body)
     if (!(r.raised && TRANSPORT_RE.test(r.error ?? ''))) return r
   }
   return r
@@ -272,8 +309,40 @@ try {
   })
   if (!acctRows?.[0]?.id) throw new Error('payout_account insert failed')
 
+  // A second, independent throwaway host + eligible booking + verified
+  // account — used for two things a single host cannot demonstrate: (a) two
+  // DIFFERENT statements issued inside one probe get consecutive numbers
+  // (create_payout_statement refuses a second draft for the SAME host while
+  // one is open, so proving "consecutive" needs two hosts), and (b) the
+  // concurrent-issue check, which needs two real overlapping connections
+  // touching the same counter row without either one waiting on the other's
+  // own per-host draft lock.
+  const HOSTF = await createUser('hostf')
+  const { body: fBookingRows, status: fBookingStatus } = await admin('bookings', {
+    method: 'POST',
+    body: JSON.stringify({
+      listing_id: LISTING_ID, renter_id: RENTER.id, host_id: HOSTF.id,
+      pickup_date: '2026-08-15', return_date: '2026-08-17',
+      rental_fee: 3200, security_deposit: 0, service_fee: Math.round(3200 * 0.05),
+      protection_fee: 0, delivery_fee: 0, total_amount: 3200 + Math.round(3200 * 0.05),
+      status: 'completed', payment_status: 'paid', payment_method: 'qrph', service_fee_bps: 500,
+    }),
+  })
+  if (!fBookingRows?.[0]?.id) throw new Error(`hostf booking insert failed: ${fBookingStatus} ${JSON.stringify(fBookingRows)}`)
+  created.bookings.push(fBookingRows[0].id)
+  const { body: fAcctRows } = await admin('payout_accounts', {
+    method: 'POST',
+    body: JSON.stringify({
+      user_id: HOSTF.id, method: 'Maya', account_number: '09990000083',
+      account_name: 'Probe 082 Host F', status: 'verified',
+    }),
+  })
+  if (!fAcctRows?.[0]?.id) throw new Error('hostf payout_account insert failed')
+
   const H = HOST.id
+  const HF = HOSTF.id
   const EXPECTED = BK.qrph.payable // 7900
+  const EXPECTED_F = 3200
 
   // ── 1. Prove the harness before trusting any probe result ────────────────
   {
@@ -450,6 +519,42 @@ try {
     check('4. the host reading payout_statement_counters -> refused', ctrRead.status !== 200, `${ctrRead.status} ${msg(ctrRead)}`)
     const ctrAnonRead = await asUser(null, 'payout_statement_counters?select=*')
     check('4. anon reading payout_statement_counters -> refused', ctrAnonRead.status !== 200, `${ctrAnonRead.status} ${msg(ctrAnonRead)}`)
+
+    // Anon (no bearer token — the anon key itself, role 'anon') holds the
+    // same SELECT-only grant as authenticated, so its writes are refused the
+    // identical way, not merely by a missing session.
+    const insAnon = await asUser(null, 'payout_requests', {
+      method: 'POST',
+      body: JSON.stringify({ host_id: H, payout_account_id: LEGACY_REQUEST, amount: 1 }),
+    })
+    check('4. anon INSERTing a payout_requests row -> permission denied',
+      /permission denied for table payout_requests/.test(msg(insAnon)), `${insAnon.status} ${msg(insAnon)}`)
+    const updAnon = await asUser(null, `payout_requests?id=eq.${LEGACY_REQUEST}`, {
+      method: 'PATCH', body: JSON.stringify({ amount: 1 }),
+    })
+    check('4. anon UPDATEing a payout_requests row -> permission denied',
+      /permission denied for table payout_requests/.test(msg(updAnon)), `${updAnon.status} ${msg(updAnon)}`)
+    const delAnon = await asUser(null, `payout_items?payout_request_id=eq.${LEGACY_REQUEST}`, { method: 'DELETE' })
+    check('4. anon DELETEing a payout_items row -> permission denied',
+      /permission denied for table payout_items/.test(msg(delAnon)), `${delAnon.status} ${msg(delAnon)}`)
+    const insAcctAnon = await asUser(null, 'payout_accounts', {
+      method: 'POST', body: JSON.stringify({ user_id: H, method: 'GCash', account_number: 'x', account_name: 'x' }),
+    })
+    check('4. anon INSERTing a payout_accounts row -> permission denied',
+      /permission denied for table payout_accounts/.test(msg(insAcctAnon)), `${insAcctAnon.status} ${msg(insAcctAnon)}`)
+    // CONTROL 1: anon still SELECTs (the grant is SELECT-only) — RLS scopes
+    // the ROWS (own-read policies, uid null matches nothing), not the
+    // privilege, so this is 200 + empty, never a permission error.
+    const anonReqRead = await asUser(null, 'payout_requests?select=id')
+    check('4. CONTROL: anon SELECT on payout_requests -> 200 with zero rows (SELECT granted, RLS scopes rows to nobody)',
+      anonReqRead.status === 200 && Array.isArray(anonReqRead.body) && anonReqRead.body.length === 0,
+      `${anonReqRead.status} ${msg(anonReqRead)}`)
+    // CONTROL 2: an unrelated, genuinely anon-granted RPC still works with
+    // the exact same anon key — the refusals above are these specific
+    // tables' grants, not a broken key or a blanket deny-all.
+    const anonRpc = await rpcAnon(null, 'current_service_fee_bps', {})
+    check('4. CONTROL: anon calling an unrelated, actually anon-granted RPC (current_service_fee_bps) still succeeds',
+      anonRpc.status === 200 && typeof anonRpc.body === 'number', `${anonRpc.status} ${msg(anonRpc)}`)
   }
 
   // ── 5. Function grants ───────────────────────────────────────────────────
@@ -643,21 +748,39 @@ try {
 
     const ctrl = probe(`
       declare v_req public.payout_requests; v_again public.payout_requests; v_id uuid; v_ctr int; v_audit int; v_elig int;
+              v_req2 public.payout_requests; v_id2 uuid; v_ctr2 int; v_idem_ctr int;
       begin
         select * into v_req from public.create_payout_statement('${H}', ${EXPECTED}, ${E});
         v_id := v_req.id;
         select * into v_req from public.issue_payout_statement(v_id, 'PROBE-REF-082', ${TODAY}, ${E});
         select last_number into v_ctr from public.payout_statement_counters where year = 2026;
         select * into v_again from public.issue_payout_statement(v_id, 'PROBE-REF-082', ${TODAY}, ${E});
+        -- Captured HERE, right after the idempotent re-issue — NOT via a
+        -- subquery inside the final jsonb_build_object below, which would
+        -- lazily evaluate at raise-time and pick up HOST_F's later increment.
+        select last_number into v_idem_ctr from public.payout_statement_counters where year = 2026;
         select count(*)::int into v_audit from public.admin_actions
           where action = 'payout_statement_issue' and target_user_id = '${H}';
         select count(*)::int into v_elig from public.payout_eligible_bookings('${H}');
+
+        -- A SECOND, DIFFERENT host's draft, issued inside this same
+        -- transaction. create_payout_statement refuses a second draft for
+        -- the SAME host while one is open, so "consecutive numbers" can only
+        -- be shown with two hosts — this is that proof, and it runs inside
+        -- the same probe (no concurrency needed) because sequencing within
+        -- one transaction is already deterministic.
+        select * into v_req2 from public.create_payout_statement('${HF}', ${EXPECTED_F}, ${E});
+        v_id2 := v_req2.id;
+        select * into v_req2 from public.issue_payout_statement(v_id2, 'PROBE-REF-082-F', ${TODAY}, ${E});
+        select last_number into v_ctr2 from public.payout_statement_counters where year = 2026;
+
         raise exception 'VERIFY %', jsonb_build_object(
           'number', v_req.statement_number, 'status', v_req.status, 'reference', v_req.reference,
           'transferred_on', v_req.transferred_on, 'processed', (v_req.processed_at is not null),
           'counter', v_ctr,
-          'idem_number', v_again.statement_number, 'idem_counter', (select last_number from public.payout_statement_counters where year = 2026),
-          'audit', v_audit, 'still_eligible', v_elig);
+          'idem_number', v_again.statement_number, 'idem_counter', v_idem_ctr,
+          'audit', v_audit, 'still_eligible', v_elig,
+          'number2', v_req2.statement_number, 'status2', v_req2.status, 'counter2', v_ctr2);
       end;`)
     const p = json(ctrl)
     check('9. CONTROL (rolled back): issuing the draft assigns the next gapless number, PS-2026-000002',
@@ -668,13 +791,15 @@ try {
       p?.idem_number === 'PS-2026-000002' && p?.idem_counter === 2, `${p?.idem_number} / ${p?.idem_counter}`)
     check('9. CONTROL: issuing writes one payout_statement_issue admin_actions row', p?.audit === 1, `${p?.audit}`)
     check('9. CONTROL: an issued statement keeps its booking claimed', p?.still_eligible === 0, `${p?.still_eligible}`)
+    check('9. CONTROL: a SECOND, DIFFERENT host issued inside the SAME probe gets the CONSECUTIVE number, PS-2026-000003',
+      p?.number2 === 'PS-2026-000003' && p?.status2 === 'paid' && p?.counter2 === 3, JSON.stringify(p))
 
     // ⚠️ The point of the whole probe technique: no number was burned.
     const [ctr] = sql('select year, last_number from public.payout_statement_counters')
     check('9. ⚠️ after every issue probe the counter is STILL (2026, 1) — no statement number was burned',
       ctr.year === 2026 && ctr.last_number === 1, JSON.stringify(ctr))
-    const used = sql("select count(*)::int as n from public.payout_requests where statement_number = 'PS-2026-000002'")[0].n
-    check('9. ⚠️ PS-2026-000002 does not exist — the next real statement can still claim it', used === 0, `${used}`)
+    const used = sql("select count(*)::int as n from public.payout_requests where statement_number in ('PS-2026-000002','PS-2026-000003')")[0].n
+    check('9. ⚠️ PS-2026-000002 and PS-2026-000003 do not exist — the next real statements can still claim them', used === 0, `${used}`)
     const nreq = sql('select count(*)::int as n from public.payout_requests')[0].n
     check('9. ⚠️ payout_requests still holds exactly the one legacy row', nreq === 1, `${nreq}`)
   }
@@ -747,16 +872,86 @@ try {
     check('10. CONTROL: a reversed statement keeps its number, so the counter is NOT rolled back (2 inside the probe)', c2?.counter === 2, `${c2?.counter}`)
   }
 
-  // ── 11. The three stubbed old functions ─────────────────────────────────
+  // ── 11. Concurrent issue — two REAL overlapping Postgres connections ─────
+  // Gaplessness rests on `insert … on conflict (year) do update … returning`
+  // taking a row lock on the counter row, not on an exclusion constraint —
+  // see the migration's own comment at the upsert. Proving TWO DISTINCT
+  // consecutive numbers would need at least one of the two transactions to
+  // COMMIT, which the global "nothing that consumes a statement number may
+  // commit" rule forbids outright. So this proves the thing that constraint
+  // still allows to be proven: the counter row genuinely serializes two
+  // overlapping transactions (timing evidence — the second cannot finish
+  // before the first releases the lock), not that it hands out two
+  // different numbers. The SLOW probe takes the counter's row lock itself
+  // (the same lock issue_payout_statement's own upsert takes) and holds it
+  // under an explicit sleep; the FAST probe, started at the same instant,
+  // can only reach ITS OWN issue_payout_statement call — and thus the same
+  // row — after SLOW's transaction ends. Both roll back, so both
+  // independently compute last_number+1 from the SAME pre-test value (no
+  // lost update, no double-increment) — that identical result is expected,
+  // not a bug, precisely because rollback erases each one's own increment
+  // before the other proceeds.
+  {
+    const [{ last_number: preLast }] = sql('select last_number from public.payout_statement_counters where year = 2026')
+    const TODAY = "(now() at time zone 'Asia/Manila')::date"
+    const SLEEP_S = 1.5
+    const slowBody = `
+      declare v_req public.payout_requests; v_id uuid; v_n int;
+      begin
+        select * into v_req from public.create_payout_statement('${H}', ${EXPECTED}, ${E});
+        v_id := v_req.id;
+        -- Take the SAME row lock issue_payout_statement's own upsert takes,
+        -- and hold it while sleeping — this is what forces real overlap.
+        perform 1 from public.payout_statement_counters where year = 2026 for update;
+        perform pg_sleep(${SLEEP_S});
+        select * into v_req from public.issue_payout_statement(v_id, 'CONC-SLOW', ${TODAY}, ${E});
+        select last_number into v_n from public.payout_statement_counters where year = 2026;
+        raise exception 'VERIFY %', jsonb_build_object('number', v_req.statement_number, 'ctr', v_n);
+      end;`
+    const fastBody = `
+      declare v_req public.payout_requests; v_id uuid; v_n int;
+      begin
+        select * into v_req from public.create_payout_statement('${HF}', ${EXPECTED_F}, ${E});
+        v_id := v_req.id;
+        select * into v_req from public.issue_payout_statement(v_id, 'CONC-FAST', ${TODAY}, ${E});
+        select last_number into v_n from public.payout_statement_counters where year = 2026;
+        raise exception 'VERIFY %', jsonb_build_object('number', v_req.statement_number, 'ctr', v_n);
+      end;`
+    const t0 = Date.now()
+    const [slow, fast] = await Promise.all([
+      probeAsync(slowBody).then((r) => ({ ...r, ms: Date.now() - t0 })),
+      probeAsync(fastBody).then((r) => ({ ...r, ms: Date.now() - t0 })),
+    ])
+    const sp = json(slow), fp = json(fast)
+    check('11. concurrent: both probes raised (rolled back) with a parsed payload',
+      slow.raised && fast.raised && sp != null && fp != null, JSON.stringify({ sp, fp }))
+    check('11. concurrent: both independently computed the SAME next number from the SAME starting point (rollback resets between them — this is the expected result, not a burned pair)',
+      sp?.number === fp?.number && sp?.ctr === preLast + 1 && fp?.ctr === preLast + 1,
+      JSON.stringify({ sp, fp, preLast }))
+    // Serialization evidence: without a real row lock, FAST (no sleep of its
+    // own) could finish in well under a second regardless of SLOW. If FAST
+    // was genuinely blocked behind SLOW's held lock, it cannot finish before
+    // SLOW's sleep does.
+    check(`11. concurrent: the FAST probe (no sleep of its own) still took >= ${SLEEP_S}s — proof it was blocked behind SLOW's held row lock, not racing past it`,
+      fast.ms >= SLEEP_S * 1000 - 200, `slow=${slow.ms}ms fast=${fast.ms}ms (floor ${SLEEP_S * 1000 - 200}ms)`)
+    console.log(`11. NOTE: true concurrency (two DISTINCT consecutive numbers) cannot be observed without a commit, which the no-burn-a-number rule forbids. What is demonstrated above is that the counter's row lock genuinely serializes two overlapping transactions (timing), and that serialization does not corrupt the sequence (both independently land on last+1 from the same base) — not a race that could, under real commits, hand out the same number twice.`)
+
+    const [{ last_number: postLast }] = sql('select last_number from public.payout_statement_counters where year = 2026')
+    check('11. concurrent: counter unchanged after both rollbacks', postLast === preLast, `${preLast} -> ${postLast}`)
+    const usedConc = sql("select count(*)::int as n from public.payout_requests where reference in ('CONC-SLOW','CONC-FAST')")[0].n
+    check('11. concurrent: neither CONC-SLOW nor CONC-FAST exists as a real row afterward', usedConc === 0, `${usedConc}`)
+  }
+
+  // ── 12. The three stubbed old functions ──────────────────────────────────
   {
     const rp = await rpcAnon(HOST.token, 'request_payout', {})
-    check('11. the host calling request_payout() -> "Payouts now use statements — reload the page."',
+    check('12. the host calling request_payout() -> "Payouts now use statements — reload the page."',
       rp.status !== 200 && /Payouts now use statements/.test(msg(rp)), `${rp.status} ${msg(rp)}`)
     const mp = await rpcService('mark_payout_paid', { p_request_id: LEGACY_REQUEST, p_reference: 'X' })
-    check('11. the service role calling mark_payout_paid -> the same refusal',
+    check('12. the service role calling mark_payout_paid -> the same refusal',
       mp.status !== 200 && /Payouts now use statements/.test(msg(mp)), `${mp.status} ${msg(mp)}`)
     const mf = await rpcService('mark_payout_failed', { p_request_id: LEGACY_REQUEST, p_notes: 'X' })
-    check('11. the service role calling mark_payout_failed -> the same refusal',
+    check('12. the service role calling mark_payout_failed -> the same refusal',
       mf.status !== 200 && /Payouts now use statements/.test(msg(mf)), `${mf.status} ${msg(mf)}`)
     // The stubs must keep their ACLs (CREATE OR REPLACE, not DROP+CREATE) and
     // their exact signatures — the defaults on the two mark_* functions are
@@ -765,25 +960,25 @@ try {
                       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                       where n.nspname = 'public' and p.proname in ('request_payout','mark_payout_paid','mark_payout_failed')`)
     const rpRow = acls.find((a) => a.proname === 'request_payout')
-    check('11. request_payout keeps its authenticated + service_role grants', /authenticated=X/.test(rpRow.acl) && /service_role=X/.test(rpRow.acl), rpRow.acl)
+    check('12. request_payout keeps its authenticated + service_role grants', /authenticated=X/.test(rpRow.acl) && /service_role=X/.test(rpRow.acl), rpRow.acl)
     for (const name of ['mark_payout_paid', 'mark_payout_failed']) {
       const row = acls.find((a) => a.proname === name)
-      check(`11. ${name} stays service_role-only and keeps its "default null" second parameter`,
+      check(`12. ${name} stays service_role-only and keeps its "default null" second parameter`,
         /service_role=X/.test(row.acl) && !/authenticated=X/.test(row.acl) && /DEFAULT NULL/.test(row.args), `${row.acl} | ${row.args}`)
     }
     // CONTROL: the legacy row is untouched by the three refused calls.
     const [legacy] = sql(`select status::text as status, reference, notes from public.payout_requests where id = '${LEGACY_REQUEST}'`)
-    check('11. CONTROL: the legacy request is unchanged after the three stub calls',
+    check('12. CONTROL: the legacy request is unchanged after the three stub calls',
       legacy.status === 'paid' && legacy.reference === 'QA-GCASH-REF-001' && legacy.notes === null, JSON.stringify(legacy))
   }
 } finally {
   await cleanup()
 }
 
-// ── 12. Cleanup, baselines and the forbidden rows ─────────────────────────
+// ── 13. Cleanup, baselines and the forbidden rows ──────────────────────────
 {
   const leftovers = await proveCleanup()
-  check('12. every probe row is gone (re-read, not assumed)', leftovers.length === 0, leftovers.join(', '))
+  check('13. every probe row is gone (re-read, not assumed)', leftovers.length === 0, leftovers.join(', '))
 
   const after = counts()
   const mine = new Set([...created.users, ...created.listings, ...created.bookings])
@@ -797,7 +992,7 @@ try {
       detail += ` | added=[${added.join(',')}] removed=[${removed.join(',')}]` +
         ` | none of them created by THIS run: ${untracked.length === added.length + removed.length}`
     }
-    check(`12. baseline ${k}: ${before[k]} before, ${after[k]} after`, before[k] === after[k], detail)
+    check(`13. baseline ${k}: ${before[k]} before, ${after[k]} after`, before[k] === after[k], detail)
   }
 
   const fAfter = sql(`
@@ -805,8 +1000,8 @@ try {
            (select updated_at::text from public.bookings where booking_ref = '${FORBIDDEN_BOOKING_REF}') as booking_updated,
            (select status::text from public.bookings where booking_ref = '${FORBIDDEN_BOOKING_REF}') as booking_status
   `)[0]
-  check('12. forbidden host c38111b3-… untouched', fAfter.host_updated === fBefore.host_updated, `${fBefore.host_updated} -> ${fAfter.host_updated}`)
-  check('12. forbidden booking RNT-A4DA55 untouched',
+  check('13. forbidden host c38111b3-… untouched', fAfter.host_updated === fBefore.host_updated, `${fBefore.host_updated} -> ${fAfter.host_updated}`)
+  check('13. forbidden booking RNT-A4DA55 untouched',
     fAfter.booking_updated === fBefore.booking_updated && fAfter.booking_status === fBefore.booking_status,
     `${fBefore.booking_updated}/${fBefore.booking_status} -> ${fAfter.booking_updated}/${fAfter.booking_status}`)
 }
