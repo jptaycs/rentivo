@@ -205,24 +205,50 @@ export function paymentErrorMessage(intent: PaymentIntent): string {
   return err?.failed_message || 'Payment was not completed. Please try again.'
 }
 
+/** How far a webhook's signed timestamp may be from our clock, in seconds. */
+export const WEBHOOK_TOLERANCE_SECONDS = 300
+
+export type WebhookSignatureResult =
+  | { ok: true }
+  | { ok: false; reason: 'missing' | 'malformed' | 'invalid' | 'stale' }
+
 /**
  * Verify a `Paymongo-Signature: t=<ts>,te=<test hmac>,li=<live hmac>` header
  * against the raw request body using the webhook secret (whsk_...).
+ *
+ * The HMAC is compared in constant time. AFTER the signature verifies, the
+ * signed timestamp `t` must be within WEBHOOK_TOLERANCE_SECONDS of now — without
+ * that, a captured signed event could be replayed forever (security audit 2,
+ * LOW-8). The order matters: an unsigned request never learns whether its
+ * timestamp would have been acceptable.
  */
-export function verifyWebhookSignature(rawBody: string, header: string | null, secret: string) {
-  if (!header) return false
-  const parts = Object.fromEntries(
-    header.split(',').map((p) => p.split('=', 2) as [string, string])
-  )
+export function verifyWebhookSignature(
+  rawBody: string,
+  header: string | null,
+  secret: string,
+  nowMs: number = Date.now()
+): WebhookSignatureResult {
+  if (!header) return { ok: false, reason: 'missing' }
+  const parts: Record<string, string> = {}
+  for (const piece of header.split(',')) {
+    const eq = piece.indexOf('=')
+    if (eq <= 0) continue
+    parts[piece.slice(0, eq).trim()] = piece.slice(eq + 1).trim()
+  }
   const { t, te, li } = parts
-  if (!t) return false
+  if (!t || !/^\d{1,12}$/.test(t)) return { ok: false, reason: 'malformed' }
 
-  const expected = createHmac('sha256', secret).update(`${t}.${rawBody}`).digest('hex')
+  const expected = Buffer.from(createHmac('sha256', secret).update(`${t}.${rawBody}`).digest('hex'))
+  let signatureOk = false
   for (const candidate of [te, li]) {
     if (!candidate) continue
-    const a = Buffer.from(expected)
     const b = Buffer.from(candidate)
-    if (a.length === b.length && timingSafeEqual(a, b)) return true
+    if (expected.length === b.length && timingSafeEqual(expected, b)) signatureOk = true
   }
-  return false
+  if (!signatureOk) return { ok: false, reason: 'invalid' }
+
+  if (Math.abs(nowMs / 1000 - Number(t)) > WEBHOOK_TOLERANCE_SECONDS) {
+    return { ok: false, reason: 'stale' }
+  }
+  return { ok: true }
 }

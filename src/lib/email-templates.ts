@@ -1,0 +1,245 @@
+/**
+ * Pure HTML builders for every transactional email Rentivo sends.
+ *
+ * Split out of src/lib/email.ts (which is `server-only` and pulls in Resend and
+ * the service-role client) so the templates can be exercised on their own by
+ * scripts/verify/audit2-email-escaping.mjs. No imports, no side effects.
+ *
+ * ⚠️ ESCAPING RULE — every value that did not originate as a string literal in
+ * THIS file is untrusted and must go through `escapeHtml` AT THE POINT OF
+ * INTERPOLATION. That includes profile names (`profiles.full_name` is set by the
+ * user), listing titles (typed by the host), message text, admin notes, payout
+ * references, booking refs and conversation ids. Security audit 2 (MEDIUM-1)
+ * found five booking templates plus the preheader interpolating names and
+ * titles raw, so a user could name themselves
+ * `<a href="https://evil.example.com">Verify your payment</a>` and have Rentivo
+ * deliver that link in a DKIM-signed email from noreply@rentivo.live. Escaping
+ * at the interpolation site (never "the caller already escaped it") is what
+ * keeps a new template from reopening that.
+ */
+
+export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
+ * Email subjects are plain text, but they are built from user-set values (a
+ * sender's name). Collapse every control character — CR/LF above all — to a
+ * space so nothing can smuggle a second header line or a multi-line subject,
+ * then cap the length.
+ */
+export function plainSubject(value: string): string {
+  let out = ''
+  for (const ch of value) {
+    const code = ch.charCodeAt(0)
+    out += code <= 0x1f || code === 0x7f || code === 0x2028 || code === 0x2029 ? ' ' : ch
+  }
+  return out.replace(/\s+/g, ' ').trim().slice(0, 200)
+}
+
+export const fmtPeso = (n: number) => `₱${Number(n).toLocaleString('en-PH')}`
+const fmtDate = (d: string) =>
+  escapeHtml(new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }))
+
+/** `preheader` is raw text — layout escapes it. `bodyHtml` must already be safe HTML. */
+function layout(preheader: string, bodyHtml: string) {
+  return `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+    <span style="display:none;max-height:0;overflow:hidden;">${escapeHtml(preheader)}</span>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;padding:32px 16px;">
+      <tr><td align="center">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;max-width:480px;width:100%;">
+          <tr><td style="background:#003049;padding:24px 32px;">
+            <span style="color:#ffffff;font-size:18px;font-weight:700;">Rentivo</span>
+          </td></tr>
+          <tr><td style="padding:32px;">
+            ${bodyHtml}
+          </td></tr>
+          <tr><td style="padding:20px 32px;background:#F8FAFC;border-top:1px solid #eef1f5;">
+            <p style="margin:0;color:#9aa3af;font-size:12px;line-height:1.5;">
+              Rentivo — Rent Smarter. Create More.<br>
+              This is a transactional email about your Rentivo booking.
+            </p>
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body>
+</html>`
+}
+
+/** Both arguments are escaped; pass raw values. */
+function button(href: string, label: string) {
+  return `<a href="${escapeHtml(href)}" style="display:inline-block;margin-top:20px;background:#003049;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 24px;border-radius:12px;">${escapeHtml(label)}</a>`
+}
+
+export interface EmailContext {
+  bookingRef: string
+  listingTitle: string
+  pickupDate: string
+  returnDate: string
+  totalAmount: number
+  otherPartyName: string
+}
+
+export function hostNewBookingHtml(ctx: EmailContext, instant: boolean) {
+  const name = escapeHtml(ctx.otherPartyName)
+  const title = escapeHtml(ctx.listingTitle)
+  const ref = escapeHtml(ctx.bookingRef)
+  return layout(
+    `${instant ? 'New paid booking' : 'New booking request'} for ${ctx.listingTitle}`,
+    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">${instant ? 'New Instant Booking 🎉' : 'New Booking Request'}</h1>
+     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
+       <strong>${name}</strong> ${instant ? 'just booked' : 'wants to rent'} your <strong>${title}</strong>.
+     </p>
+     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
+       ${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}<br>
+       Booking ref: ${ref}<br>
+       Rental amount: ${fmtPeso(ctx.totalAmount)} (paid)
+     </p>
+     ${instant
+       ? `<p style="margin:0;color:#4b5563;font-size:14px;">This booking is already confirmed — no action needed.</p>`
+       : `<p style="margin:0;color:#4b5563;font-size:14px;">Please confirm or decline within 24 hours.</p>${button(`${APP_URL}/dashboard/bookings`, 'Review Booking')}`}`
+  )
+}
+
+export function renterConfirmedHtml(ctx: EmailContext) {
+  const name = escapeHtml(ctx.otherPartyName)
+  const title = escapeHtml(ctx.listingTitle)
+  const ref = escapeHtml(ctx.bookingRef)
+  return layout(
+    `Your booking ${ctx.bookingRef} is confirmed`,
+    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">Booking Confirmed ✅</h1>
+     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
+       Your rental of <strong>${title}</strong> from <strong>${name}</strong> is confirmed.
+     </p>
+     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
+       ${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}<br>
+       Booking ref: ${ref}<br>
+       Total paid: ${fmtPeso(ctx.totalAmount)}
+     </p>
+     ${button(`${APP_URL}/dashboard/rentals`, 'View Booking')}`
+  )
+}
+
+export function renterPendingHtml(ctx: EmailContext) {
+  const name = escapeHtml(ctx.otherPartyName)
+  const title = escapeHtml(ctx.listingTitle)
+  const ref = escapeHtml(ctx.bookingRef)
+  return layout(
+    `Payment received for ${ctx.bookingRef} — awaiting host confirmation`,
+    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">Payment Received</h1>
+     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
+       We've received your payment for <strong>${title}</strong>. ${name} will confirm your booking within 24 hours.
+     </p>
+     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
+       ${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}<br>
+       Booking ref: ${ref}<br>
+       Total paid: ${fmtPeso(ctx.totalAmount)}
+     </p>
+     ${button(`${APP_URL}/dashboard/rentals`, 'View Booking')}`
+  )
+}
+
+function refundLine(totalAmount: number, refunded: boolean, isHostQr: boolean) {
+  if (isHostQr) {
+    return refunded
+      ? `This booking was paid directly to the host via QR code, so Rentivo can’t process a refund automatically — please arrange the ${fmtPeso(totalAmount)} refund directly with your host.`
+      : `You have not been charged further by Rentivo. Since this booking was paid directly to the host via QR code, any refund of ${fmtPeso(totalAmount)} needs to be arranged directly with them.`
+  }
+  return refunded
+    ? `A refund of ${fmtPeso(totalAmount)} has been processed back to your original payment method — it usually takes 5–10 business days to reflect, depending on your bank or e-wallet.`
+    : `You have not been charged further. Our team will follow up to process a refund of ${fmtPeso(totalAmount)} to your original payment method.`
+}
+
+export function renterDeclinedHtml(ctx: EmailContext, refunded: boolean, isHostQr: boolean) {
+  const name = escapeHtml(ctx.otherPartyName)
+  const title = escapeHtml(ctx.listingTitle)
+  const ref = escapeHtml(ctx.bookingRef)
+  return layout(
+    `Your booking ${ctx.bookingRef} was declined`,
+    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">Booking Declined</h1>
+     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
+       ${name} was unable to confirm your booking for <strong>${title}</strong>
+       (${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}, ref ${ref}).
+     </p>
+     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
+       ${refundLine(ctx.totalAmount, refunded, isHostQr)}
+     </p>
+     ${button(`${APP_URL}/search`, 'Browse Other Equipment')}`
+  )
+}
+
+export function hostCancelledByRenterHtml(ctx: EmailContext, refunded: boolean, isHostQr: boolean) {
+  const name = escapeHtml(ctx.otherPartyName)
+  const title = escapeHtml(ctx.listingTitle)
+  const ref = escapeHtml(ctx.bookingRef)
+  return layout(
+    `Booking ${ctx.bookingRef} was cancelled by the renter`,
+    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">Booking Cancelled</h1>
+     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
+       <strong>${name}</strong> cancelled their booking for <strong>${title}</strong>
+       (${fmtDate(ctx.pickupDate)} → ${fmtDate(ctx.returnDate)}, ref ${ref}). The dates are open again.
+     </p>
+     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;">
+       ${isHostQr
+         ? 'This booking was paid directly to you via QR code, so no payment ever passed through Rentivo — please refund the renter directly if you’ve already received payment.'
+         : refunded ? 'The renter has been refunded in full.' : 'The renter\'s refund is being processed.'}
+     </p>
+     ${button(`${APP_URL}/dashboard/calendar`, 'View Calendar')}`
+  )
+}
+
+export function newMessageHtml(ctx: { senderName: string; listingTitle: string; preview: string; conversationId: string }) {
+  const senderName = escapeHtml(ctx.senderName)
+  const listingTitle = escapeHtml(ctx.listingTitle)
+  const preview = escapeHtml(ctx.preview)
+  return layout(
+    `New message from ${ctx.senderName}`,
+    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">New Message 💬</h1>
+     <p style="margin:0 0 4px;color:#4b5563;font-size:14px;line-height:1.6;">
+       <strong>${senderName}</strong> sent you a message about <strong>${listingTitle}</strong>.
+     </p>
+     <p style="margin:16px 0;color:#4b5563;font-size:14px;line-height:1.6;font-style:italic;">
+       "${preview}"
+     </p>
+     ${button(`${APP_URL}/dashboard/messages?conversation=${encodeURIComponent(ctx.conversationId)}`, 'Reply')}`
+  )
+}
+
+// ── Admin-decision outcome emails ─────────────────────────────
+
+/** `heading` is raw text (escaped here); `bodyHtml` must already be safe HTML. */
+export function adminDecisionHtml(opts: {
+  heading: string
+  bodyHtml: string
+  ctaPath: string
+  ctaLabel: string
+}) {
+  return layout(
+    opts.heading,
+    `<h1 style="margin:0 0 12px;color:#111827;font-size:20px;">${escapeHtml(opts.heading)}</h1>
+     ${opts.bodyHtml}
+     ${button(`${APP_URL}${opts.ctaPath}`, opts.ctaLabel)}`
+  )
+}
+
+export const notesBlock = (notes: string | null) =>
+  notes
+    ? `<p style="margin:16px 0 0;color:#4b5563;font-size:14px;line-height:1.6;">Reviewer notes: ${escapeHtml(notes)}</p>`
+    : ''
+
+export function payoutPaidBodyHtml(amount: number, reference: string | null) {
+  return `<p style="margin:0;color:#4b5563;font-size:14px;line-height:1.6;">
+          Your payout of <strong>${fmtPeso(amount)}</strong> has been sent to your payout account.
+          ${reference ? `<br>Reference: ${escapeHtml(reference)}` : ''}
+        </p>`
+}
