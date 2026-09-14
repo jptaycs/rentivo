@@ -32,6 +32,10 @@ const REFRESH_MS = (EXPIRES_IN - 5 * 60) * 1000
  */
 export function useMessageImageUrls(imageUrls: (string | null | undefined)[]) {
   const [signed, setSigned] = useState<Record<string, string>>({})
+  // Paths the storage API refused to sign — the object was deleted, or the
+  // caller is not allowed to read it. Tracked separately so the view can say
+  // "unavailable" instead of showing a loading placeholder that never resolves.
+  const [failed, setFailed] = useState<Record<string, true>>({})
   const [epoch, setEpoch] = useState(0)
 
   const key = useMemo(
@@ -57,13 +61,32 @@ export function useMessageImageUrls(imageUrls: (string | null | undefined)[]) {
     createClient()
       .storage.from('message-images')
       .createSignedUrls(paths, EXPIRES_IN)
-      .then(({ data }) => {
-        if (cancelled || !data) return
-        setSigned((prev) => {
+      .then(({ data, error }) => {
+        if (cancelled) return
+        // A whole-call failure (network, auth) marks every requested path, so
+        // nothing is left spinning forever; a later remount or refresh retries.
+        if (error || !data) {
+          setFailed((prev) => {
+            const next = { ...prev }
+            for (const p of paths) next[p] = true
+            return next
+          })
+          return
+        }
+        const ok: Record<string, string> = {}
+        const bad: string[] = []
+        for (const item of data) {
+          if (item.path && item.signedUrl && !item.error) ok[item.path] = item.signedUrl
+          else if (item.path) bad.push(item.path)
+        }
+        // createSignedUrls can omit a path entirely rather than return an
+        // error entry for it; anything requested but not signed has failed.
+        for (const p of paths) if (!ok[p] && !bad.includes(p)) bad.push(p)
+        setSigned((prev) => ({ ...prev, ...ok }))
+        setFailed((prev) => {
           const next = { ...prev }
-          for (const item of data) {
-            if (item.path && item.signedUrl && !item.error) next[item.path] = item.signedUrl
-          }
+          for (const p of Object.keys(ok)) delete next[p]
+          for (const p of bad) next[p] = true
           return next
         })
         if (refresh) setSignedEpoch(epoch)
@@ -76,5 +99,5 @@ export function useMessageImageUrls(imageUrls: (string | null | undefined)[]) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, epoch])
 
-  return signed
+  return { signed, failed }
 }
