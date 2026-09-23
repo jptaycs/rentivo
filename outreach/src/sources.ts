@@ -79,7 +79,7 @@ export function classifyUrl(url: string): 'fb' | 'ig' | 'tiktok' | null {
 }
 
 const EMAIL_RE = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi
-const JUNK_EMAIL = /(\.(png|jpe?g|gif|webp|svg|blink|local)$)|example\.|sentry|wixpress|@domain\.|your(name|email)@|noreply|no-reply|^[a-z]*-?[0-9a-f]{20,}@/i
+const JUNK_EMAIL = /(\.(png|jpe?g|gif|webp|svg|blink|local)$)|example\.|sentry|wixpress|@domain\.|your(name|email)@|noreply|no-reply|^[a-z]*-?[0-9a-f]{20,}@|^(you|user|name|email|your|john|jane)@|@(email|mail)\.com$/i
 const SOCIAL_RE = /https?:\/\/(?:www\.|m\.)?(?:facebook\.com|instagram\.com|tiktok\.com\/@)[^\s"'<>)]+/gi
 
 type SiteInfo = { emails: string[]; fb?: string; ig?: string; tiktok?: string; summary?: string }
