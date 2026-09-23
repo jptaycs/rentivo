@@ -9,7 +9,7 @@ export const BUSINESS = {
   address: 'Naga City, Camarines Sur, Philippines',
   site: 'https://rentivo.live',
   hostSignup: 'https://rentivo.live/host/new',
-  contact: 'appnadoitsolutions@gmail.com',
+  contact: 'rentivo02@gmail.com',
 }
 
 /** The live platform service fee, read from the same RPC the site uses. null if unreachable. */

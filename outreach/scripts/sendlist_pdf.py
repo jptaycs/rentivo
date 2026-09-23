@@ -96,6 +96,8 @@ story = [
     Paragraph("Host Outreach: Send List", H1),
     Paragraph(f"{len(rows)} camera and phone rental businesses across the Philippines · prepared 23 September 2026 by JP. "
               "Grouped by region. Within each region: medium-size businesses first (the best fit), then large rental houses, then smaller pages. Each host page has every link we found and the exact message to send.", SUB),
+    Paragraph("If a host asks how to reach Rentivo by email, the address is <b>rentivo02@gmail.com</b> "
+              "(it's also at the end of every message).", P),
     Paragraph("How to send each message", H2),
 ]
 story += bullets([
