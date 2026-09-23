@@ -121,7 +121,8 @@ story += bullets([
     "page flagged as spam by Meta.",
     "<b>Only change the first line</b>, and only if it's wrong (for example, they no longer rent the camera it names). "
     "Never change the facts: the fee, payouts, deposit, insurance, payment method.",
-    "<b>One message per business, ever.</b> No second message unless JP says so. JP handles follow-ups.",
+    "<b>One message per business, ever. No follow-ups.</b> If they don't reply, leave them alone. The message has "
+    "everything they need to find rentivo.live on their own. Only reply if <i>they</i> message back.",
     "Never post in groups or comment on posts. Only send private messages to the page.",
     "If a page says <b>no</b>, <b>stop</b> or <b>not interested</b>, reply once with \"Okay po, salamat! Hindi na po "
     "kami mag-me-message.\" and tick <b>Said no</b>. Never contact them again.",

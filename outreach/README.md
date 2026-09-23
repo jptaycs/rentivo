@@ -40,7 +40,7 @@ npm run o -- draft --limit 20                           # Claude writes openers,
 npm run o -- email                                      # dry run: read what would go out
 npm run o -- email --live                               # send, capped per day, with a jitter between sends
 npm run o -- queue                                      # DMs: copies the text, opens the page; you paste + send
-npm run o -- followups                                  # daily: drafts day-4 and day-10 follow-ups, closes quiet leads
+npm run o -- followups                                  # closes leads that never replied (no follow-ups are sent)
 npm run o -- reply 12                                   # paste their reply → bucket + drafted answer (copied)
 npm run o -- set 12 signed_up                           # later: listed
 npm run o -- stats                                      # funnel, reply rate by channel
@@ -54,7 +54,7 @@ npm run o -- questions                                  # every question hosts a
 - **Every draft is grounded in `src/facts.ts`**, the only claims a message may make. There's no insurance, no instant payouts, no host QR, and Rentivo holds no deposits. **When the product changes, update that file first.**
 - **Replies are drafted, never auto-sent.** You read every answer before it goes out.
 - **Do-not-contact is permanent.** `dnc`, the "x" key in `queue`, or a reply Claude classifies as an opt-out adds every identifier the lead has (email, page URLs, phone, Google place id) to the `dnc` table. A later `find`/`add`/`import` skips that business, even under a different name.
-- **Follow-up rhythm:** follow-up 1 at day 4, follow-up 2 at day 10, then the lead is closed 7 days later. It's never messaged a fourth time.
+- **One message per host.** Follow-ups are off (`OUTREACH_MAX_FOLLOWUPS=0`, the owner's rule since 2026-09-24): `followups` only closes leads that haven't replied after 14 days. Setting it to 1 or 2 re-enables the day-4 / day-10 follow-ups. Replies from hosts are still answered; that isn't outreach.
 
 ## Notes
 

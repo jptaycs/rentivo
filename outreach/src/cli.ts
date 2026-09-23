@@ -9,7 +9,7 @@
 //   queue     [--limit 30]          DMs: copy text, open the page, you paste + send (real terminal)
 //   next      [n]                   same, one at a time, no keypresses: then `sent <message id>`
 //   email     [--limit N] [--live]  send email drafts (dry run unless --live)
-//   followups                       draft follow-up 1 / 2, close leads that went quiet
+//   followups                       close leads that never replied (follow-ups off unless OUTREACH_MAX_FOLLOWUPS)
 //   reply     <id> [--text "..."]   log their reply; Claude triages + drafts our answer
 //   set       <id> <status>         signed_up | listed | closed | not_a_fit | …
 //   dnc       <id>                  never contact again (every identifier they have)
@@ -363,16 +363,20 @@ const commands: Record<string, () => Promise<void> | void> = {
   },
 
   async followups() {
+    // Owner's rule (2026-09-24): message each host ONCE. OUTREACH_MAX_FOLLOWUPS defaults to 0,
+    // so this only closes leads that never answered (after 14 days). Set it to 1 or 2 to re-enable.
+    const max = Math.min(2, Math.max(0, Number(process.env.OUTREACH_MAX_FOLLOWUPS ?? 0)))
+    const quietDays = max === 0 ? 14 : 7
     const closed = db.prepare(`update leads set status='closed', updated_at=datetime('now')
-      where status='contacted' and followups >= 2 and last_contacted_at < datetime('now','-7 days')`).run()
+      where status='contacted' and followups >= ? and last_contacted_at < datetime('now', ?)`).run(max, `-${quietDays} days`)
     const due = db
-      .prepare(`select * from leads l where status='contacted'
+      .prepare(`select * from leads l where status='contacted' and followups < ?
                 and not exists (select 1 from messages m where m.lead_id=l.id and m.status='draft')
                 and ((followups = 0 and last_contacted_at < datetime('now','-4 days'))
                   or (followups = 1 and first_contacted_at < datetime('now','-10 days') and last_contacted_at < datetime('now','-3 days')))
                 order by last_contacted_at`)
-      .all() as Lead[]
-    console.log(`${closed.changes} leads closed after 2 follow-ups · ${due.length} follow-ups due`)
+      .all(max) as Lead[]
+    console.log(`${closed.changes} quiet leads closed · ${max === 0 ? 'follow-ups are off (one message per host)' : `${due.length} follow-ups due`}`)
     const bps = await liveServiceFeeBps()
     await pool(due, 4, async (l) => {
       const kind = l.followups === 0 ? 'followup1' : 'followup2'
