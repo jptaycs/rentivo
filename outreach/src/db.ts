@@ -154,6 +154,13 @@ export function findExisting(l: Partial<Lead>): Lead | undefined {
     const hit = rows.find((r) => r[col] && normalizeId(r[col]!) === normalizeId(v))
     if (hit) return hit
   }
+  // Same business name in the same city — e.g. adding a shop's IG after its FB page.
+  if (l.name && l.city) {
+    const hit = db
+      .prepare('select * from leads where lower(trim(name)) = lower(trim(?)) and lower(trim(city)) = lower(trim(?))')
+      .get(l.name, l.city) as Lead | undefined
+    if (hit) return hit
+  }
   return undefined
 }
 

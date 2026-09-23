@@ -1,7 +1,8 @@
 // Rentivo host outreach CLI.  Run from outreach/:  npm run o -- <command> [options]
 //
-//   find      --city Naga [--query "camera rental"] [--max 40]   Google Places → leads
+//   paste     [--city QC]           page URLs from clipboard/stdin: "url" or "Name | url | notes"
 //   add       --name "X Rentals" [--fb URL] [--ig URL] [--email] [--phone] [--city] [--notes]
+//   find      --city Naga [--query "camera rental"] [--max 40]   Google Maps (storefront shops only)
 //   import    file.csv   (header: name,city,fb_url,ig_url,tiktok_url,email,phone,website,notes)
 //   enrich    [--limit 50]          scan websites for email + social links
 //   draft     [--limit 20]          Claude writes openers (and screens out non-fits)
@@ -97,6 +98,13 @@ const csvCell = (v: unknown) => {
   return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
 }
 
+/** "facebook.com/p/Piktyur-MNL-Camera-Rental-615635…" → "Piktyur MNL Camera Rental"; "instagram.com/rj.camrental" → "rj.camrental". */
+function nameFromUrl(url: string): string {
+  const path = url.replace(/^https?:\/\/[^/]+\//, '').replace(/[?#].*$/, '').replace(/\/+$/, '')
+  const seg = path.split('/').filter((s) => s && s !== 'p' && s !== 'pages').pop() ?? path
+  return seg.replace(/^@/, '').replace(/-\d{6,}$/, '').replace(/-/g, ' ') || url
+}
+
 function saveLead(input: NewLead): string {
   // A social URL typed into --website belongs in its own column.
   if (input.website && classifyUrl(input.website)) {
@@ -127,6 +135,33 @@ const commands: Record<string, () => Promise<void> | void> = {
       source: 'manual', name: opt.name, city: opt.city, fb_url: opt.fb, ig_url: opt.ig, tiktok_url: opt.tiktok,
       email: opt.email?.toLowerCase(), phone: opt.phone, website: opt.website, notes: opt.notes,
     }))
+  },
+
+  paste() {
+    // One lead per line, from stdin or (if nothing is piped) the clipboard:
+    //   https://facebook.com/somepage
+    //   Name | https://instagram.com/handle | rents A7IV, FX3
+    const raw = process.stdin.isTTY ? spawnSync('pbpaste').stdout.toString() : readFileSync(0, 'utf8')
+    const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#'))
+    if (!lines.length) throw new Error('Nothing to paste. Copy page URLs (one per line) or pipe them in.')
+    for (const line of lines) {
+      const parts = line.split('|').map((p) => p.trim())
+      const urlIdx = parts.findIndex((p) => /^https?:\/\//i.test(p) || /^(www\.)?(facebook|instagram|tiktok)\.com\//i.test(p))
+      if (urlIdx < 0) { console.log(`skipped (no URL): ${line}`); continue }
+      const url = parts[urlIdx].startsWith('http') ? parts[urlIdx] : `https://${parts[urlIdx]}`
+      if (/facebook\.com\/(groups|marketplace)\//i.test(url)) {
+        console.log(`skipped (a group or Marketplace, not a page you can DM): ${url}`)
+        continue
+      }
+      const kind = classifyUrl(url)
+      const name = (urlIdx > 0 ? parts[0] : '') || nameFromUrl(url)
+      const notes = parts.slice(urlIdx + 1).join(' | ') || null
+      console.log(saveLead({
+        source: 'social', name, city: opt.city ?? null, notes,
+        fb_url: kind === 'fb' ? url : null, ig_url: kind === 'ig' ? url : null,
+        tiktok_url: kind === 'tiktok' ? url : null, website: kind ? null : url,
+      }))
+    }
   },
 
   import() {
@@ -434,7 +469,7 @@ const commands: Record<string, () => Promise<void> | void> = {
 
 const run = command ? commands[command] : undefined
 if (!run) {
-  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 19).map((l) => l.slice(3)).join('\n'))
+  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 20).map((l) => l.slice(3)).join('\n'))
   process.exit(command ? 1 : 0)
 }
 try {
