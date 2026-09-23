@@ -6,7 +6,8 @@
 //   import    file.csv   (header: name,city,fb_url,ig_url,tiktok_url,email,phone,website,notes)
 //   enrich    [--limit 50]          scan websites for email + social links
 //   draft     [--limit 20]          Claude writes openers (and screens out non-fits)
-//   queue     [--limit 30]          DMs: copy text, open the page, you paste + send
+//   queue     [--limit 30]          DMs: copy text, open the page, you paste + send (real terminal)
+//   next      [n]                   same, one at a time, no keypresses: then `sent <message id>`
 //   email     [--limit N] [--live]  send email drafts (dry run unless --live)
 //   followups                       draft follow-up 1 / 2, close leads that went quiet
 //   reply     <id> [--text "..."]   log their reply; Claude triages + drafts our answer
@@ -116,6 +117,29 @@ function saveLead(input: NewLead): string {
   // Re-pick the channel while we haven't reached out yet (a merge may have added an email).
   if (['new', 'enriched'].includes(res.lead.status)) updateLead(res.lead.id, { channel: pickChannel(res.lead) })
   return `${res.created ? 'added  ' : 'merged '} ${oneLine(getLead(res.lead.id)!)}`
+}
+
+/** Drafts a human sends: DMs on any channel, plus replies to email threads (sent from your own inbox). */
+function handDrafts(n: number): Message[] {
+  return db
+    .prepare(`select m.* from messages m join leads l on l.id = m.lead_id
+              where m.status = 'draft' and l.status not in ('dnc','closed','not_a_fit')
+                and (m.channel != 'email' or m.kind = 'reply')
+              order by case m.kind when 'reply' then 0 when 'followup2' then 1 when 'followup1' then 2 else 3 end, m.id
+              limit ?`)
+    .all(n) as Message[]
+}
+
+function showDraft(m: Message, position: string) {
+  const l = getLead(m.lead_id)!
+  const url = pageUrl(l)
+  console.log(`── ${position} · message ${m.id} · #${l.id} ${l.name} · ${m.kind} via ${m.channel}`)
+  if (m.channel === 'phone') console.log(`   Viber/SMS: ${l.phone}`)
+  else if (m.channel === 'email') console.log(`   Reply in your inbox to: ${l.email}`)
+  else if (url) console.log(`   ${url}`)
+  console.log(`\n${m.body}\n`)
+  copy(m.body)
+  if (url && m.channel !== 'email' && m.channel !== 'phone') openUrl(url)
 }
 
 // ---------- commands ----------
@@ -232,14 +256,11 @@ const commands: Record<string, () => Promise<void> | void> = {
   async queue() {
     // Everything a human sends: DM drafts on any channel, plus replies to email
     // threads (those go out from your own inbox so they stay in-thread).
-    const drafts = db
-      .prepare(`select m.* from messages m join leads l on l.id = m.lead_id
-                where m.status = 'draft' and l.status not in ('dnc','closed','not_a_fit')
-                  and (m.channel != 'email' or m.kind = 'reply')
-                order by case m.kind when 'reply' then 0 when 'followup2' then 1 when 'followup1' then 2 else 3 end, m.id
-                limit ?`)
-      .all(limit(30)) as Message[]
+    const drafts = handDrafts(limit(30))
     if (!drafts.length) return console.log('Queue is empty.')
+    if (!process.stdin.isTTY) {
+      throw new Error('queue needs a real terminal for keypresses. Use `next` + `sent <id>` instead (works anywhere).')
+    }
     const rl = createInterface({ input: process.stdin, output: process.stdout })
     const recent = () => (db.prepare(
       "select count(*) n from messages where direction='out' and channel != 'email' and status='sent' and sent_at > datetime('now','-1 hour')",
@@ -285,6 +306,23 @@ const commands: Record<string, () => Promise<void> | void> = {
       }
     }
     rl.close()
+  },
+
+  next() {
+    // Non-interactive queue: shows the Nth waiting draft, copies it, opens the page.
+    const n = Number(pos[0] ?? 1)
+    const drafts = handDrafts(n)
+    const m = drafts[n - 1]
+    if (!m) return console.log(drafts.length ? `Only ${drafts.length} waiting.` : 'Queue is empty.')
+    showDraft(m, `${n} of ${handDrafts(1000).length} waiting`)
+    console.log(`(copied) After you send it: npm run o -- sent ${m.id}   ·   see the one after: npm run o -- next ${n + 1}`)
+  },
+
+  sent() {
+    const m = db.prepare("select * from messages where id = ? and status = 'draft'").get(Number(pos[0])) as Message | undefined
+    if (!m) throw new Error('usage: sent <message id>  (the id shown by `next`; it must still be a draft)')
+    markSent(m.id)
+    console.log(`message ${m.id} marked sent · ${oneLine(getLead(m.lead_id)!)}`)
   },
 
   async email() {
@@ -469,7 +507,7 @@ const commands: Record<string, () => Promise<void> | void> = {
 
 const run = command ? commands[command] : undefined
 if (!run) {
-  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 20).map((l) => l.slice(3)).join('\n'))
+  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 21).map((l) => l.slice(3)).join('\n'))
   process.exit(command ? 1 : 0)
 }
 try {
