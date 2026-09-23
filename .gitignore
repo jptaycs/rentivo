@@ -48,3 +48,8 @@ next-env.d.ts
 
 # Co-worker send list (contains lead names and links)
 /Rentivo-Host-Send-List.*
+
+# Internal outreach docs (sales scripts, playbook, costing). The repo is public.
+/Rentivo-Host-Outreach-Messages.docx
+/Rentivo-Host-Reply-Playbook.docx
+/Rentivo-Outreach-Plan.pdf
