@@ -1,0 +1,4 @@
+node_modules/
+# Leads are personal data (names, emails, phone numbers). Never commit them.
+data/
+.env

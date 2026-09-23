@@ -24,6 +24,8 @@ const eslintConfig = defineConfig([
     // Agent git worktrees are separate checkouts of this repo; lint them from
     // inside the worktree, not from here.
     ".claude/**",
+    // Standalone outreach CLI with its own package.json and tsconfig.
+    "outreach/**",
   ]),
 ]);
 

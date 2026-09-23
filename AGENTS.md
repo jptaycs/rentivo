@@ -131,6 +131,10 @@ src/lib/                 listings.ts, hosts.ts (server data layers), paymongo.ts
 src/types/index.ts       Listing, Booking, Profile, Message, Review, Notification …
 Rentivo.html             bundled prototype — canonical visual reference
 TODO.md                  task list (open + closed-with-reasoning); split out of this file
+outreach/                standalone host-outreach CLI (own package.json; excluded from the app's
+                         tsconfig/ESLint). Leads live in outreach/data/leads.db, gitignored — never
+                         in Supabase. src/facts.ts is the list of claims messages may make: update it
+                         whenever the product changes. See outreach/README.md
 ```
 
 ## Environment & Commands

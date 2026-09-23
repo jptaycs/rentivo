@@ -1,0 +1,18 @@
+{
+  "name": "rentivo-outreach",
+  "private": true,
+  "type": "module",
+  "description": "Host outreach pipeline: find, enrich, draft, send, follow up, triage replies. Local-only; leads stay in data/leads.db.",
+  "scripts": {
+    "o": "node --no-warnings=ExperimentalWarning --env-file-if-exists=../.env.local --env-file-if-exists=.env src/cli.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2"
+  }
+}
