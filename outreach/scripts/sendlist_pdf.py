@@ -131,7 +131,7 @@ story += bullets([
     "<b>Don't answer questions about fees, payouts, damage or insurance from memory.</b> Screenshot the reply and send "
     "it to JP. JP will send you the exact answer to paste.",
     "Simple replies are fine to answer yourself: \"Thank you!\", \"Here's the link: rentivo.live\", "
-    "\"JP will message you shortly.\"",
+    "\"JP/Isse will message you shortly.\"",
     "Reply within the hour if you can. A host who replied is interested right then.",
 ])
 story.append(Paragraph("When you're done, give JP the tracker (a photo is fine) so the sent dates can be recorded.", SMALL))
