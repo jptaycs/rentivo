@@ -53,3 +53,11 @@ next-env.d.ts
 /Rentivo-Host-Outreach-Messages.docx
 /Rentivo-Host-Reply-Playbook.docx
 /Rentivo-Outreach-Plan.pdf
+
+# Env files: real values live in Bitwarden (see README "Environment setup")
+.env
+.env.*
+*.env
+!.env.example
+!.env.*.example
+!*.env.example

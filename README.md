@@ -34,3 +34,27 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Environment setup
+
+The real env files are never in git. Each one is kept whole in the Notes field of a
+Bitwarden **secure note** named `rentivo / <path>`:
+
+| Bitwarden note | File |
+|---|---|
+| `rentivo / .env.local` | `.env.local` |
+| `rentivo / outreach/.env` | `outreach/.env` |
+
+On a new machine:
+
+```bash
+brew install bitwarden-cli             # Windows: winget install Bitwarden.CLI, then use Git Bash
+bw login                               # once per machine
+export BW_SESSION="$(bw unlock --raw)"
+npm run env:pull
+bw lock
+```
+
+The script asks before replacing an existing file and keeps the old one as
+`<file>.bak-<timestamp>`. After changing a value, update the note too. The
+`.env.example` files list every key and where to get it.
