@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Subagent-driven-development scratch (ledgers, briefs, review packages)
 .superpowers/
+
+# Co-worker send list (contains lead names and links)
+/Rentivo-Host-Send-List.*
