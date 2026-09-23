@@ -16,8 +16,13 @@ Two, and neither is blocked on code we control (item 2 was closed 2026-09-12 and
 struck through for the record). For work that IS actionable, see
 **Unblocked** below — that section is the real queue.
 
-1. **PayMongo KYB** — `gcash`/`maya`/`card` still *Submitted*, not Active. Blocks the
-   real-money charge verification and the `NEXT_PUBLIC_DISABLED_PAYMENT_METHODS` removal.
+1. **Payment methods: QR Ph only, by the owner's choice (2026-09-23).** Maya is now Active
+   on the PayMongo account; GCash is not. The owner decided to keep checkout on **QR Ph
+   only** anyway (renters can scan it from GCash, Maya or any bank app), so
+   `NEXT_PUBLIC_DISABLED_PAYMENT_METHODS=gcash,maya,card` stays as it is in production
+   (verified in the live `/book` bundle 2026-09-23). This is no longer "waiting on PayMongo":
+   do **not** enable Maya just because it's Active. Enabling any method is the owner's call,
+   then an env change + redeploy (the value is inlined at build time).
 ~~2. **Apple Pay / Google Pay**~~ — **done 2026-09-12**, nothing left to do. PayMongo doesn't support them. The tiles were removed
    entirely on 2026-09-12; they had sat as permanently disabled "Coming soon" placeholders
    advertising a choice no renter could make.

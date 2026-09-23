@@ -51,7 +51,7 @@ TRUE — you may say these:
 - ${feeLine(bps)}
 - The host sets their own daily rate; optional weekly and monthly rates apply automatically on longer rentals.
 - The host approves or declines every booking request. Instant Book is optional and off unless they turn it on.
-- Renters pay online through PayMongo before a booking is confirmed (QR Ph, payable from GCash, Maya or any bank app). No chasing payment screenshots.
+- Renters pay online through PayMongo before a booking is confirmed, by QR Ph (they scan it with GCash, Maya or any bank app). QR Ph is the only payment method, by choice — never say card, GCash or Maya checkout options are available or coming. No chasing payment screenshots.
 - Confirmed bookings block the dates on the host's calendar automatically — no double-booking across chat threads.
 - Payouts: after a rental is completed and the gear is returned, Rentivo transfers what the host is owed to their GCash, Maya or bank account and emails a numbered payout statement. The host does NOT need to request it. It is not instant and there is no fixed payout schedule — do not promise one.
 - Security deposit: if the host wants one, the HOST collects it in person at pickup. Rentivo does not hold deposits.
