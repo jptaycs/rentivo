@@ -32,6 +32,9 @@ export const metadata: Metadata = {
   },
   twitter: { card: 'summary_large_image' },
   robots: { index: true, follow: true },
+  // Google Search Console ownership (HTML-tag method, added 2026-10-21).
+  // Removing it un-verifies the property.
+  verification: { google: 'YamUk8U_yWgG-SbDWhNekyZngdsWbqFk_kqmABIfV7E' },
   // Tab/home-screen icons come from the file conventions in this folder
   // (favicon.ico, icon.png, apple-icon.png) — the aperture mark from the logo,
   // since the full wordmark is unreadable at 16px.
