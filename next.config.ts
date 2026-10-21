@@ -15,7 +15,11 @@ const contentSecurityPolicy = [
   // re-enable eval() of JavaScript strings, so it is materially narrower than
   // 'unsafe-eval'. Without it the detector works in dev (which grants
   // 'unsafe-eval') and silently fails in production.
-  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ''}`,
+  // va.vercel-scripts.com: Vercel Web Analytics (@vercel/analytics). In
+  // production the script and its beacon are served same-origin under
+  // /_vercel/insights/, so 'self' covers them; the external host is only hit
+  // in development. Listed in both script-src and connect-src.
+  `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://va.vercel-scripts.com${isDev ? " 'unsafe-eval'" : ''}`,
   "style-src 'self' 'unsafe-inline'",
   // images.unsplash.com: seed data; *.supabase.co: storage buckets (listing/
   // avatar/message images); server.arcgisonline.com: Esri World Topo basemap
@@ -38,7 +42,7 @@ const contentSecurityPolicy = [
   // swallows the failure, never retries) — self-hosting alone did NOT stop
   // it. Do not add odml.pa.googleapis.com here without a deliberate privacy
   // review; see AGENTS.md's identity-verification note for the full story.
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.paymongo.com",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.paymongo.com https://va.vercel-scripts.com",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "base-uri 'self'",

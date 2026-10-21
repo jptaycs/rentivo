@@ -1,5 +1,8 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getListing, getListingReviews } from '@/lib/listings'
+import { categoryNoun } from '@/lib/categories'
+import { SITE_URL, absoluteUrl } from '@/lib/site'
 import { getHostSince } from '@/lib/hosts'
 import { formatHostingSince, formatHostingDuration } from '@/lib/hosting'
 import { isSupabaseConfigured } from '@/lib/supabase/config'
@@ -21,11 +24,105 @@ interface ListingPageProps {
   params: Promise<{ id: string }>
 }
 
+// The host's own description, trimmed to a search-snippet length. A very short
+// one ("High Quality") gets the where/how-much sentence appended so the snippet
+// still says what the page is.
+function metaDescription(text: string, context: string): string {
+  const clean = (text || '').replace(/\s+/g, ' ').trim()
+  if (!clean) return context
+  const joined = clean.length < 60 ? `${clean.replace(/[.!]?$/, '.')} ${context}` : clean
+  return joined.length > 155 ? `${joined.slice(0, 152).trimEnd()}…` : joined
+}
+
+export async function generateMetadata({ params }: ListingPageProps): Promise<Metadata> {
+  const { id } = await params
+  const listing = await getListing(id)
+  if (!listing) return { title: 'Listing not found', robots: { index: false } }
+
+  const price = `₱${listing.daily_price.toLocaleString('en-PH')}/day`
+  const noun = categoryNoun(listing.category) ?? 'camera gear'
+  const title = `${listing.title} for rent in ${listing.city} — ${price}`
+  const description = metaDescription(
+    listing.description,
+    `Rent this ${noun} in ${listing.city}, ${listing.province} from ${price} on Rentivo. Verified host, secure online payment.`
+  )
+  const url = `${SITE_URL}/listings/${listing.id}`
+  const image = listing.images[0] ? absoluteUrl(listing.images[0]) : undefined
+
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      type: 'website',
+      url,
+      title,
+      description,
+      images: image ? [{ url: image, alt: listing.title }] : undefined,
+    },
+    twitter: { card: 'summary_large_image', title, description, images: image ? [image] : undefined },
+  }
+}
+
 export default async function ListingPage({ params }: ListingPageProps) {
   const { id } = await params
   const listing = await getListing(id)
 
   if (!listing) notFound()
+
+  // Product + Offer structured data: the daily rate as a per-day price in PHP,
+  // the star rating only when there are real reviews. Breadcrumbs match the
+  // visible trail below. Every value is JSON-encoded, never interpolated raw.
+  const listingUrl = `${SITE_URL}/listings/${listing.id}`
+  const productJsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Product',
+        '@id': `${listingUrl}#product`,
+        name: listing.title,
+        description: listing.description || undefined,
+        image: listing.images.map((u) => absoluteUrl(u)),
+        brand: listing.brand ? { '@type': 'Brand', name: listing.brand } : undefined,
+        category: categoryNoun(listing.category) ?? undefined,
+        url: listingUrl,
+        offers: {
+          '@type': 'Offer',
+          url: listingUrl,
+          priceCurrency: 'PHP',
+          price: listing.daily_price,
+          priceSpecification: {
+            '@type': 'UnitPriceSpecification',
+            price: listing.daily_price,
+            priceCurrency: 'PHP',
+            unitCode: 'DAY',
+            unitText: 'per day',
+          },
+          availability: 'https://schema.org/InStock',
+          businessFunction: 'http://purl.org/goodrelations/v1#LeaseOut',
+          areaServed: { '@type': 'City', name: listing.city },
+        },
+        aggregateRating:
+          listing.rating && listing.review_count > 0
+            ? {
+                '@type': 'AggregateRating',
+                ratingValue: listing.rating,
+                reviewCount: listing.review_count,
+                bestRating: 5,
+                worstRating: 1,
+              }
+            : undefined,
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
+          { '@type': 'ListItem', position: 2, name: 'Search', item: `${SITE_URL}/search` },
+          { '@type': 'ListItem', position: 3, name: listing.title, item: listingUrl },
+        ],
+      },
+    ],
+  }
 
   const [reviews, firstListedAt, serviceFeeBps] = await Promise.all([
     isSupabaseConfigured() ? getListingReviews(listing.id) : undefined,
@@ -48,6 +145,12 @@ export default async function ListingPage({ params }: ListingPageProps) {
   return (
     <div className="bg-[#F8FAFC] min-h-screen">
       <ViewTracker listing={listing} />
+      <script
+        type="application/ld+json"
+        // JSON.stringify escapes every quote; the one thing it doesn't escape
+        // is "</script>" inside a string, so the "<" is encoded as well.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd).replace(/</g, '\\u003c') }}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Breadcrumb */}

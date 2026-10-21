@@ -4,16 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useState } from 'react'
 import { Star, X } from 'lucide-react'
 import { ALL_BRANDS, FEATURED_BRANDS } from '@/lib/brands'
-
-const CATEGORIES = [
-  { value: 'mirrorless', label: 'Mirrorless Cameras' },
-  { value: 'dslr', label: 'DSLR Cameras' },
-  { value: 'digital', label: 'Digital Cameras' },
-  { value: 'cinema', label: 'Cinema Cameras' },
-  { value: 'smartphone', label: 'Smartphones' },
-  { value: 'lens', label: 'Lenses' },
-  { value: 'bundle', label: 'Creator Bundles' },
-]
+import { CATEGORIES } from '@/lib/categories'
 
 const PRICE_RANGES = [
   { label: 'Under ₱500', min: 0, max: 500 },

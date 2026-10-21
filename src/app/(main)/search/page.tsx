@@ -1,4 +1,7 @@
+import type { Metadata } from 'next'
 import { Suspense } from 'react'
+import { categoryLabel, categoryNoun } from '@/lib/categories'
+import { SITE_URL } from '@/lib/site'
 import { SearchBar } from '@/components/search/SearchBar'
 import { SearchResults } from '@/components/search/SearchResults'
 import { SearchPageSkeleton } from '@/components/shared/Skeletons'
@@ -18,6 +21,42 @@ interface SearchPageProps {
     verified?: string
     min_rating?: string
   }>
+}
+
+// Title and description follow the category/city filters so a shared or
+// indexed search URL reads as a page about that thing ("Mirrorless camera
+// rentals in Cebu City"), not as a generic search. The canonical keeps only
+// category and city: dates, prices and toggles are the same page to a crawler.
+export async function generateMetadata({ searchParams }: SearchPageProps): Promise<Metadata> {
+  const params = await searchParams
+  const category = params.category ?? ''
+  const city = (params.city ?? '').trim()
+  const q = (params.q ?? '').trim()
+
+  const label = categoryLabel(category)
+  const noun = categoryNoun(category)
+  const where = city ? ` in ${city}` : ' in the Philippines'
+  const title = noun
+    ? `${noun.charAt(0).toUpperCase()}${noun.slice(1)} rentals${where}`
+    : q
+      ? `"${q}" for rent${where}`
+      : `Camera, lens and smartphone rentals${where}`
+  const description = label
+    ? `Rent a ${noun}${where} from verified owners on Rentivo. Daily, weekly and monthly rates, secure online payment, local pickup.`
+    : `Find cameras, lenses and smartphones for rent${where}. Verified hosts, secure online payment, pick up locally.`
+
+  const canonical = new URL('/search', SITE_URL)
+  if (label) canonical.searchParams.set('category', category)
+  if (city) canonical.searchParams.set('city', city)
+
+  return {
+    title,
+    description,
+    alternates: { canonical: canonical.toString() },
+    openGraph: { title, description, url: canonical.toString() },
+    // A free-text query is a user's search, not a page worth indexing.
+    robots: q && !label && !city ? { index: false, follow: true } : undefined,
+  }
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
