@@ -68,7 +68,25 @@ const nextConfig: NextConfig = {
   // than drifting across two. The old path is kept alive because it is linked
   // from emails and receipts already sent.
   async redirects() {
-    return [{ source: '/cancellation', destination: '/refunds', permanent: true }]
+    return [
+      { source: '/cancellation', destination: '/refunds', permanent: true },
+      // One canonical host. www.rentivo.live and the stable Vercel alias both
+      // served the full site at 200, and Search Console (2026-10-21) skipped the
+      // homepage as "Duplicate without user-selected canonical" in favour of
+      // the www copy. Preview deployments keep their own *.vercel.app hosts.
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.rentivo.live' }],
+        destination: 'https://rentivo.live/:path*',
+        permanent: true,
+      },
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'rentivo-taupe.vercel.app' }],
+        destination: 'https://rentivo.live/:path*',
+        permanent: true,
+      },
+    ]
   },
   images: {
     remotePatterns: [
